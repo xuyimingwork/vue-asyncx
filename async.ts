@@ -1,4 +1,4 @@
-import { capitalize } from "lodash-es"
+import { camelCase, capitalize, upperFirst } from "lodash-es"
 import { Ref, ref } from "vue"
 
 type UseAsyncResult<F, Name extends string> = {
@@ -43,8 +43,6 @@ type UseAsyncDataResponse<Data, DataName extends string> = {
 
 type Fn<R> = () => Promise<R> | R
 
-type A = keyof { data: true }
-
 function useAsyncData<T>(fn: Fn<T>, options?: UseAsyncDataOptions): UseAsyncDataResponse<T, 'data'>
 function useAsyncData<T, Name extends string = any>(name: Name, fn: Fn<T>,  options?: UseAsyncDataOptions): UseAsyncDataResponse<T, Name>
 function useAsyncData<T>(...args: any[]): any {
@@ -65,8 +63,8 @@ function useAsyncData<T>(...args: any[]): any {
   if (options.immediate) method()
   return {
     [name]: data,
-    [`query${capitalize(name)}`]: method,
-    [`query${capitalize(name)}Loading`]: loading
+    [`query${upperFirst(camelCase(name))}`]: method,
+    [`query${upperFirst(camelCase(name))}Loading`]: loading
   } as UseAsyncDataResponse<T, string>
 }
 
