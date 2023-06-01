@@ -63,8 +63,8 @@ function useAsyncData<T>(...args: any[]): any {
   if (options.immediate) method()
   return {
     [name]: data,
-    [`query${upperFirst(camelCase(name))}`]: method,
-    [`query${upperFirst(camelCase(name))}Loading`]: loading
+    [`query${upperFirst(name)}`]: method,
+    [`query${upperFirst(name)}Loading`]: loading
   } as UseAsyncDataResponse<T, string>
 }
 
