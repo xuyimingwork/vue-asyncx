@@ -36,12 +36,12 @@ type UseAsyncDataOptions = {
 type UseAsyncDataResponse<Data, DataName extends string> = {
   [K in DataName]: Ref<Data | undefined>;
 } & {
-  [K in `query${Capitalize<DataName>}`]: () => Promise<Data> | Data
+  [K in `query${Capitalize<DataName>}`]: (...args: any[]) => Promise<Data> | Data
 } & {
   [K in `query${Capitalize<DataName>}Loading`]: Ref<boolean>
 }
 
-type Fn<R> = () => Promise<R> | R
+type Fn<R> = (...args: any[]) => Promise<R> | R
 
 function useAsyncData<T>(fn: Fn<T>, options?: UseAsyncDataOptions): UseAsyncDataResponse<T, 'data'>
 function useAsyncData<T, Name extends string = any>(name: Name, fn: Fn<T>,  options?: UseAsyncDataOptions): UseAsyncDataResponse<T, Name>
@@ -68,4 +68,12 @@ function useAsyncData<T>(...args: any[]): any {
   } as UseAsyncDataResponse<T, string>
 }
 
-export { useAsync, useAsyncData }
+function toAsync(fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    const p = fn(...args)
+    if (p instanceof Promise) return p
+    return Promise.resolve(p)
+  }
+}
+
+export { useAsync, useAsyncData, toAsync }
