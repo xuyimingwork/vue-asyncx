@@ -1,3 +1,4 @@
+/* eslint-disable no-redeclare */
 import { camelCase, capitalize, upperFirst } from "lodash-es"
 import { Ref, ref } from "vue"
 
@@ -46,6 +47,7 @@ type Fn<R> = (...args: any[]) => Promise<R> | R
 function useAsyncData<T>(fn: Fn<T>, options?: UseAsyncDataOptions): UseAsyncDataResponse<T, 'data'>
 function useAsyncData<T, Name extends string = any>(name: Name, fn: Fn<T>,  options?: UseAsyncDataOptions): UseAsyncDataResponse<T, Name>
 function useAsyncData<T>(...args: any[]): any {
+  // eslint-disable-next-line no-sparse-arrays
   const [name = 'data', fn, options = { immediate: false }] = (typeof args[0] === 'function' ? [, args[0], args[1]] : args) as [string, Fn<T>, UseAsyncDataOptions]
   const loading = ref(false)
   const data = ref<T>()
