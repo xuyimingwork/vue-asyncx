@@ -23,6 +23,11 @@
   },
   "keywords": [],
   "author": "Xu Yiming",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xuyimingwork/vue-asyncx.git"
+  },
   "devDependencies": {
     "@types/node": "^20.14.11",
     "@vitest/coverage-v8": "^2.0.4",
