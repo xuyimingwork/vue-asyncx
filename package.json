@@ -1,6 +1,6 @@
 {
   "name": "vue-asyncx",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "",
   "type": "module",
   "types": "dist/vue-asyncx.d.ts",
@@ -19,9 +19,9 @@
     "build": "vite build",
     "test:unit": "vitest",
     "test:unit:coverage": "vitest run --coverage",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "pnpm run test:unit"
   },
-  "keywords": [],
+  "keywords": ["vue", "utils", "async", "vueuse", "hooks"],
   "author": "Xu Yiming",
   "license": "MIT",
   "repository": {
