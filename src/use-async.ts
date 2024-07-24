@@ -1,6 +1,6 @@
 import { Ref, ref, watch, WatchSource } from "vue"
+import { StringDefaultWhenEmpty,  } from "./utils"
 
-export type StringDefaultWhenEmpty<S extends string, D extends string> = S extends '' ? D : S
 export type UseAsyncResult<Fn extends Function, Name extends string> = {
   [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn
 } & {
@@ -43,4 +43,4 @@ function useAsync(...args: any[]): any {
   }
 }
 
-export { useAsync }
+export { useAsync, useAsync as useAsyncFunction }
