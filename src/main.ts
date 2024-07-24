@@ -1,4 +1,4 @@
 import { useAsyncData } from "./use-async-data"
-import { useAsync } from "./use-async"
+import { useAsync, useAsyncFunction } from "./use-async"
 
-export { useAsync, useAsyncData } 
+export { useAsync, useAsyncData, useAsyncFunction } 

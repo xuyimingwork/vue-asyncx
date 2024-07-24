@@ -1,7 +1,7 @@
 import { Ref, ref } from "vue"
-import { upperFirst } from 'lodash-es';
-import type { UseAsyncOptions, UseAsyncResult, StringDefaultWhenEmpty } from "./use-async"
+import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
+import { StringDefaultWhenEmpty, upperFirst } from "./utils";
 
 export type UseAsyncDataOptions = UseAsyncOptions
 export type UseAsyncDataResult<
