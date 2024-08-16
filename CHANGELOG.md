@@ -1,3 +1,8 @@
+## 1.1.0
+
+* 支持 watchOptions 参数
+  * options 与 watchOptions 中都存在 immediate 时，以 watchOptions 中为准
+
 ## 1.0.4
 
 * 更新 README
