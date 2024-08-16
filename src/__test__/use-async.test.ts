@@ -44,6 +44,26 @@ describe('useAsync', () => {
     expect(fnSpy).toBeCalledTimes(2)
   })
 
+  test('使用 watch 参数', async () => {
+    const temp = { fn: () => 1 }
+    const fnSpy = vi.spyOn(temp, 'fn')
+    expect(fnSpy).not.toBeCalled()
+    const source = ref(1)
+    useAsync(temp.fn, { watch: source, watchOptions: { immediate: true } })
+    expect(fnSpy).toBeCalledTimes(1)
+    source.value++
+    await new Promise(r => setTimeout(r));
+    expect(fnSpy).toBeCalledTimes(2)
+  })
+
+  test('watch 参数立即执行优先', async () => {
+    const temp = { fn: () => 1 }
+    const fnSpy = vi.spyOn(temp, 'fn')
+    expect(fnSpy).not.toBeCalled()
+    useAsync(temp.fn, { watchOptions: { immediate: false }, immediate: true })
+    expect(fnSpy).toBeCalledTimes(0)
+  })
+
   test('异步加载', () => {
     const { method, methodLoading } = useAsync(() => new Promise((resolve) => setTimeout(resolve, 100)))
     expect(methodLoading.value).toBe(false)
