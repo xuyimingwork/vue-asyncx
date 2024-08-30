@@ -16,12 +16,14 @@ describe('useAsync', () => {
     const result = useAsync(() => 1)
     expect(result.method).toBeTruthy()
     expect(result.methodLoading).toBeTruthy()
+    expect(result.methodArguments).toBeTruthy()
   })
 
   test('自定义名称', () => {
     const result = useAsync('getOne', () => 1)
     expect(result.getOne).toBeTruthy()
     expect(result.getOneLoading).toBeTruthy()
+    expect(result.getOneArguments).toBeTruthy()
   })
 
   test('立即执行', () => {
@@ -78,10 +80,22 @@ describe('useAsync', () => {
     expect(methodLoading.value).toBe(false)
   })
 
-  test('函数结果', () => {
+  test('函数参数', async () => {
+    const { doAsyncMethod, doAsyncMethodArguments } = useAsync('doAsyncMethod', function (a: number, b: number) {
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(a + b), 100)
+      })
+    })
+    expect(doAsyncMethodArguments.value).toBeUndefined()
+    const p = doAsyncMethod(1, 1)
+    expect(doAsyncMethodArguments.value).toMatchObject([1, 1])
+    await p.then(() => expect(doAsyncMethodArguments.value).toBeUndefined())
+  })
+
+  test('函数结果', async () => {
     const { method } = useAsync(() => 1)
     expect(method()).toBe(1)
     const { doAsyncMethod } = useAsync('doAsyncMethod', () => new Promise((resolve) => setTimeout(() => resolve(1), 100)))
-    expect(doAsyncMethod()).resolves.toBe(1)
+    await expect(doAsyncMethod()).resolves.toBe(1)
   })
 })
