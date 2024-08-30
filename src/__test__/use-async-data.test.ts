@@ -16,6 +16,7 @@ describe('useAsyncData', () => {
     expect(result.data).toBeTruthy()
     expect(result.queryData).toBeTruthy()
     expect(result.queryDataLoading).toBeTruthy()
+    expect(result.queryDataArguments).toBeTruthy()
   })
 
   test('自定义名称', () => {
@@ -23,6 +24,7 @@ describe('useAsyncData', () => {
     expect(result.one).toBeTruthy()
     expect(result.queryOne).toBeTruthy()
     expect(result.queryOneLoading).toBeTruthy()
+    expect(result.queryOneArguments).toBeTruthy()
   })
 
   test('data 初始值', () => {

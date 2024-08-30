@@ -1,10 +1,12 @@
 import { Ref, ref, watch, WatchOptions, WatchSource } from "vue"
 import { StringDefaultWhenEmpty,  } from "./utils"
 
-export type UseAsyncResult<Fn extends Function, Name extends string> = {
+export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = {
   [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn
 } & {
   [K in `${StringDefaultWhenEmpty<Name, 'method'>}Loading`]: Ref<boolean>
+} & {
+  [K in `${StringDefaultWhenEmpty<Name, 'method'>}Arguments`]: Ref<Parameters<Fn>>
 }
 
 export type UseAsyncOptions = {
@@ -13,8 +15,8 @@ export type UseAsyncOptions = {
   immediate?: boolean 
 }
 
-function useAsync<Fn extends Function>(fn: Fn, options?: UseAsyncOptions): UseAsyncResult<Fn, 'method'>
-function useAsync<Fn extends Function, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions): UseAsyncResult<Fn, Name>
+function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions): UseAsyncResult<Fn, 'method'>
+function useAsync<Fn extends (...args: any) => any, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions): UseAsyncResult<Fn, Name>
 function useAsync(...args: any[]): any {
   if (!Array.isArray(args) || !args.length) throw TypeError('参数错误：未传递')
   const { name, fn, options }: { 
@@ -28,13 +30,23 @@ function useAsync(...args: any[]): any {
   if (typeof fn !== 'function') throw TypeError('参数错误：fn')
 
   const loading = ref(false)
+  const _args = ref<Parameters<typeof fn>>()
   function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
-    loading.value = true
+    const before = () => {
+      loading.value = true
+      _args.value = args
+    }
+    const after = () => {
+      loading.value = false
+      _args.value = undefined
+    }
+
+    before()
     const p = fn(...args)
     if (p instanceof Promise) {
-      p.finally(() => loading.value = false)
+      p.finally(() => after())
     } else {
-      loading.value = false
+      after()
     }
     return p
   }
@@ -51,7 +63,8 @@ function useAsync(...args: any[]): any {
   
   return {
     [name]: method,
-    [`${name}Loading`]: loading
+    [`${name}Loading`]: loading,
+    [`${name}Arguments`]: _args
   }
 }
 
