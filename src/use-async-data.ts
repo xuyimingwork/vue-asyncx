@@ -3,7 +3,7 @@ import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
 import { StringDefaultWhenEmpty, upperFirst } from "./utils";
 
-export type UseAsyncDataOptions = UseAsyncOptions
+export type UseAsyncDataOptions<Fn extends (...args: any) => any> = UseAsyncOptions<Fn>
 export type UseAsyncDataResult<
   Fn extends (...args: any) => any,
   DataName extends string
@@ -18,12 +18,12 @@ export type UseAsyncDataResult<
 function useAsyncData<
   Data = any,
   Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
->(fn: Fn, options?: UseAsyncDataOptions): UseAsyncDataResult<Fn, 'data'>
+>(fn: Fn, options?: UseAsyncDataOptions<Fn>): UseAsyncDataResult<Fn, 'data'>
 function useAsyncData<
   Data = any,
   Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
   DataName extends string = string,
->(name: DataName, fn: Fn, options?: UseAsyncDataOptions): UseAsyncDataResult<Fn, DataName>
+>(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn>): UseAsyncDataResult<Fn, DataName>
 function useAsyncData(...args: any[]): any {
   if (!Array.isArray(args) || !args.length) throw TypeError('参数错误：未传递')
 
