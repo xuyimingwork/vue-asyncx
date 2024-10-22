@@ -60,12 +60,63 @@ describe('useAsync', () => {
     expect(fnSpy).toBeCalledTimes(2)
   })
 
-  test('watch 参数立即执行优先', async () => {
+  test('watch 参数优先级', async () => {
     const temp = { fn: () => 1 }
     const fnSpy = vi.spyOn(temp, 'fn')
     expect(fnSpy).not.toBeCalled()
     useAsync(temp.fn, { watchOptions: { immediate: false }, immediate: true })
     expect(fnSpy).toBeCalledTimes(0)
+  })
+
+  test('watch 自定义 handler', async () => {
+    const temp = { fn: () => 1, handler: () => false }
+    const fnSpy = vi.spyOn(temp, 'fn')
+    const handlerSpy = vi.spyOn(temp, 'handler')
+    expect(fnSpy).not.toBeCalled()
+    expect(handlerSpy).not.toBeCalled()
+    useAsync(temp.fn, { watchOptions: { 
+      handlerCreator(fn) {
+        return () => {
+          const r = temp.handler()
+          if (!r) return
+          fn()
+        }
+      }
+    }, immediate: true })
+    expect(handlerSpy).toBeCalledTimes(1)
+    expect(fnSpy).toBeCalledTimes(0)
+  })
+
+  test('watch 自定义 handler 异常', async () => {
+    const temp = { fn: () => 1, handler: () => false }
+    const fnSpy = vi.spyOn(temp, 'fn')
+    const handlerSpy = vi.spyOn(temp, 'handler')
+    expect(fnSpy).not.toBeCalled()
+    expect(handlerSpy).not.toBeCalled()
+    useAsync(temp.fn, { watchOptions: { 
+      handlerCreator(fn) {
+        throw Error()
+        return () => {
+          const r = temp.handler()
+          if (!r) return
+          fn()
+        }
+      }
+    }, immediate: true })
+    expect(handlerSpy).toBeCalledTimes(0)
+    expect(fnSpy).toBeCalledTimes(1)
+  })
+
+  test('watch 自定义 handler 无效', async () => {
+    const temp = { fn: () => 1, handler: () => false }
+    const fnSpy = vi.spyOn(temp, 'fn')
+    expect(fnSpy).not.toBeCalled()
+    useAsync(temp.fn, { watchOptions: { 
+      handlerCreator(fn) {
+        return '' as any
+      }
+    }, immediate: true })
+    expect(fnSpy).toBeCalledTimes(1)
   })
 
   test('异步加载', () => {

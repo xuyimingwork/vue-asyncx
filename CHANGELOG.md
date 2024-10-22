@@ -1,3 +1,8 @@
+## 1.4.0
+- watchOptions 新增 handlerCreator 参数用于自定义 watch 的 handler 函数
+  - handlerCreator 接收当前的 method 作为参数并返回 watch 的 handler
+  - 通过自定义 handler，现在可以自定义 method 的调用时机
+
 ## 1.3.0
 - useAsync 返回新增 methodError
   - 保存上一次调用的错误信息，新调用开始后重置
