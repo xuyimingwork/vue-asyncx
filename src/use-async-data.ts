@@ -1,4 +1,4 @@
-import { Ref, ref } from "vue"
+import { computed, Ref, ref } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
 import { StringDefaultWhenEmpty, upperFirst } from "./utils";
@@ -7,9 +7,12 @@ export type UseAsyncDataOptions = UseAsyncOptions
 export type UseAsyncDataResult<
   Fn extends (...args: any) => any,
   DataName extends string
->
-  = UseAsyncResult<Fn, `query${Capitalize<(StringDefaultWhenEmpty<DataName, 'data'>)>}`> 
-  & { [K in (StringDefaultWhenEmpty<DataName, 'data'>)]: Ref<Awaited<ReturnType<Fn>>> }
+> = UseAsyncResult<Fn, `query${Capitalize<(StringDefaultWhenEmpty<DataName, 'data'>)>}`> 
+  & { 
+  [K in (StringDefaultWhenEmpty<DataName, 'data'>)]: Ref<Awaited<ReturnType<Fn>>> 
+} & {
+  [K in `${StringDefaultWhenEmpty<DataName, 'data'>}Expired`]: Ref<boolean>
+}
 
 
 function useAsyncData<
@@ -31,20 +34,52 @@ function useAsyncData(...args: any[]): any {
   if (typeof name !== 'string') throw TypeError('参数错误：name')
   if (typeof fn !== 'function') throw TypeError('参数错误：fn')
 
+  const times = ref({ 
+    // 调用序号
+    called: 0, 
+    // 调用完成序号
+    finished: 0,
+    // 更新序号
+    updated: 0,  
+  })
   const data = ref<ReturnType<typeof fn>>()
-  function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
-    const p = fn(...args)
-    if (p instanceof Promise) {
-      p.then(v => data.value = v)
-    } else {
-      data.value = p
+  const dataExpired = computed(() => times.value.updated < times.value.finished)
+
+  function after(v: any, { scene, sn }: { scene: 'update' | 'error', sn: number }) {
+    // 更新结束序列号
+    if (sn > times.value.finished) times.value.finished = sn
+
+    if (scene === 'update') {
+      if (sn > times.value.updated) {
+        data.value = v
+        times.value.updated = sn
+      }
     }
-    return p
+  }
+
+  function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
+    // 本次调用的序列号
+    const sn = ++times.value.called
+    try {
+      const p = fn(...args)
+      if (p instanceof Promise) {
+        // promise 出现拒绝
+        p.then(v => after(v, { scene: 'update', sn }), (e) => after(e, { scene: 'error', sn }))
+      } else {
+        after(p, { scene: 'update', sn })
+      }
+      return p
+    } catch(e) {
+      // 函数调用出现报错
+      after(e, { scene: 'error', sn })
+      throw e
+    }
   }
   const resule = useAsync(`query${upperFirst(name)}`, method, options)
   return {
     ...resule,
     [name]: data,
+    [`${name}Expired`]: dataExpired
   }
 }
 
