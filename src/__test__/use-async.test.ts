@@ -2,6 +2,8 @@ import { describe, expect, test, vi } from 'vitest'
 import { ref } from 'vue'
 import { useAsync } from '../use-async'
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 describe('useAsync', () => {
   test('非法参数', () => {
     // @ts-expect-error
@@ -97,5 +99,96 @@ describe('useAsync', () => {
     expect(method()).toBe(1)
     const { doAsyncMethod } = useAsync('doAsyncMethod', () => new Promise((resolve) => setTimeout(() => resolve(1), 100)))
     await expect(doAsyncMethod()).resolves.toBe(1)
+  })
+
+  test('多次异步，结果顺序', async () => {
+    const { one, oneLoading } = useAsync('one', async (ms: number) => {
+      await wait(ms)
+      return ms
+    })
+
+    const first = one(100)
+    const second = one(200)
+
+    expect(oneLoading.value).toBe(true)
+
+    await first
+    // 由于仅等待了 first，仍处于 second 过程，因此应为 true
+    expect(oneLoading.value).toBe(true)
+
+    await second
+    expect(oneLoading.value).toBe(false)
+  })
+
+  test('多次异步，结果异序', async () => {
+    const { one, oneLoading } = useAsync('one', async (ms: number) => {
+      await wait(ms)
+      return ms
+    })
+
+    const first = one(200)
+    const second = one(100)
+
+    expect(oneLoading.value).toBe(true)
+
+    await second
+    expect(oneLoading.value).toBe(false)
+
+    await first
+    expect(oneLoading.value).toBe(false)
+  })
+
+  test('交叉异步，互不影响', async () => {
+    const { one, oneLoading } = useAsync('one', async (ms: number) => {
+      await wait(ms)
+      return ms
+    })
+
+    const { two, twoLoading } = useAsync('two', async (ms: number) => {
+      await wait(ms)
+      return ms
+    })
+
+    const oneFirst = one(200)
+    expect(oneLoading.value).toBe(true)
+    expect(twoLoading.value).toBe(false)
+
+    const twoFirst = two(100)
+    expect(oneLoading.value).toBe(true)
+    expect(twoLoading.value).toBe(true)
+
+    await expect(twoFirst).resolves.toBe(100)
+    expect(oneLoading.value).toBe(true)
+    expect(twoLoading.value).toBe(false)
+    
+
+    await expect(oneFirst).resolves.toBe(200)
+    expect(oneLoading.value).toBe(false)
+    expect(twoLoading.value).toBe(false)
+  })
+
+  test('方法异常', () => {
+    const error = Error()
+    const { one, oneLoading } = useAsync('one', () => {
+      throw error
+    })
+
+    expect(() => one()).toThrow(error)
+    expect(oneLoading.value).toBe(false)
+  })
+
+  test('异步异常', async () => {
+    const twoError = Error()
+    const { two, twoLoading } = useAsync('two', async () => {
+      await wait(100)
+      throw twoError
+    })
+
+    await expect(() => {
+      const p = two()
+      expect(twoLoading.value).toBe(true)
+      return p
+    }).rejects.toThrow(twoError)
+    expect(twoLoading.value).toBe(false)
   })
 })
