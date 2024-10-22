@@ -1,4 +1,4 @@
-import { Ref, ref, watch, WatchOptions, WatchSource } from "vue"
+import { Ref, ref, watch, WatchCallback, WatchOptions, WatchSource } from "vue"
 import { StringDefaultWhenEmpty,  } from "./utils"
 
 export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = {
@@ -11,20 +11,24 @@ export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string
   [K in `${StringDefaultWhenEmpty<Name, 'method'>}Error`]: Ref<any>
 }
 
-export type UseAsyncOptions = {
+export interface UseAsyncWatchOptions<Fn extends (...args: any) => any> extends WatchOptions {
+  handlerCreator?: (fn: Fn) => WatchCallback
+}
+
+export type UseAsyncOptions<Fn extends (...args: any) => any> = {
   watch?: WatchSource
-  watchOptions?: WatchOptions
+  watchOptions?: UseAsyncWatchOptions<Fn>
   immediate?: boolean 
 }
 
-function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions): UseAsyncResult<Fn, 'method'>
-function useAsync<Fn extends (...args: any) => any, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions): UseAsyncResult<Fn, Name>
+function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>
+function useAsync<Fn extends (...args: any) => any, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, Name>
 function useAsync(...args: any[]): any {
   if (!Array.isArray(args) || !args.length) throw TypeError('参数错误：未传递')
   const { name, fn, options }: { 
     name: string, 
     fn: (...args: any) => any,
-    options: UseAsyncOptions, 
+    options: UseAsyncOptions<(...args: any) => any>, 
   } = typeof args[0] === 'function' 
     ? { name: 'method', fn: args[0], options: args[1] }
     : { name: args[0] || 'method', fn: args[1], options: args[2] }
@@ -82,12 +86,23 @@ function useAsync(...args: any[]): any {
 
   if (options) {
     const noop = () => {}
-    const watchOptions = Object.assign({}, 
+    const { handlerCreator, ...watchOptions } = Object.assign({}, 
       'immediate' in options ? { immediate: options.immediate } : {}, 
       options.watchOptions ?? {}
     )
     const { watch: watchSource } = options
-    watch(watchSource ?? noop, () => method(), watchOptions)
+    const getHandler = () => {
+      const defaultHandler = () => method()
+      if (typeof handlerCreator !== 'function') return defaultHandler
+      try {
+        const _handler = handlerCreator(method)
+        return typeof _handler === 'function' ? _handler : defaultHandler
+      } catch (e) {
+        return defaultHandler
+      }
+    }
+    const handler = getHandler()
+    watch(watchSource ?? noop, handler, watchOptions)
   }
   
   return {
