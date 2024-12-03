@@ -1,10 +1,10 @@
 ## 特性
 
-- 异步函数样板代码减少50%
-- 异步函数相关的函数、变量命名风格统一
-- 异步函数调用有序
-- 良好的 ts 提示支持
-- 单元测试覆盖率 100% 
+- 符合“干净架构”的函数理念
+- 样板代码减少50%+
+- 异步操作命名风格统一
+- 异步乱序响应自动处理
+- 全 TS 支持 + 100% 单元测试
 
 ## 安装
 
@@ -264,16 +264,15 @@ const undefinedOrEmpty = 'firstArgument' in firstArgumentEnhanced
 - [rfc1-async-data-update](./docs/rfc1-async-data-update.md)
 
 
+## 理念
 
+在干净架构里，函数拆分的原则是：一个函数应该做且只做一件事
 
-
-
-
-
-
-
-
-
-
+- 对于传入 `useAsyncData` 的函数 `fn` 而言，唯一需要关注的，就是设置 `data` 的值
+  > 对于 data 值初始化后需要干的其它事情，可以在 `useAsyncData` **外部** 通过 watch data 去触发。
+- 对于 `useAsyncData` 整体而言，我们将与 `data` 值相关的代码都聚集在了一起
+  - loading、error、expired 追踪 data、与初始化 data 相关的状态
+  - watch 设置了 fn 的调用时机，即初始化 data 的时机
+- 很容易即可写出“干净”的代码块
 
 
