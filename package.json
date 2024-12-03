@@ -19,7 +19,8 @@
     "build": "vite build",
     "test:unit": "vitest",
     "test:unit:coverage": "vitest run --coverage",
-    "test": "pnpm run test:unit"
+    "test": "pnpm run test:unit",
+    "prepublish": "pnpm run build"
   },
   "keywords": ["vue", "utils", "async", "vueuse", "hooks"],
   "author": "Xu Yiming",
