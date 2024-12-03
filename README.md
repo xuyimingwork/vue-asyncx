@@ -108,7 +108,7 @@ const {
   immediate: true,
   watchOptions: {
     once: true
-    // ...支持所有传入 vue watch options 的配置
+    // ...支持所有 vue watch options 内的配置
   }
 })
 ```
@@ -220,14 +220,15 @@ init = unFirstArgumentEnhanced(init).firstArgument
 
 当 `options.enhanceFirstArgument = true` 后
 - `fn` 的首个参数 `init` 便被拓展为 `FirstArgumentEnhanced` 类型。
-- 实际调用 `fn` 是传入的 `init` 值在 `fn` 内变成了 `init.firstArgument`
+- 实际调用 `fn(10)` 时传入的 `init` 值 `10` 在 `fn` 内变成了 `init.firstArgument`
+- 因此，此处是先获取 `getData` 和 `updateData` 后，再将 `init` 重置回去
 
 只需要记住
 
 - 可以像以往一般正常定义 `fn` 与调用 `fn`
-- 在 `fn` 内部实现的最上方，加上上述的两行代码，剩下的均如往常一般
+- 在 `fn` 内部实现的最上方，加上上述的两行代码，余下即可正常使用
 
-如果 `fn` 本身不接收参数，那么可以：
+如果 `fn` 本身不接收参数，那么可以改成普通函数，通过 `arguments[0]` 传递：
 
 ```js
 const { 
@@ -268,11 +269,12 @@ const undefinedOrEmpty = 'firstArgument' in firstArgumentEnhanced
 
 在干净架构里，函数拆分的原则是：一个函数应该做且只做一件事
 
-- 对于传入 `useAsyncData` 的函数 `fn` 而言，唯一需要关注的，就是设置 `data` 的值
+- 对于传入 `useAsyncData` 的函数 `fn` 而言，唯一需要关注的就是设置 `data` 的值
   > 对于 data 值初始化后需要干的其它事情，可以在 `useAsyncData` **外部** 通过 watch data 去触发。
 - 对于 `useAsyncData` 整体而言，我们将与 `data` 值相关的代码都聚集在了一起
-  - loading、error、expired 追踪 data、与初始化 data 相关的状态
+  - loading、error、expired、arguments 等数据与 data 或 fn 紧密相关
   - watch 设置了 fn 的调用时机，即初始化 data 的时机
-- 很容易即可写出“干净”的代码块
+
+通过上面的辅助，很容易即可写出“干净”的代码块
 
 
