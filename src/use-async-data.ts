@@ -20,7 +20,7 @@ const FLAG_FIRST_ARGUMENT_ENHANCED = '__va_fae'
 
 export type FirstArgumentEnhanced<T = any, D = any> = {
   [FLAG_FIRST_ARGUMENT_ENHANCED]: true
-  firstArgument: T, 
+  firstArgument?: T, 
   getData: () => D,
   updateData: (v: D) => void
 }
@@ -98,7 +98,7 @@ function useAsyncData(...args: any[]): any {
     const [_first, ...restArgs] = args
     const first: FirstArgumentEnhanced = {
       [FLAG_FIRST_ARGUMENT_ENHANCED]: true,
-      firstArgument: _first, 
+      ...(args.length ? { firstArgument: _first } : {}), 
       getData: () => data.value,
       updateData: (v: any) => {
         update(v, { sn, scene: 'update' })
@@ -143,9 +143,11 @@ function useAsyncData(...args: any[]): any {
   }
 }
 
-export function unFirstArgumentEnhanced<Arg = any, Data = any>(arg: Arg): FirstArgumentEnhanced<Arg, Data> {
+export function unFirstArgumentEnhanced<Arg = any, Data = any>(arg: Arg): Arg extends undefined 
+  ? FirstArgumentEnhanced<Arg, Data> 
+  : Required<FirstArgumentEnhanced<Arg, Data>> {
   if (typeof arg !== 'object' || !arg || !arg[FLAG_FIRST_ARGUMENT_ENHANCED]) throw Error('请配置 options.enhanceFirstArgument = true')
-  return arg as unknown as FirstArgumentEnhanced
+  return arg as unknown as any
 }
 
 export { useAsyncData }

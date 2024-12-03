@@ -1,3 +1,6 @@
+## 1.5.1
+- firstArgumentEnhanced 增加对 fn() 与 fn(undefined) 的区分
+
 ## 1.5.0
 - useAsyncData 支持中途更新 data
   - 新增 options.enhanceFirstArgument 配置

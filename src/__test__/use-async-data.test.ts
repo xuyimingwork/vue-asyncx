@@ -163,8 +163,8 @@ describe('useAsyncData', () => {
 
   test('增强首个参数', () => {
     const { queryData } = useAsyncData((a: number, b: number) => {
-      const { getData, updateData, firstArgument } = unFirstArgumentEnhanced(a)
-      a = firstArgument
+      const { getData, updateData } = unFirstArgumentEnhanced(a)
+      a = unFirstArgumentEnhanced(a).firstArgument
       expect(a).toBe(1)
       expect(getData).toBeTruthy()
       expect(updateData).toBeTruthy()
@@ -172,14 +172,26 @@ describe('useAsyncData', () => {
     }, { enhanceFirstArgument: true })
     expect(queryData(1, 1)).toBe(2)
 
-    const { queryNoArgs } = useAsyncData('noArgs', (meta?: any) => {
-      const { firstArgument, getData, updateData } = unFirstArgumentEnhanced(meta)
-      expect(firstArgument).toBeUndefined
+    const { queryNoArgs } = useAsyncData('noArgs', function () {
+      const { getData, updateData } = unFirstArgumentEnhanced(arguments[0])
+      const result = unFirstArgumentEnhanced(arguments[0])
+      expect('firstArgument' in result).toBeFalsy()
       expect(getData).toBeTruthy()
       expect(updateData).toBeTruthy()
       return true
     }, { enhanceFirstArgument: true })
     expect(queryNoArgs()).toBe(true)
+
+    const { queryFirstUndefined } = useAsyncData('firstUndefined', function (u) {
+      const { getData, updateData } = unFirstArgumentEnhanced(u)
+      const result = unFirstArgumentEnhanced(u)
+      expect('firstArgument' in result).toBeTruthy()
+      expect(result.firstArgument).toBeUndefined()
+      expect(getData).toBeTruthy()
+      expect(updateData).toBeTruthy()
+      return true
+    }, { enhanceFirstArgument: true })
+    expect(queryFirstUndefined(undefined)).toBe(true)
   })
 
   test('unFirstArgumentEnhanced - 未配置调用抛出异常', () => {
