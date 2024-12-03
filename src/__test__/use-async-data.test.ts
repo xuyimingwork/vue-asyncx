@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest'
-import { useAsyncData } from '../use-async-data'
+import { unFirstArgumentEnhanced, useAsyncData } from '../use-async-data'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -160,4 +160,119 @@ describe('useAsyncData', () => {
     expect(test.value).toBe(37)
     expect(testExpired.value).toBeTruthy()
   })
+
+  test('增强首个参数', () => {
+    const { queryData } = useAsyncData((a: number, b: number) => {
+      const { getData, updateData, firstArgument } = unFirstArgumentEnhanced(a)
+      a = firstArgument
+      expect(a).toBe(1)
+      expect(getData).toBeTruthy()
+      expect(updateData).toBeTruthy()
+      return a + b
+    }, { enhanceFirstArgument: true })
+    expect(queryData(1, 1)).toBe(2)
+
+    const { queryNoArgs } = useAsyncData('noArgs', (meta?: any) => {
+      const { firstArgument, getData, updateData } = unFirstArgumentEnhanced(meta)
+      expect(firstArgument).toBeUndefined
+      expect(getData).toBeTruthy()
+      expect(updateData).toBeTruthy()
+      return true
+    }, { enhanceFirstArgument: true })
+    expect(queryNoArgs()).toBe(true)
+  })
+
+  test('unFirstArgumentEnhanced - 未配置调用抛出异常', () => {
+    const { queryData } = useAsyncData((a?: number, b?: number) => {
+      expect(() => unFirstArgumentEnhanced(a)).toThrowError()
+      return true
+    })
+    expect(queryData(1, 1)).toBe(true)
+  })
+
+  test('调用异步，中途更新', async () => {
+    const { queryProgress, progress } = useAsyncData('progress', async function() {
+      const { getData, updateData } = unFirstArgumentEnhanced(arguments[0])
+      expect(getData()).toBeUndefined()
+      updateData(0)
+      await wait(100)
+      expect(getData()).toBe(0)
+      updateData(30)
+      await wait(100)
+      expect(getData()).toBe(30)
+      updateData(60)
+      await wait(100)
+      expect(getData()).toBe(60)
+      return 100
+    }, { enhanceFirstArgument: true })
+    
+    expect(progress.value).toBeUndefined()
+    queryProgress()
+    expect(progress.value).toBe(0)
+    await wait(150)
+    expect(progress.value).toBe(30)
+    await wait(100)
+    expect(progress.value).toBe(60)
+    await wait(100)
+    expect(progress.value).toBe(100)
+  })
+
+  test('调用异步，中途更新，多次', async () => {
+    // queryProgress 约耗时 300ms，每隔 100ms 更新
+    const { queryProgress, progress, progressExpired } = useAsyncData('progress', async function() {
+      const { getData, updateData } = unFirstArgumentEnhanced(arguments[0])
+      updateData(0)
+      await wait(100)
+      expect(getData()).toBe(0)
+      updateData(30)
+      await wait(100)
+      expect(getData()).toBe(30)
+      updateData(60)
+      await wait(100)
+      expect(getData()).toBe(60)
+      return 100
+    }, { enhanceFirstArgument: true })
+    
+    expect(progress.value).toBeUndefined()
+    queryProgress()
+    expect(progress.value).toBe(0)
+    await wait(150)
+    expect(progress.value).toBe(30)
+    queryProgress()
+    expect(progress.value).toBe(0)
+    await wait(150)
+    expect(progress.value).toBe(30)
+    await wait(100)
+    expect(progress.value).toBe(60)
+    await wait(100)
+    expect(progress.value).toBe(100)
+  })
+
+  test('调用异步，中途更新，数据过期', async () => {
+    // queryProgress 约耗时 300ms，每隔 100ms 更新
+    const { queryProgress, progress, progressExpired } = useAsyncData('progress', async function(update: number, result: number, error: any) {
+      const { getData, updateData } = unFirstArgumentEnhanced(update)
+      update = unFirstArgumentEnhanced(update).firstArgument
+      if (error) throw error
+      if (update) {
+        await wait(100)
+        updateData(update)
+      }
+      await wait(100)
+      return updateData(result)
+    }, { enhanceFirstArgument: true })
+    
+    await expect(queryProgress(1, 1, 'error')).rejects.toBe('error')
+    expect(progressExpired.value).toBeTruthy()
+    queryProgress(50, 100, undefined)
+    expect(progressExpired.value).toBeTruthy()
+    await wait(150)
+    expect(progress.value).toBe(50)
+    expect(progressExpired.value).toBeFalsy()
+    await wait(100)
+    expect(progress.value).toBe(100)
+    expect(progressExpired.value).toBeFalsy()
+  })
+
+  
 })

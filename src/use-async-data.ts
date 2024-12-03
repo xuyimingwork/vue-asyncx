@@ -3,7 +3,9 @@ import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
 import { StringDefaultWhenEmpty, upperFirst } from "./utils";
 
-export type UseAsyncDataOptions<Fn extends (...args: any) => any> = UseAsyncOptions<Fn>
+export interface UseAsyncDataOptions<Fn extends (...args: any) => any> extends UseAsyncOptions<Fn> {
+  enhanceFirstArgument?: boolean
+}
 export type UseAsyncDataResult<
   Fn extends (...args: any) => any,
   DataName extends string
@@ -12,6 +14,15 @@ export type UseAsyncDataResult<
   [K in (StringDefaultWhenEmpty<DataName, 'data'>)]: Ref<Awaited<ReturnType<Fn>>> 
 } & {
   [K in `${StringDefaultWhenEmpty<DataName, 'data'>}Expired`]: Ref<boolean>
+}
+
+const FLAG_FIRST_ARGUMENT_ENHANCED = '__va_fae'
+
+export type FirstArgumentEnhanced<T = any, D = any> = {
+  [FLAG_FIRST_ARGUMENT_ENHANCED]: true
+  firstArgument: T, 
+  getData: () => D,
+  updateData: (v: D) => void
 }
 
 
@@ -34,53 +45,107 @@ function useAsyncData(...args: any[]): any {
   if (typeof name !== 'string') throw TypeError('参数错误：name')
   if (typeof fn !== 'function') throw TypeError('参数错误：fn')
 
+  const { enhanceFirstArgument, ...useAsyncOptions } = options || {}
+
   const times = ref({ 
-    // 调用序号
+    // 调用序号（即：fn 第 called 次调用）
     called: 0, 
-    // 调用完成序号
+    // 完成序号（即：fn 第 finished 次调用完成）
     finished: 0,
-    // 更新序号
-    updated: 0,  
+    // 数据被更新的调用序号（即：data 数据由第 dataUpdateByCalled 次调用更新）
+    dataUpdateByCalled: 0,
+    // 数据完成更新序号（即：data 数据由第 dataUpdateByFinished 次调用完成后更新）
+    dataUpdateByFinished: 0,  
   })
   const data = ref<ReturnType<typeof fn>>()
-  const dataExpired = computed(() => times.value.updated < times.value.finished)
+  /**
+   * 数据过期：正常完成调用，times.finished 数值应该与 times.dataUpdateByFinished 一致
+   * - 当 fn1 调用失败，dataUpdateByFinished = 0，finished = 1，dataUpdateByCalled = 0，数据过期
+   * - 继续调用 fn2，fn2 更新 data，未结束：dataUpdateByFinished = 0，finished = 1，dataUpdateByCalled = 2，数据未过期
+   * - 继续 fn2 失败：dataUpdateByFinished = 0，finished = 2，dataUpdateByCalled = 2，数据过期
+   */
+  const dataExpired = computed(() => {
+    if (times.value.dataUpdateByFinished >= times.value.finished) return false
+    if (times.value.dataUpdateByCalled > times.value.finished) return false
+    return true
+  })
 
-  function after(v: any, { scene, sn }: { scene: 'update' | 'error', sn: number }) {
-    // 更新结束序列号
+  // 数据更新
+  function update(v: any, { sn, scene }: { scene: 'finish' | 'update', sn: number }) {
+    // 如果数据已被较新的调用更新，则忽略这次较旧的更新
+    if (sn < times.value.dataUpdateByCalled) return
+    data.value = v
+    times.value.dataUpdateByCalled = sn;
+    if (scene === 'finish') times.value.dataUpdateByFinished = sn
+  }
+
+  // 调用结束
+  function finish(v: any, { scene, sn }: { scene: 'normal' | 'error', sn: number }) {
+    // 异常状态已在底层处理，此处只需要处理正常结束的数据
+    if (scene === 'normal') update(v, { sn, scene: 'finish' })
+    // 第 sn 次调用结束，更新完成序号
     if (sn > times.value.finished) times.value.finished = sn
+  }
 
-    if (scene === 'update') {
-      if (sn > times.value.updated) {
-        data.value = v
-        times.value.updated = sn
+  function normalizeArguments(args: any[], {
+    enhanceFirstArgument,
+    sn
+  }: { 
+    enhanceFirstArgument: boolean
+    sn: number
+  }) {
+    if (!enhanceFirstArgument) return args
+    const [_first, ...restArgs] = args
+    const first: FirstArgumentEnhanced = {
+      [FLAG_FIRST_ARGUMENT_ENHANCED]: true,
+      firstArgument: _first, 
+      getData: () => data.value,
+      updateData: (v: any) => {
+        update(v, { sn, scene: 'update' })
+        return v
       }
     }
+
+    return [first, ...restArgs]
   }
 
   function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
     // 本次调用的序列号
     const sn = ++times.value.called
+
+    args = normalizeArguments(args, { enhanceFirstArgument, sn })
+
     try {
       const p = fn(...args)
       if (p instanceof Promise) {
-        // promise 出现拒绝
-        p.then(v => after(v, { scene: 'update', sn }), (e) => after(e, { scene: 'error', sn }))
+        p.then(
+          // promise 正常结束
+          v => finish(v, { scene: 'normal', sn }), 
+          // promise 出现拒绝
+          e => finish(e, { scene: 'error', sn })
+        )
       } else {
-        after(p, { scene: 'update', sn })
+        // 非 promise 正常结束
+        finish(p, { scene: 'normal', sn })
       }
       return p
     } catch(e) {
-      // 函数调用出现报错
-      after(e, { scene: 'error', sn })
+      // 调用报错
+      finish(e, { scene: 'error', sn })
       throw e
     }
   }
-  const resule = useAsync(`query${upperFirst(name)}`, method, options)
+  const result = useAsync(`query${upperFirst(name)}`, method, useAsyncOptions)
   return {
-    ...resule,
+    ...result,
     [name]: data,
     [`${name}Expired`]: dataExpired
   }
+}
+
+export function unFirstArgumentEnhanced<Arg = any, Data = any>(arg: Arg): FirstArgumentEnhanced<Arg, Data> {
+  if (typeof arg !== 'object' || !arg || !arg[FLAG_FIRST_ARGUMENT_ENHANCED]) throw Error('请配置 options.enhanceFirstArgument = true')
+  return arg as unknown as FirstArgumentEnhanced
 }
 
 export { useAsyncData }

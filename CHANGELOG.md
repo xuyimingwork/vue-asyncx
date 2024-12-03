@@ -1,3 +1,8 @@
+## 1.5.0
+- useAsyncData 支持中途更新 data
+  - 新增 options.enhanceFirstArgument 配置
+  - 新增 unFirstArgumentEnhanced 函数，用于方便解构首个参数
+
 ## 1.4.0
 - watchOptions 新增 handlerCreator 参数用于自定义 watch 的 handler 函数
   - handlerCreator 接收当前的 method 作为参数并返回 watch 的 handler
