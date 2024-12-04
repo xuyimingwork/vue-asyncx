@@ -1,10 +1,10 @@
 ## 特性
 
-- 样板代码减少50%+
-- 异步操作命名风格统一
-- 异步乱序响应自动处理
-- 全 TS 支持 + 100% 单元测试
-- 易于编写符合“干净架构”理念的函数
+- 效率+：异步相关样板代码减少50%
+- 效率+：自动处理异步操作的乱序响应
+- 可读+：异步操作命名指向明确、风格统一
+- 可读+：易于写出符合“干净架构”理念的函数
+- 质量+：全 TS 支持 + 100% 单元测试
 
 ## 安装
 
@@ -16,10 +16,10 @@ pnpm i vue-asyncx
 
 ### useAsync 异步函数
 
-当需要执行一个异步函数，可以将要执行的异步函数传入 `useAsync` 中，可以得到
+当需要执行一个异步函数，可以将要执行的异步函数传入 `useAsync` 中，得到
 
 - 一个异步函数的包裹函数
-- 记录异步函数执行 `loading` 响应式数据
+- 一个记录异步函数执行 `loading` 响应式数据
 - 等等
 
 ```ts
@@ -48,15 +48,15 @@ sum(1, 1).then(total => console.log(total))
 
 当你将 `sum` 字符串传入 `useAsync`，结果属性自动替换为 `sum` 和 `sumLoading`，并且，**解构附带 ts 提示**，在结果对象内输入 `s`，相关内容会自动提示。
 
-同时，解构出的 `sum` TS 类型由传入的函数推到出，二者 TS 类型一致。
+同时，解构出的 `sum` TS 类型由传入的函数推导出，二者 TS 类型一致。
 
-想象一下在多人合作的大型项目中，通过这种方式约束命名。不同开发人员可以自然地将相同模式的变量名关联在一起，互相间理解代码、review 内容变得更简单。
+想象一下在多人合作的大型项目中，通过这种方式约束命名：不同开发人员可以自然地将相同模式的变量名关联在一起，互相理解代码、review 内容变得更简单。
 
 ### useAsyncData 异步数据
 
 除了异步函数，另一个常见场景是异步数据。
 
-假设你在开发一个用户详情页，页面通过 `user` 数据渲染，`user` 数据通过 `getUserById` api 获取。
+假设你在开发一个用户详情页，页面通过 `user` 数据渲染，`user` 数据通过 `getUserById` 的 api 获取。
 
 显然，`user` 是一个异步数据，通过 `useAsyncData`，你可以很容易处理这些内容：
 
@@ -75,22 +75,24 @@ const {
 } = useAsyncData('user', () => getUserById('1'), { immediate: true })
 ```
 
-开发流程的思路链条：
+代码编写流程与思路流程高度一致：
 - 数据命名：页面需要使用异步数据 user => `useAsyncData('user', `
 - 数据获取：user 数据来自 getUserById 接口 => `useAsyncData('user', () => getUserById('1')`
 - 触发获取：进入页面后需要立即获取 user 数据 `useAsyncData('user', () => getUserById('1'), { immediate: true })`
 
-ok，和 `useAsync` 一样，`useAsyncData` 自动提供了你需要的变量、函数、加载状态等内容。
+ok，写完上述，页面所需的 `user` 各种相关数据、函数立即出现，想用什么解构什么：
 
 - `user` 响应式变量自动定义并声明
 - 获取 `user` 的函数被自动命名为 `queryUser`
-- 类似 `useAsync`，与 `queryUser` 关联的 `queryUserLoading` 自动定义并声明
+- 调用 `queryUser` 时的加载状态自动关联到 `queryUserLoading`
+
+只需要在 TS 的提示下，按需解构出页面所需的内容
 
 > `useAsyncData` 底层使用 `useAsync`，即 `useAsync` 的所有能力 `useAsyncData` 都具备。
 > 除 `useAsync` 的能力外，`useAsyncData` 额外支持了一些与数据相关的能力。
 > 二者区别：
-> `useAsync` 关注异步函数，往往不需要长久保留结果值，如 `submit`、`confirm` 等操作
-> `useAsyncData` 则关注异步数据，异步函数是数据的获取方式
+> `useAsync` 关注异步函数，不关注需要长久保留结果值。例如 `submit`、`confirm` 等操作
+> `useAsyncData` 则关注异步数据，异步函数则是数据的获取方式
 
 ### immediate 与 watch
 
@@ -117,7 +119,7 @@ const {
 })
 ```
 
-> 实际上即使不配置 `options.watch`，设置 `options.immediate` 后内部也是通过 watch 机制触发的立即调用
+实际上即使不配置 `options.watch`，配置 `options.immediate = true` 后内部也是通过 watch 机制触发的立即调用
 
 默认情况下，由 watch 触发的调用不会传递任何参数。watch 的 handler 相当于：`() => queryUser()`。但在 vue 中，watch 的 handler 可以接收新、旧数据以及 `onCleanup`
 
@@ -176,10 +178,10 @@ const {
 ```
 
 `error`
-- **最后一次**调用 fn，且调用结果失败
-  - 调用异步 fn 的 reject 内容
-  - 调用同步 fn 的 throw 内容
-- **新一次**调用开始时，`error` 自动置空
+- **最后一次**调用 fn，**且**调用结果失败
+  - 记录异步 fn 的 reject 内容
+  - 记录同步 fn 的 throw 内容
+- **新一次**调用开始后，`error` 自动置空
 
 `arguments`
 - 与 `loading` 一致，调用开始时记录本次调用传入的参数
@@ -204,12 +206,12 @@ const {
 
 `queryUser` 是个异步函数，由于异步操作时间不定，多次调用情况下会出现乱序响应，考虑下列的时间线顺序：
 
-- 调用 `queryUser`，记做 `queryUser1`
-- `queryUser1` 未结束，再次调用 `queryUser`，记做 `queryUser2`
-- `queryUser2` 结束
-- `queryUser1` 结束
+- **首次调用** `queryUser`，记做 `queryUser1`
+- `queryUser1` 未结束，**再次调用** `queryUser`，记做 `queryUser2`
+- `queryUser2` 先结束
+- `queryUser1` 后结束
 
-即：**依次调用 `queryUser1` 和 `queryUser2`，但 `queryUser2` 先于 `queryUser1` 结束**，这种场景很常见，专门处理很麻烦。
+即：**依次调用 `queryUser1` 和 `queryUser2`，但 `queryUser2` 先于 `queryUser1` 结束**。这种场景很常见，专门处理很麻烦。
 
 而使用 `useAsync` 和 `useAsyncData`，你无需再考虑这类问题，方法会自动帮你处理。
 
@@ -221,16 +223,18 @@ const {
 对于 `useAsyncData`，`queryUser` 对应的 `user` 数据：
 
 - `user.value` 将始终以 `queryUser2` 的结果为准（取**最晚的调用**产生的结果）
-- 即使 `queryUser1` 的产生结果的时间更晚，但 `queryUser1` 的结果不会更新到 `user.value` 上
+- 即使 `queryUser1` 产生结果的时间更晚，但 `queryUser1` 的结果不会更新到 `user.value` 上
 - `queryUser1` 的结果会被自动舍弃，因为这是一个“过期的”数据
 
 > 另一种处理重复调用的方式是不允许在上次调用未结束时再次调用
 > 
 > 由于 `useAsync` 和 `useAsyncData` 提供了响应式的 `loading`，对于常用组件库，向按钮传入 `loading` 状态或在 `disabled` 属性中添加 `loading` 判断即可轻松避免
+>
+> 此处讨论的是因数据源变动导致异步数据需要刷新的场景，比如 `userId` 短时间从 `1` 切换到 `2`，`user` 数据需要做对应刷新
 
 ### 数据过期
 
-> 标注过期数据是 `useAsyncData` 独有功能
+> 过期数据标注是 `useAsyncData` 独有功能
 
 ```js
 const { 
@@ -243,14 +247,14 @@ const {
 
 假设是以下时间线：
 
-- 调用 `queryUser`，记做 `queryUser1`
+- 首次调用 `queryUser`，记做 `queryUser1`
 - `queryUser1` 未结束，再次调用 `queryUser`，记做 `queryUser2`
-- `queryUser2` 结束，**但发生报错**
-- `queryUser1` 结束
+- `queryUser2` 先结束，**但发生报错**
+- `queryUser1` 后结束
 
 此时：
 - `queryUser2` 的错误会被记录到 `queryUserError.value` 上
-- `queryUser1` 的结果会被更新到 `user.value` 上
+- `queryUser1` 的结果**会被更新到** `user.value` 上
 - `userExpired.value` 会被设置为 `true`，表明当前的 `user.value` 是个过期数据（因为 `user.value` 来自`queryUser1`，而最新的结果是 `queryUser2` 的报错）
 
 > 大多数情况下，无需考虑 `userExpired.value` 的问题，因为它只会在 `queryUserError.value` 出现时出现，优先处理 `queryUserError.value` 往往是更好的做法
@@ -258,7 +262,7 @@ const {
 > `userExpired.value` 为 `true` 后，直到下次调用更新 `user.value` 前，`userExpired.value` 将一直保持 `true` 状态。
 > 原因：`userExpired.value` 为 `true` 后，虽然再次调用了 `queryUser`，但在 `user.value` 再次更新前，`user.value` 当前的值仍是“过期的”珊瑚橘
 
-> 由于乱序的问题，如果在 `queryUser1` 时使用了 `.then(res => ...)`，`res` 的值是 `queryUser1` 的结果，与 `user.value` 不一致。
+> 由于乱序的问题，如果在 `queryUser1` 时使用了 `.then(res => ...)`，`res` 的值是 `queryUser1` 的结果，与 `user.value` 不一致，这是符合预期的。
 
 ### 异步数据的中途获取与更新
 
