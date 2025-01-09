@@ -194,6 +194,15 @@ describe('useAsyncData', () => {
     expect(queryFirstUndefined(undefined)).toBe(true)
   })
 
+  test('unFirstArgumentEnhanced - 默认值', () => {
+    const { queryData } = useAsyncData((content?: string) => {
+      return unFirstArgumentEnhanced(content, 'default').firstArgument
+    }, { enhanceFirstArgument: true })
+    expect(queryData()).toBe('default')
+    expect(queryData(undefined)).toBe('default')
+    expect(queryData('')).toBe('')
+  })
+
   test('unFirstArgumentEnhanced - 未配置调用抛出异常', () => {
     const { queryData } = useAsyncData((a?: number, b?: number) => {
       expect(() => unFirstArgumentEnhanced(a)).toThrowError()

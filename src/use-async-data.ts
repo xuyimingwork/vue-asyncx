@@ -143,11 +143,24 @@ function useAsyncData(...args: any[]): any {
   }
 }
 
-export function unFirstArgumentEnhanced<Arg = any, Data = any>(arg: Arg): Arg extends undefined 
+/**
+ * 
+ * @param arg 首个参数
+ * @param defaultValue 当 arg === undefined 时的默认值
+ * @returns 首个参数解构结果（符合 ts 类型要求）
+ */
+export function unFirstArgumentEnhanced<Arg = any, Data = any>(arg: Arg, defaultValue?: Arg): Arg extends undefined 
   ? FirstArgumentEnhanced<Arg, Data> 
   : Required<FirstArgumentEnhanced<Arg, Data>> {
   if (typeof arg !== 'object' || !arg || !arg[FLAG_FIRST_ARGUMENT_ENHANCED]) throw Error('请配置 options.enhanceFirstArgument = true')
-  return arg as unknown as any
+  const enhanced: FirstArgumentEnhanced<Arg, Data> = arg as unknown as any
+  /**
+   * js 的默认参数允许在传入 undefined 时使用默认值，
+   * 即 hello() 与 hello(undefined) 等价，此处与 js 保持一致
+   * 因此直接判断 enhanced.firstArgument 是否与 undefined 全等即可
+   */
+  if (arguments.length === 2 && enhanced.firstArgument === undefined) return { ...enhanced, firstArgument: defaultValue } as any
+  return enhanced as any
 }
 
 export { useAsyncData }
