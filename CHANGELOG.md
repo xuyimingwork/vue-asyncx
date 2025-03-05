@@ -1,3 +1,6 @@
+## 1.5.4
+- UseAsyncDataOptions 支持传入 initialData 参数用于初始化 data 值
+
 ## 1.5.3
 - unFirstArgumentEnhanced 支持 defaultValue 参数
 

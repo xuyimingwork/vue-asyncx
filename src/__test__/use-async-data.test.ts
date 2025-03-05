@@ -33,6 +33,11 @@ describe('useAsyncData', () => {
     const result = useAsyncData('one', () => 1)
     expect(result.one).toBeTruthy()
     expect(result.one.value).toBeUndefined()
+
+    const result2 = useAsyncData('two', () => 22, { initialData: 2 })
+    expect(result2.two.value).toBe(2)
+    result2.queryTwo()
+    expect(result2.two.value).toBe(22)
   })
 
   test('data 值正确', () => {

@@ -4,6 +4,7 @@ import { useAsync } from "./use-async"
 import { StringDefaultWhenEmpty, upperFirst } from "./utils";
 
 export interface UseAsyncDataOptions<Fn extends (...args: any) => any> extends UseAsyncOptions<Fn> {
+  initialData?: any,
   enhanceFirstArgument?: boolean
 }
 export type UseAsyncDataResult<
@@ -45,7 +46,7 @@ function useAsyncData(...args: any[]): any {
   if (typeof name !== 'string') throw TypeError('参数错误：name')
   if (typeof fn !== 'function') throw TypeError('参数错误：fn')
 
-  const { enhanceFirstArgument, ...useAsyncOptions } = options || {}
+  const { enhanceFirstArgument, initialData, ...useAsyncOptions } = options || {}
 
   const times = ref({ 
     // 调用序号（即：fn 第 called 次调用）
@@ -57,7 +58,7 @@ function useAsyncData(...args: any[]): any {
     // 数据完成更新序号（即：data 数据由第 dataUpdateByFinished 次调用完成后更新）
     dataUpdateByFinished: 0,  
   })
-  const data = ref<ReturnType<typeof fn>>()
+  const data = ref<ReturnType<typeof fn>>(initialData)
   /**
    * 数据过期：正常完成调用，times.finished 数值应该与 times.dataUpdateByFinished 一致
    * - 当 fn1 调用失败，dataUpdateByFinished = 0，finished = 1，dataUpdateByCalled = 0，数据过期
