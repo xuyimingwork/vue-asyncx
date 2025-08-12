@@ -1,6 +1,6 @@
 {
   "name": "vue-asyncx",
-  "version": "1.5.4",
+  "version": "1.6.0",
   "description": "",
   "type": "module",
   "types": "dist/vue-asyncx.d.ts",
