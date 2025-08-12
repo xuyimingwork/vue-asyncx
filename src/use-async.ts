@@ -1,4 +1,4 @@
-import { Ref, ref, watch, WatchCallback, WatchOptions, WatchSource } from "vue"
+import { computed, ComputedRef, Ref, ref, watch, WatchCallback, WatchOptions, WatchSource } from "vue"
 import { StringDefaultWhenEmpty,  } from "./utils"
 
 export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = {
@@ -6,7 +6,9 @@ export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string
 } & {
   [K in `${StringDefaultWhenEmpty<Name, 'method'>}Loading`]: Ref<boolean>
 } & {
-  [K in `${StringDefaultWhenEmpty<Name, 'method'>}Arguments`]: Ref<Parameters<Fn>>
+  [K in `${StringDefaultWhenEmpty<Name, 'method'>}Arguments`]: ComputedRef<Parameters<Fn>>
+} & {
+  [K in `${StringDefaultWhenEmpty<Name, 'method'>}ArgumentFirst`]: ComputedRef<Parameters<Fn>['0']>
 } & {
   [K in `${StringDefaultWhenEmpty<Name, 'method'>}Error`]: Ref<any>
 }
@@ -39,6 +41,7 @@ function useAsync(...args: any[]): any {
   const loading = ref(false)
   // 调用过程的入参，调用结束后重置
   const _args = ref<Parameters<typeof fn>>()
+  const argFirst = computed(() => _args.value?.[0])
   // 上次调用的错误，下次调用开始后重置
   const error = ref()
 
@@ -109,7 +112,8 @@ function useAsync(...args: any[]): any {
     [name]: method,
     [`${name}Loading`]: loading,
     [`${name}Arguments`]: _args,
-    [`${name}Error`]: error
+    [`${name}ArgumentFirst`]: argFirst,
+    [`${name}Error`]: error,
   }
 }
 

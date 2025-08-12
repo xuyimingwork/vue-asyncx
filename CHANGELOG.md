@@ -1,3 +1,6 @@
+## 1.6.0
+- useAsync 返回新增 methodArgumentFirst
+
 ## 1.5.4
 - UseAsyncDataOptions 支持传入 initialData 参数用于初始化 data 值
 
