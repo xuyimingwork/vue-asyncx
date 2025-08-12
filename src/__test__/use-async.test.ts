@@ -134,15 +134,20 @@ describe('useAsync', () => {
   })
 
   test('函数参数', async () => {
-    const { doAsyncMethod, doAsyncMethodArguments } = useAsync('doAsyncMethod', function (a: number, b: number) {
+    const { doAsyncMethod, doAsyncMethodArguments, doAsyncMethodArgumentFirst } = useAsync('doAsyncMethod', function (a: number, b: number) {
       return new Promise((resolve) => {
         setTimeout(() => resolve(a + b), 100)
       })
     })
     expect(doAsyncMethodArguments.value).toBeUndefined()
+    expect(doAsyncMethodArgumentFirst.value).toBeUndefined()
     const p = doAsyncMethod(1, 1)
     expect(doAsyncMethodArguments.value).toMatchObject([1, 1])
-    await p.then(() => expect(doAsyncMethodArguments.value).toBeUndefined())
+    expect(doAsyncMethodArgumentFirst.value).toBe(1)
+    await p.then(() => {
+      expect(doAsyncMethodArguments.value).toBeUndefined()
+      expect(doAsyncMethodArgumentFirst.value).toBeUndefined()
+    })
   })
 
   test('函数结果', async () => {
