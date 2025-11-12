@@ -1,3 +1,6 @@
+## 1.7.0
+- useAsyncData 支持配置 shallow 使用 shallowRef
+
 ## 1.6.0
 - useAsync 返回新增 methodArgumentFirst
 
