@@ -51,14 +51,14 @@ function useAsync(...args: any[]): any {
     // 初始化本次调用序列号
     const sn = ++times.called
 
-    const before = (args) => {
+    const before = (args: any[]) => {
       // 方法调用，则上次报错置空、则开始加载、则调用参数更新
       error.value = undefined
       loading.value = true
       _args.value = args
     }
     
-    const after = (v, { scene, sn }: { scene: 'normal' | 'error', sn: number }) => {
+    const after = (v: any, { scene, sn }: { scene: 'normal' | 'error', sn: number }) => {
       // 更新结束序列号
       if (sn > times.finished) times.finished = sn
       // 是否最后一次更新

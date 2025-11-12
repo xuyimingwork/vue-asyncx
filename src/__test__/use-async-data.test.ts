@@ -1,5 +1,6 @@
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { unFirstArgumentEnhanced, useAsyncData } from '../use-async-data'
+import { isProxy, isReactive } from 'vue'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -27,6 +28,16 @@ describe('useAsyncData', () => {
     expect(result.queryOne).toBeTruthy()
     expect(result.queryOneLoading).toBeTruthy()
     expect(result.queryOneArguments).toBeTruthy()
+  })
+
+  test('data 类型 - 默认 ref', () => {
+    const result = useAsyncData('one', () => ({ v: { v: 1 } }), { initialData: { v: { v: 0 } } })
+    expect(isReactive(result.one.value.v)).toBeTruthy()
+  })
+
+  test('data 类型 - 配置 shallowRef', () => {
+    const result = useAsyncData('one', () => ({ v: { v: 1 } }), { shallow: true, initialData: { v: { v: 0 } } })
+    expect(isReactive(result.one.value.v)).toBeFalsy()
   })
 
   test('data 初始值', () => {
@@ -62,7 +73,7 @@ describe('useAsyncData', () => {
 
   test('多次异步，依次起止', async () => {
     const sumFunc = async (a: number, b: number) => {
-      await(a + b)
+      await Promise.resolve()
       return a + b
     }
     const { querySum, sum } = useAsyncData('sum', sumFunc)
@@ -245,7 +256,7 @@ describe('useAsyncData', () => {
 
   test('调用异步，中途更新，多次', async () => {
     // queryProgress 约耗时 300ms，每隔 100ms 更新
-    const { queryProgress, progress, progressExpired } = useAsyncData('progress', async function() {
+    const { queryProgress, progress } = useAsyncData('progress', async function() {
       const { getData, updateData } = unFirstArgumentEnhanced(arguments[0])
       updateData(0)
       await wait(100)

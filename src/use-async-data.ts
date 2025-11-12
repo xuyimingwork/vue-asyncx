@@ -1,18 +1,22 @@
-import { computed, Ref, ref } from "vue"
+import { computed, Ref, ref, ShallowRef, shallowRef } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
 import { StringDefaultWhenEmpty, upperFirst } from "./utils";
 
-export interface UseAsyncDataOptions<Fn extends (...args: any) => any> extends UseAsyncOptions<Fn> {
+export interface UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: any,
+  shallow?: Shallow,
   enhanceFirstArgument?: boolean
 }
 export type UseAsyncDataResult<
   Fn extends (...args: any) => any,
-  DataName extends string
+  DataName extends string,
+  Shallow extends boolean = false
 > = UseAsyncResult<Fn, `query${Capitalize<(StringDefaultWhenEmpty<DataName, 'data'>)>}`> 
   & { 
-  [K in (StringDefaultWhenEmpty<DataName, 'data'>)]: Ref<Awaited<ReturnType<Fn>>> 
+  [K in (StringDefaultWhenEmpty<DataName, 'data'>)]: Shallow extends true 
+    ? ShallowRef<Awaited<ReturnType<Fn>>> 
+    : Ref<Awaited<ReturnType<Fn>>> 
 } & {
   [K in `${StringDefaultWhenEmpty<DataName, 'data'>}Expired`]: Ref<boolean>
 }
@@ -30,12 +34,14 @@ export type FirstArgumentEnhanced<T = any, D = any> = {
 function useAsyncData<
   Data = any,
   Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
->(fn: Fn, options?: UseAsyncDataOptions<Fn>): UseAsyncDataResult<Fn, 'data'>
+  Shallow extends boolean = false
+>(fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, 'data', Shallow>
 function useAsyncData<
   Data = any,
   Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
   DataName extends string = string,
->(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn>): UseAsyncDataResult<Fn, DataName>
+  Shallow extends boolean = false
+>(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, DataName, Shallow>
 function useAsyncData(...args: any[]): any {
   if (!Array.isArray(args) || !args.length) throw TypeError('参数错误：未传递')
 
@@ -46,7 +52,7 @@ function useAsyncData(...args: any[]): any {
   if (typeof name !== 'string') throw TypeError('参数错误：name')
   if (typeof fn !== 'function') throw TypeError('参数错误：fn')
 
-  const { enhanceFirstArgument, initialData, ...useAsyncOptions } = options || {}
+  const { enhanceFirstArgument, initialData, shallow, ...useAsyncOptions } = options as UseAsyncDataOptions<typeof fn, boolean> || {}
 
   const times = ref({ 
     // 调用序号（即：fn 第 called 次调用）
@@ -58,7 +64,9 @@ function useAsyncData(...args: any[]): any {
     // 数据完成更新序号（即：data 数据由第 dataUpdateByFinished 次调用完成后更新）
     dataUpdateByFinished: 0,  
   })
-  const data = ref<ReturnType<typeof fn>>(initialData)
+  const data = shallow 
+    ? shallowRef<ReturnType<typeof fn>>(initialData) 
+    : ref<ReturnType<typeof fn>>(initialData)
   /**
    * 数据过期：正常完成调用，times.finished 数值应该与 times.dataUpdateByFinished 一致
    * - 当 fn1 调用失败，dataUpdateByFinished = 0，finished = 1，dataUpdateByCalled = 0，数据过期
@@ -92,7 +100,7 @@ function useAsyncData(...args: any[]): any {
     enhanceFirstArgument,
     sn
   }: { 
-    enhanceFirstArgument: boolean
+    enhanceFirstArgument?: boolean
     sn: number
   }) {
     if (!enhanceFirstArgument) return args
@@ -153,15 +161,19 @@ function useAsyncData(...args: any[]): any {
 export function unFirstArgumentEnhanced<Arg = any, Data = any>(arg: Arg, defaultValue?: Arg): Arg extends undefined 
   ? FirstArgumentEnhanced<Arg, Data> 
   : Required<FirstArgumentEnhanced<Arg, Data>> {
-  if (typeof arg !== 'object' || !arg || !arg[FLAG_FIRST_ARGUMENT_ENHANCED]) throw Error('请配置 options.enhanceFirstArgument = true')
-  const enhanced: FirstArgumentEnhanced<Arg, Data> = arg as unknown as any
+  if (!isFirstArgumentEnhanced(arg)) throw Error('请配置 options.enhanceFirstArgument = true')
+  const enhanced: FirstArgumentEnhanced<Arg, Data> = arg
   /**
-   * js 的默认参数允许在传入 undefined 时使用默认值，
-   * 即 hello() 与 hello(undefined) 等价，此处与 js 保持一致
-   * 因此直接判断 enhanced.firstArgument 是否与 undefined 全等即可
+   * js 的参数默认值规则：当参数为 undefined 时，使用默认值。
+   * 即 hello() 与 hello(undefined) 都会触发默认值赋值规则。
+   * 因此，当有配置默认值时，直接判断 enhanced.firstArgument 与 undefined 是否全等即可
    */
   if (arguments.length === 2 && enhanced.firstArgument === undefined) return { ...enhanced, firstArgument: defaultValue } as any
   return enhanced as any
+}
+
+function isFirstArgumentEnhanced(v: any): v is FirstArgumentEnhanced {
+  return typeof v === 'object' && !!v && (FLAG_FIRST_ARGUMENT_ENHANCED in v)
 }
 
 export { useAsyncData }
