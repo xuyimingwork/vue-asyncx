@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { unFirstArgumentEnhanced, useAsyncData } from '../use-async-data'
-import { isProxy, isReactive } from 'vue'
+import { isReactive } from 'vue'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
