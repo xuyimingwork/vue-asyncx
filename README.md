@@ -1,3 +1,7 @@
+超好用的异步函数/数据管理工具
+
+![](./docs/compare.png)
+
 ## 特性
 
 - 效率+：异步相关样板代码减少50%
@@ -12,7 +16,43 @@
 pnpm i vue-asyncx
 ```
 
-## 使用
+## 基本用法
+
+```ts
+import { useAsyncData } from 'vue-asyncx'
+
+const { 
+  user, 
+  queryUserLoading, 
+  queryUser 
+} = useAsyncData('user', () => getUserByName('Mike'), { immediate: true })
+```
+
+当需要异步数据 `user`，只需使用 `useAsyncData`，传入变量名 `user` 与获取 user 数据的异步函数即可。
+
+`useAsyncData` 会自动处理与获取 `user` 有关的 `loading`, `data`, `function`、`error` 等内容。
+
+## 约定带来效率
+
+与 [`useRequest`](https://ahooks.js.org/hooks/use-request/index) 返回固定的 `data`、`loading`、`error` 不同，`useAsyncData` 将关联的函数、变量统一命名：
+
+- `user`：被异步操作更新的数据
+- `queryUser`：更新 `user` 的异步函数
+- `queryUserLoading`：调用 `queryUser` 时的更新状态
+- `queryUserError`：调用 `queryUser` 时的错误内容
+
+以及
+
+- `queryUserArguments`：与 `queryUserArgumentFirst` 调用 `queryUser` 时传入的参数
+- `userExpired`：`user` 数据是否过期
+
+这种方式在大型项目、多人团队中十分有效。看到 `queryUserLoading` 变量，就知道它和 `user` 变量以及 `queryUser` 的调用有关。
+
+![](./docs/vscode-hint.png)
+
+无需记住变量名，一个字母，自动提示。
+
+## 其它用法
 
 ### useAsync 异步函数
 
@@ -365,15 +405,23 @@ const undefinedOrEmpty = 'firstArgument' in firstArgumentEnhanced
 - `setData` 不保证设置成功（比如发生了乱序响应的情况）
 - 接上，`setData` 支持处理乱序响应，一旦有新的调用触发 `setData`，旧调用的 `setData` 操作会被忽略
 
-## 理念
+## 可用配置
 
-在“干净架构”里，函数拆分的原则是：一个函数应该做且只做一件事
+`useAsyncData` 可传入的配置如下：
 
-- 对于传入 `useAsyncData` 的函数 `fn` 而言，唯一需要关注的就是如何设置 `data` 的值
-  - 对于在 `data` 值初始化后需要干的其它事情，可以在 `useAsyncData` **外部** 通过 vue 的 watch data 去触发
-- 对于 `useAsyncData` 整体而言，我们将与 `data` 值相关的代码都聚集在了一起
-  - loading、error、expired、arguments 等数据与 data 或 fn 紧密相关
-  - watch 设置了 fn 的调用时机，即初始化 data 的时机
+| 配置名                      | 描述                                                  | 类型                                                    | 默认值       |
+| --------------------------- | ----------------------------------------------------- | ------------------------------------------------------- | ------------ |
+| immediate                   | 是否立即执行                                          | boolean                                                 | false        |
+| watch                       | 传入 vue watch 的侦听数据源，发生变动时执行 `handler` | 与 vue WatchSource 一致                                 | -            |
+| watchOptions                | 传入 vue watch 的配置项                               | 支持全部 vue WatchOptions，另有 `handlerCreator` 配置项 | -            |
+| watchOptions.handlerCreator | 自定义传入 `watch` 的 `handler`                       | `(fn: Fn) => WatchCallback`                             | - |
+| initialData                 | data 的初始值                                         | any                                                     | undefined    |
+| shallow                     | 是否使用 `shallowRef` 保存 data，默认使用 `ref`       | boolean                                                 | false        |
+| enhanceFirstArgument        | 是否强化首个入参                                      | boolean                                                 | false        |
 
-通过上面的约定，很容易写出“干净”的函数与高内聚的代码块，提高代码可读性
+默认值
+
+```js
+const handlerCreator = fn => fn()
+```
 
