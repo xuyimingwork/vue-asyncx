@@ -1,14 +1,13 @@
-超好用的异步函数/数据管理工具
+优雅好用的异步函数/数据管理工具
 
 ![](./docs/compare.png)
 
 ## 特性
 
 - 效率+：异步相关样板代码减少40%+
-- 效率+：自动处理异步操作的乱序响应
 - 可读+：异步操作命名指向明确、风格统一
-- 可读+：易于写出符合“干净架构”理念的函数
 - 质量+：全 TS 支持 + 100% 单元测试
+- 维护+：易于写出符合“干净架构”理念的函数
 
 ## 安装
 
@@ -16,162 +15,102 @@
 pnpm i vue-asyncx
 ```
 
-## 基本用法
+## 快速开始
 
 ```ts
-import { useAsyncData } from 'vue-asyncx'
+import { getUserApi } from './api'
+import { useAsyncData } from '../dist/vue-asyncx'
 
 const { 
   user, 
-  queryUserLoading, 
-  queryUser 
-} = useAsyncData('user', () => getUserByName('Mike'), { immediate: true })
+  queryUserLoading,
+  queryUser, 
+} = useAsyncData('user', getUserApi)
+
+queryUser('Mike')
 ```
 
-当需要异步数据 `user`，只需使用 `useAsyncData`，传入变量名 `user` 与获取 user 数据的异步函数即可。
-
-`useAsyncData` 会自动处理与获取 `user` 有关的 `loading`, `data`, `function`、`error` 等内容。
+当需要异步数据 `user` 时，只需要传入数据的变量名和获取数据的异步函数即可。`useAsyncData` 会自动处理与异步函数相关的 `loading`, `data`, `function`、`error` 等状态。
 
 ## 约定带来效率
 
 与 [`useRequest`](https://ahooks.js.org/hooks/use-request/index) 返回固定的 `data`、`loading`、`error` 不同，`useAsyncData` 将关联的函数、变量统一命名：
 
-- `user`：被异步操作更新的数据
+- `user`：由异步函数更新的数据 `data`
 - `queryUser`：更新 `user` 的异步函数
-- `queryUserLoading`：调用 `queryUser` 时的更新状态
-- `queryUserError`：调用 `queryUser` 时的错误内容
+- `queryUserLoading`：调用 `queryUser` 时的 `loading` 状态
 
-以及
+刚接触可能有些不习惯，但这种方式带来可读性和效率的双重提升，在大型项目、多人团队中尤为明显。
 
-- `queryUserArguments`：与 `queryUserArgumentFirst` 调用 `queryUser` 时传入的参数
-- `userExpired`：`user` 数据是否过期
-
-这种方式在大型项目、多人团队中十分有效。看到 `queryUserLoading` 变量，就知道它和 `user` 变量以及 `queryUser` 的调用有关。
+代码中看到 `queryUserLoading` 变量，就知道它和 `user` 变量以及 `queryUser` 函数有关。
 
 ![](./docs/vscode-hint.png)
 
-无需记住变量名，一个字母，自动提示。
+并且这一切，都可以自动提示。
 
-## 其它用法
+## 用法
 
-### useAsync 异步函数
+### 立即执行
 
-当需要执行一个异步函数，可以将要执行的异步函数传入 `useAsync` 中，得到
-
-- 一个异步函数的包裹函数
-- 一个记录异步函数执行 `loading` 响应式数据
-- 等等
+默认情况下，异步函数需要手动调用，可以设置 `options.immediate = true` 自动触发异步函数。
 
 ```ts
-import { useAsync } from 'vue-asyncx'
-
-const { 
-  method, 
-  methodLoading,
-} = useAsync(async (a: number, b: number) => a + b)
-
-method(1, 1).then(total => console.log(total))
-```
-
-如果不喜欢默认解构出来的 `method` 与 `methodLoading`，除了解构赋值的重命名，你还可以直接：
-
-```ts
-import { useAsync } from 'vue-asyncx'
-
-const { 
-  sum, 
-  sumLoading
-} = useAsync('sum', async (a: number, b: number) => a + b)
-
-sum(1, 1).then(total => console.log(total))
-```
-
-当你将 `sum` 字符串传入 `useAsync`，结果属性自动替换为 `sum` 和 `sumLoading`，并且，**解构附带 ts 提示**，在结果对象内输入 `s`，相关内容会自动提示。
-
-同时，解构出的 `sum` TS 类型由传入的函数推导出，二者 TS 类型一致。
-
-想象一下在多人合作的大型项目中，通过这种方式约束命名：不同开发人员可以自然地将相同模式的变量名关联在一起，互相理解代码、review 内容变得更简单。
-
-### useAsyncData 异步数据
-
-除了异步函数，另一个常见场景是异步数据。
-
-假设你在开发一个用户详情页，页面通过 `user` 数据渲染，`user` 数据通过 `getUserById` 的 api 获取。
-
-显然，`user` 是一个异步数据，通过 `useAsyncData`，你可以很容易处理这些内容：
-
-```ts
-import { getUserById } from '@/api'
-import { useAsyncData } from 'vue-asyncx'
-
-/**
- * 调用 useAsyncData('user', ...)，
- * user、queryUserLoading、queryUser 自动提示
- */
 const { 
   user, 
-  queryUserLoading, 
-  queryUser 
-} = useAsyncData('user', () => getUserById('1'), { immediate: true })
+  queryUserLoading 
+} = useAsyncData('user', getUserApi, { immediate: true })
 ```
 
-代码编写流程与思路流程高度一致：
-- 数据命名：页面需要使用异步数据 user => `useAsyncData('user', `
-- 数据获取：user 数据来自 getUserById 接口 => `useAsyncData('user', () => getUserById('1')`
-- 触发获取：进入页面后需要立即获取 user 数据 `useAsyncData('user', () => getUserById('1'), { immediate: true })`
+### watch 执行
 
-ok，写完上述，页面所需的 `user` 各种相关数据、函数立即出现，想用什么解构什么：
+除了 `immediate`，`useAsyncData` 还完整支持 [vue watch](https://vuejs.org/api/reactivity-core.html#watch)
 
-- `user` 响应式变量自动定义并声明
-- 获取 `user` 的函数被自动命名为 `queryUser`
-- 调用 `queryUser` 时的加载状态自动关联到 `queryUserLoading`
+#### `options.watch` 配置 watch source
 
-只需要在 TS 的提示下，按需解构出页面所需的内容
+```ts
+import { getUserApi } from './api'
+import { useAsyncData } from '../dist/vue-asyncx'
 
-> `useAsyncData` 底层使用 `useAsync`，即 `useAsync` 的所有能力 `useAsyncData` 都具备。
-> 除 `useAsync` 的能力外，`useAsyncData` 额外支持了一些与数据相关的能力。
-> 二者区别：
-> `useAsync` 关注异步函数，不关注需要长久保留结果值。例如 `submit`、`confirm` 等操作
-> `useAsyncData` 则关注异步数据，异步函数则是数据的获取方式
+const props = defineProps<{
+  userId: string;
+}>();
 
-### immediate 与 watch
+const { user } = useAsyncData('user', () => getUserApi(props.userId), { 
+  watch: () => props.userId,
+  immediate: true
+})
+```
 
-注意到上面例子里的 `useAsyncData` 使用了 `immediate` 配置，效果是立即调用 `queryUser`
+`useAsyncData` 会立即执行，并在每次 `props.userId` 变化时执行。
 
-这个配置来自 vue `watch`，除了 `immediate` 外，**`useAsync` 和 `useAsyncData`** 完整支持了 vue watch 的各种配置
-- 通过 `options.watch` 配置 watch source
-- 通过 `options.watchOptions` 配置 watch 的其它 options
+上面的写法等价于：
 
-比如常见的通过 props 传递参数，props 参数改变，触发异步数据改变：
+```ts
+const { user, queryUser } = useAsyncData('user', () => getUserApi(props.userId))
+watch(() => props.userId, () => queryUser(), { immediate: true })
+```
 
-```js
-const { 
-  user, 
-  queryUserLoading, 
-  queryUser 
-} = useAsyncData('user', () => getUserById(props.id), { 
-  watch: () => props.id, // 此处用 props 举例，支持所有 vue watch source 的用法
-  immediate: true,
+#### `options.watchOptions` 配置 watch options
+
+```ts
+const { user } = useAsyncData('user', () => getUserApi(props.userId), { 
+  watch: () => props.userId,
   watchOptions: {
-    once: true // 此处用 once 举例，支持所有 vue watch options 内的配置
-    // 这里也可以配置 immediate，与上一层的 immediate 效果一致，优先级更高
+    once: true, // 此处用 once 举例，支持所有 vue watch options 内的配置
   }
 })
 ```
 
-实际上即使不配置 `options.watch`，配置 `options.immediate = true` 后内部也是通过 watch 机制触发的立即调用
+> 注：`options.watchOptions.immediate` 优先级高于 `options.immediate`
 
-默认情况下，由 watch 触发的调用不会传递任何参数。watch 的 handler 相当于：`() => queryUser()`。但在 vue 中，watch 的 handler 可以接收新、旧数据以及 `onCleanup`
+#### `options.watchOptions.handlerCreator` 配置 watch handler
 
-`useAsync` 和 `useAsyncData` 可以通过配置 `options.watchOptions.handlerCreator` 来自定义 watch handler：
-
-```js
+```ts
 const { 
-  user, 
-  queryUserLoading, 
+  user,
   queryUser 
-} = useAsyncData('user', (id) => getUserById(id), { 
-  watch: () => props.id,
+} = useAsyncData('user', (userId) => getUserApi(userId), { 
+  watch: () => props.userId,
   immediate: true,
   watchOptions: {
     // fn 等价于 queryUser
@@ -187,128 +126,18 @@ const {
 })
 ```
 
-### 调用报错与参数
+### 初始数据配置
 
-除了 `loading`，`useAsync` 与 `useAsyncData` 还支持记录调用的 `error` 与 `arguments`，默认状态下，它们的命名是：
-
-```js
-const { 
-  methodError,
-  methodArguments,
-} = useAsync(() => {})
-
-const { 
-  queryDataError,
-  queryDataArguments
-} = useAsyncData(() => {})
+```ts
+const { user } = useAsyncData('user', getUserApi, { 
+  // 未配置时，user 首次调用前为 undefined
+  initialData: {} 
+})
 ```
 
-与之前例子一致，当自定义命名时，结果随之改变：
+### 中途更新数据
 
-```js
-const { 
-  confirmError,
-  confirmArguments,
-} = useAsync('confirm', () => {})
-
-const { 
-  queryUserError,
-  queryUserArguments
-} = useAsyncData('user', () => {})
-```
-
-`error`
-- **最后一次**调用 fn，**且**调用结果失败
-  - 记录异步 fn 的 reject 内容
-  - 记录同步 fn 的 throw 内容
-- **新一次**调用开始后，`error` 自动置空
-
-`arguments`
-- 与 `loading` 一致，调用开始时记录本次调用传入的参数
-- 调用结果出现后，`arguments` 自动置空
-
-### 异步函数乱序响应
-
-```js
-// 使用 useAsync，没有 user 变量
-const { 
-  queryUser,
-  queryUserLoading,
-} = useAsync('queryUser', () => {})
-
-// 或者，使用 useAsyncData
-const { 
-  user,
-  queryUser,
-  queryUserLoading
-} = useAsyncData('user', () => {})
-```
-
-`queryUser` 是个异步函数，由于异步操作时间不定，多次调用情况下会出现乱序响应，考虑下列的时间线顺序：
-
-- **首次调用** `queryUser`，记做 `queryUser1`
-- `queryUser1` 未结束，**再次调用** `queryUser`，记做 `queryUser2`
-- `queryUser2` 先结束
-- `queryUser1` 后结束
-
-即：**依次调用 `queryUser1` 和 `queryUser2`，但 `queryUser2` 先于 `queryUser1` 结束**。这种场景很常见，专门处理很麻烦。
-
-而使用 `useAsync` 和 `useAsyncData`，你无需再考虑这类问题，方法会自动帮你处理。
-
-以上述例子举例：
-
-- `queryUser1` 开始时，`queryUserLoading.value` 为 `true`
-- **`queryUser2` 结束时**，`queryUserLoading.value` 为 `false`
-
-对于 `useAsyncData`，`queryUser` 对应的 `user` 数据：
-
-- `user.value` 将始终以 `queryUser2` 的结果为准（取**最晚的调用**产生的结果）
-- 即使 `queryUser1` 产生结果的时间更晚，但 `queryUser1` 的结果不会更新到 `user.value` 上
-- `queryUser1` 的结果会被自动舍弃，因为这是一个“过期的”数据
-
-> 另一种处理重复调用的方式是不允许在上次调用未结束时再次调用
-> 
-> 由于 `useAsync` 和 `useAsyncData` 提供了响应式的 `loading`，对于常用组件库，向按钮传入 `loading` 状态或在 `disabled` 属性中添加 `loading` 判断即可轻松避免
->
-> 此处讨论的是因数据源变动导致异步数据需要刷新的场景，比如 `userId` 短时间从 `1` 切换到 `2`，`user` 数据需要做对应刷新
-
-### 数据过期
-
-> 过期数据标注是 `useAsyncData` 独有功能
-
-```js
-const { 
-  user,
-  queryUser,
-  queryUserError,
-  userExpired
-} = useAsyncData('user', () => {})
-```
-
-假设是以下时间线：
-
-- 首次调用 `queryUser`，记做 `queryUser1`
-- `queryUser1` 未结束，再次调用 `queryUser`，记做 `queryUser2`
-- `queryUser2` 先结束，**但发生报错**
-- `queryUser1` 后结束
-
-此时：
-- `queryUser2` 的错误会被记录到 `queryUserError.value` 上
-- `queryUser1` 的结果**会被更新到** `user.value` 上
-- `userExpired.value` 会被设置为 `true`，表明当前的 `user.value` 是个过期数据（因为 `user.value` 来自`queryUser1`，而最新的结果是 `queryUser2` 的报错）
-
-> 大多数情况下，无需考虑 `userExpired.value` 的问题，因为它只会在 `queryUserError.value` 出现时出现，优先处理 `queryUserError.value` 往往是更好的做法
-
-> `userExpired.value` 为 `true` 后，直到下次调用更新 `user.value` 前，`userExpired.value` 将一直保持 `true` 状态。
-> 原因：`userExpired.value` 为 `true` 后，虽然再次调用了 `queryUser`，但在 `user.value` 再次更新前，`user.value` 当前的值仍是“过期的”珊瑚橘
-
-> 由于乱序的问题，如果在 `queryUser1` 时使用了 `.then(res => ...)`，`res` 的值是 `queryUser1` 的结果，与 `user.value` 不一致，这是符合预期的。
-
-### 异步数据的中途获取与更新
-
-> 异步数据中途获取与更新是 `useAsyncData` 独有功能
-
-在某些场景下，我们希望异步数据可以在异步获取过程中更新，无需等到获取过程完全结束。
+`{name}` 数据通常在异步函数调用结束后更新，但也可以在异步数据执行过程中更新。
 
 可以通过 `options.enhanceFirstArgument = true` 支持这种需求。
 
@@ -323,10 +152,13 @@ const {
 } = useAsyncData('progress', async (init?: number) => {
   const { getData, updateData } = unFirstArgumentEnhanced(init)
   init = unFirstArgumentEnhanced(init).firstArgument
+  // 同步更新为入参 10
   updateData(init || 0)
   await wait(100)
+  // 间隔 100ms 后，更新为 50
   updateData(50)
   await wait(100)
+  // 间隔 100ms 后，返回 100，本次异步函数完全结束。
   return 100
 }, { 
   enhanceFirstArgument: true
@@ -335,93 +167,28 @@ const {
 queryProgress(10)
 ```
 
-在上述代码的最后一行调用 `queryProgress(10)` 后：
-- `progress.value` 会立即更新为 `10`
-- 100ms 后 `progress.value` 更新为 `50`
-- 再过 100ms 后，`progress.value` 更新为 `100`，本次调用结束
+## API
 
-注意到在传入 `useAsyncData` 的 `fn` 内，有
+### 响应
 
-```js
-const { getData, updateData } = unFirstArgumentEnhanced(init)
-init = unFirstArgumentEnhanced(init).firstArgument
-```
+| 属性                     | 描述                            | 类型             | 默认值    |
+| ------------------------ | ------------------------------- | ---------------- | --------- |
+| {name}                   | 异步函数的返回数据              | any \\ undefined | undefined |
+| query{Name}Loading       | 异步函数执行时的加载状态        | boolean          | false     |
+| query{Name}Arguments     | 异步函数执行时的传入的参数列表  | any[] \\ []      | []        |
+| query{Name}ArgumentFirst | query{Name}Arguments 的首个参数 | any \\ undefined | undefined |
+| query{Name}Error         | 异步函数执行时的异常            | any \\ undefined | undefined |
+| {name}Expired            | {name} 数据是否过期                 | any \\ undefined | undefined |
 
-原理：
+### 配置
 
-当 `options.enhanceFirstArgument = true` 后
-- `fn` 的首个参数 `init` 便被拓展为 `FirstArgumentEnhanced` 类型。
-- 实际调用 `queryProgress(10)` 时传入的 `10` 在 `fn` 内部通过 `init` 接收时变成了 `{ getData, updateData, firstArgument }`，`10` 被赋在了 `init.firstArgument` 上
-- `unFirstArgumentEnhanced(init)` 先解构出 `getData` 和 `updateData`，再将 `init` 重新赋值为传入的 `10`
-
-> 也就是在 `fn` 内部可以直接通过
-> `const { getData, updateData, firstArgument } = init`
-> 但是这样写需要自行处理 TS 类型问题，因此提供了 `unFirstArgumentEnhanced` 辅助函数。
-
-只需要记住
-
-- 可以像以往一般正常定义 `fn`、调用 `queryProgress`
-- 在 `fn` 内部实现的最上方，加上上述的两行代码，余下即可正常使用
-
-如果 `fn` 本身不接收参数，那么可以改成普通函数，通过 `arguments[0]` 传递：
-
-```js
-const { 
-  progress,
-  queryProgress
-} = useAsyncData('progress', async function () {
-  const { getData, updateData } = unFirstArgumentEnhanced(arguments[0])
-  updateData(0)
-  await wait(100)
-  updateData(50)
-  await wait(100)
-  return 100
-}, { 
-  enhanceFirstArgument: true
-})
-
-queryProgress()
-```
-
-在某些情况下，需要区分 `queryProgress()` 与 `queryProgress(undefined)`，可以通过：
-
-```js
-const firstArgumentEnhanced = unFirstArgumentEnhanced(arguments[0])
-const undefinedOrEmpty = 'firstArgument' in firstArgumentEnhanced
-```
-
-即
-
-- `firstArgumentEnhanced` 存在 `firstArgument` 属性时，是 `queryProgress(undefined)`
-- `firstArgumentEnhanced` 不存在 `firstArgument` 属性时，是 `queryProgress()`
-
-本块 api 设计思考过程见
-
-- [rfc1-async-data-update](./docs/rfc1-async-data-update.md)
-
-其它
-
-- `getData` 总是返回最新的数据
-- `setData` 不保证设置成功（比如发生了乱序响应的情况）
-- 接上，`setData` 支持处理乱序响应，一旦有新的调用触发 `setData`，旧调用的 `setData` 操作会被忽略
-
-## 可用配置
-
-`useAsyncData` 可传入的配置如下：
-
-| 配置名                      | 描述                                                  | 类型                                                    | 默认值       |
-| --------------------------- | ----------------------------------------------------- | ------------------------------------------------------- | ------------ |
-| immediate                   | 是否立即执行                                          | boolean                                                 | false        |
-| watch                       | 传入 vue watch 的侦听数据源，发生变动时执行 `handler` | 与 vue WatchSource 一致                                 | -            |
-| watchOptions                | 传入 vue watch 的配置项                               | 支持全部 vue WatchOptions，另有 `handlerCreator` 配置项 | -            |
-| watchOptions.handlerCreator | 自定义传入 `watch` 的 `handler`                       | `(fn: Fn) => WatchCallback`                             | - |
-| initialData                 | data 的初始值                                         | any                                                     | undefined    |
-| shallow                     | 是否使用 `shallowRef` 保存 data，默认使用 `ref`       | boolean                                                 | false        |
-| enhanceFirstArgument        | 是否强化首个入参                                      | boolean                                                 | false        |
-
-默认值
-
-```js
-const handlerCreator = fn => fn()
-```
+| 配置名                      | 描述                                                  | 类型                                                    | 默认值    |
+| --------------------------- | ----------------------------------------------------- | ------------------------------------------------------- | --------- |
+| immediate                   | 是否立即执行                                          | boolean                                                 | false     |
+| watch                       | 传入 vue watch 的侦听数据源，发生变动时执行 `handler` | 与 vue WatchSource 一致                                 | -         |
+| watchOptions                | 传入 vue watch 的配置项                               | 支持全部 vue WatchOptions，另有 `handlerCreator` 配置项 | -         |
+| watchOptions.handlerCreator | 自定义传入 `watch` 的 `handler`                       | `(fn: Fn) => WatchCallback`                             | -         |
+| initialData                 | data 的初始值                                         | any                                                     | undefined |
+| shallow                     | 是否使用 `shallowRef` 保存 data，默认使用 `ref`       | boolean                                                 | false     |
+| enhanceFirstArgument        | 是否强化首个入参                                      | boolean                                                 | false     |
 

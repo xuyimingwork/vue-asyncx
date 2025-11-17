@@ -112,7 +112,7 @@ describe('useAsyncData', () => {
       await wait(a + b)
       return a + b
     }
-    const { querySum, sum, sumExpired } = useAsyncData('sum', sumFunc)
+    const { querySum, sum } = useAsyncData('sum', sumFunc)
     
     const p1 = querySum(170, 30)
     const p2 = querySum(70, 30)
