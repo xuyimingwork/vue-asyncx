@@ -247,4 +247,25 @@ describe('useAsync', () => {
     }).rejects.toThrow(twoError)
     expect(twoLoading.value).toBe(false)
   })
+
+  test('异步乱序异常', async () => {
+    const { two, twoLoading, twoError } = useAsync('two', async (error?: any) => {
+      await wait(100)
+      if (error) throw error
+      return 'ok'
+    })
+
+    expect(twoLoading.value).toBe(false)
+    expect(twoError.value).toBeUndefined()
+    const p1 = two('error')
+    expect(twoLoading.value).toBe(true)
+    await wait(50)
+    const p2 = two('error2')
+    await expect(p1).rejects.toThrow('error')
+    expect(twoError.value).toBeUndefined()
+    expect(twoLoading.value).toBe(true)
+    await expect(p2).rejects.toThrow('error2')
+    expect(twoError.value).toBe('error2')
+    expect(twoLoading.value).toBe(false)
+  })
 })
