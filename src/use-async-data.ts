@@ -1,7 +1,7 @@
 import { computed, Ref, ref, ShallowRef, shallowRef } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
-import { StringDefaultWhenEmpty, upperFirst } from "./utils";
+import { createFunctionTracker, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
 
 export interface UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: any,
@@ -53,55 +53,34 @@ function useAsyncData(...args: any[]): any {
   if (typeof fn !== 'function') throw TypeError('参数错误：fn')
 
   const { enhanceFirstArgument, initialData, shallow, ...useAsyncOptions } = options as UseAsyncDataOptions<typeof fn, boolean> || {}
-
-  const times = ref({ 
-    // 调用序号（即：fn 第 called 次调用）
-    called: 0, 
-    // 完成序号（即：fn 第 finished 次调用完成）
-    finished: 0,
-    // 数据被更新的调用序号（即：data 数据由第 dataUpdateByCalled 次调用更新）
-    dataUpdateByCalled: 0,
-    // 数据完成更新序号（即：data 数据由第 dataUpdateByFinished 次调用完成后更新）
-    dataUpdateByFinished: 0,  
-  })
   const data = shallow 
     ? shallowRef<ReturnType<typeof fn>>(initialData) 
     : ref<ReturnType<typeof fn>>(initialData)
-  /**
-   * 数据过期：正常完成调用，times.finished 数值应该与 times.dataUpdateByFinished 一致
-   * - 当 fn1 调用失败，dataUpdateByFinished = 0，finished = 1，dataUpdateByCalled = 0，数据过期
-   * - 继续调用 fn2，fn2 更新 data，未结束：dataUpdateByFinished = 0，finished = 1，dataUpdateByCalled = 2，数据未过期
-   * - 继续 fn2 失败：dataUpdateByFinished = 0，finished = 2，dataUpdateByCalled = 2，数据过期
-   */
-  const dataExpired = computed(() => {
-    if (times.value.dataUpdateByFinished >= times.value.finished) return false
-    if (times.value.dataUpdateByCalled > times.value.finished) return false
-    return true
-  })
+  const track = shallowRef<Track>()
 
   // 数据更新
-  function update(v: any, { sn, scene }: { scene: 'finish' | 'update', sn: number }) {
-    // 如果数据已被较新的调用更新，则忽略这次较旧的更新
-    if (sn < times.value.dataUpdateByCalled) return
+  function update(v: any, { track: _track, scene }: { scene: 'finish' | 'update', track: Track }) {
+    if (scene === 'update') _track.progress()
+    if (scene === 'finish' && _track.expired('result:ok')) return
+    // 函数返回数据后，又调用了 update 方法
+    if (scene === 'update' && _track.expired('progress')) return
     data.value = v
-    times.value.dataUpdateByCalled = sn;
-    if (scene === 'finish') times.value.dataUpdateByFinished = sn
+    track.value = _track
   }
 
   // 调用结束
-  function finish(v: any, { scene, sn }: { scene: 'normal' | 'error', sn: number }) {
+  function finish(v: any, { scene, track }: { scene: 'normal' | 'error', track: Track }) {
+    track.finish(scene === 'error')
     // 异常状态已在底层处理，此处只需要处理正常结束的数据
-    if (scene === 'normal') update(v, { sn, scene: 'finish' })
-    // 第 sn 次调用结束，更新完成序号
-    if (sn > times.value.finished) times.value.finished = sn
+    if (scene === 'normal') update(v, { track, scene: 'finish' })
   }
 
   function normalizeArguments(args: any[], {
     enhanceFirstArgument,
-    sn
+    track
   }: { 
     enhanceFirstArgument?: boolean
-    sn: number
+    track: Track
   }) {
     if (!enhanceFirstArgument) return args
     const [_first, ...restArgs] = args
@@ -110,7 +89,7 @@ function useAsyncData(...args: any[]): any {
       ...(args.length ? { firstArgument: _first } : {}), 
       getData: () => data.value,
       updateData: (v: any) => {
-        update(v, { sn, scene: 'update' })
+        update(v, { track, scene: 'update' })
         return v
       }
     }
@@ -118,33 +97,44 @@ function useAsyncData(...args: any[]): any {
     return [first, ...restArgs]
   }
 
+  const tracker = createFunctionTracker()
   function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
-    // 本次调用的序列号
-    const sn = ++times.value.called
+    const track = tracker()
 
-    args = normalizeArguments(args, { enhanceFirstArgument, sn })
+    args = normalizeArguments(args, { enhanceFirstArgument, track })
 
     try {
       const p = fn(...args)
       if (p instanceof Promise) {
         p.then(
           // promise 正常结束
-          v => finish(v, { scene: 'normal', sn }), 
+          v => finish(v, { scene: 'normal', track }), 
           // promise 出现拒绝
-          e => finish(e, { scene: 'error', sn })
+          e => finish(e, { scene: 'error', track })
         )
       } else {
         // 非 promise 正常结束
-        finish(p, { scene: 'normal', sn })
+        finish(p, { scene: 'normal', track })
       }
       return p
     } catch(e) {
       // 调用报错
-      finish(e, { scene: 'error', sn })
+      finish(e, { scene: 'error', track })
       throw e
     }
   }
   const result = useAsync(`query${upperFirst(name)}`, method, useAsyncOptions)
+  /**
+   * 数据过期：正常完成调用，times.finished 数值应该与 times.dataUpdateByFinished 一致
+   * - 当 fn1 调用失败，dataUpdateByFinished = 0，finished = 1，dataUpdateByCalled = 0，数据过期
+   * - 继续调用 fn2，fn2 更新 data，未结束：dataUpdateByFinished = 0，finished = 1，dataUpdateByCalled = 2，数据未过期
+   * - 继续 fn2 失败：dataUpdateByFinished = 0，finished = 2，dataUpdateByCalled = 2，数据过期
+   */
+  const dataExpired = computed(() => {
+    if (!tracker.tracking.value) return false
+    if (!track.value) return tracker.has.finished.value
+    return track.value.expired('result')
+  })
   return {
     ...result,
     [name]: data,

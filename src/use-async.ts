@@ -1,5 +1,5 @@
 import { computed, ComputedRef, Ref, ref, watch, WatchCallback, WatchOptions, WatchSource } from "vue"
-import { StringDefaultWhenEmpty,  } from "./utils"
+import { createFunctionTracker, StringDefaultWhenEmpty,  } from "./utils"
 
 export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = {
   [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn
@@ -21,6 +21,17 @@ export type UseAsyncOptions<Fn extends (...args: any) => any> = {
   watch?: WatchSource
   watchOptions?: UseAsyncWatchOptions<Fn>
   immediate?: boolean 
+  setup?: (fn: Fn) => Fn | undefined
+}
+
+function getFunction<Fn extends (...args: any) => any = any>(fn: Fn, setup?: (fn: Fn) => Fn | undefined): Fn {
+  if (typeof setup !== 'function') return fn
+  try {
+    const result = setup(fn)
+    return typeof result === 'function' ? result : fn
+  } catch {
+    return fn
+  }
 }
 
 function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>
@@ -44,13 +55,10 @@ function useAsync(...args: any[]): any {
   const argFirst = computed(() => _args.value?.[0])
   // 上次调用的错误，下次调用开始后重置
   const error = ref()
+  const tracker = createFunctionTracker()
 
-  const times = { called: 0, finished: 0 }
-
-  function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
-    // 初始化本次调用序列号
-    const sn = ++times.called
-
+  function _method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
+    const track = tracker()
     const before = (args: any[]) => {
       // 方法调用，则上次报错置空、则开始加载、则调用参数更新
       error.value = undefined
@@ -58,12 +66,9 @@ function useAsync(...args: any[]): any {
       _args.value = args
     }
     
-    const after = (v: any, { scene, sn }: { scene: 'normal' | 'error', sn: number }) => {
-      // 更新结束序列号
-      if (sn > times.finished) times.finished = sn
-      // 是否最后一次更新
-      const isLastCalledFinished = times.called === times.finished
-      if (!isLastCalledFinished) return
+    const after = (v: any, { scene }: { scene: 'normal' | 'error' }) => {
+      track.finish(scene === 'error')
+      if (track.expired()) return
       if (scene === 'error') error.value = v
       loading.value = false
       _args.value = undefined
@@ -74,18 +79,20 @@ function useAsync(...args: any[]): any {
       const p = fn(...args)
       if (p instanceof Promise) {
         p.then(
-          () => after(undefined, { scene: 'normal', sn }),
-          e => after(e, { scene: 'error', sn })
+          () => after(undefined, { scene: 'normal' }),
+          e => after(e, { scene: 'error' })
         )
       } else {
-        after(undefined, { scene: 'normal', sn })
+        after(undefined, { scene: 'normal' })
       }
       return p
     } catch (e) {
-      after(e, { scene: 'error', sn })
+      after(e, { scene: 'error' })
       throw e
     }
   }
+
+  const method = getFunction(_method, options?.setup)
 
   if (options) {
     const noop = () => {}
