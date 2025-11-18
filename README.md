@@ -137,9 +137,9 @@ const { user } = useAsyncData('user', getUserApi, {
 
 ### 中途更新数据
 
-`{name}` 数据通常在异步函数调用结束后更新，但也可以在异步数据执行过程中更新。
+`{name}` 数据通常在异步函数调用执行结束时更新，但也可以在异步函数执行过程中更新。
 
-可以通过 `options.enhanceFirstArgument = true` 支持这种需求。
+通过配置 `options.enhanceFirstArgument = true` 实现。
 
 ```js
 import { unFirstArgumentEnhanced, useAsyncData } from 'vue-asyncx'
@@ -166,6 +166,15 @@ const {
 
 queryProgress(10)
 ```
+
+当 `options.enhanceFirstArgument = true` 后
+- 异步函数的首个参数 `init` 便被转换为 `FirstArgumentEnhanced` 类型，包含 `{ getData, updateData, firstArgument }` 属性。
+- 调用 `queryProgress(10)` 时传入的 `10` 在异步函数内部被赋在 `init.firstArgument` 上
+- `unFirstArgumentEnhanced(init)` 先解构出 `getData` 和 `updateData`，再将 `init` 重新赋值为传入的 `10`
+
+> 注意，异步函数的 `init` 不可以直接设置默认值。如：`(init: number = 0) => {}`，可以通过 `unFirstArgumentEnhanced(init, 0)` 设置默认值。
+
+> 注意，`queryProgress()` 时，`'firstArgument' in unFirstArgumentEnhanced(init)` === `false`，这可以用来区分 `queryProgress()` 与 `queryProgress(undefined)`
 
 ## API
 
