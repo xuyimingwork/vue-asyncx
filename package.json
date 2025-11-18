@@ -22,7 +22,14 @@
     "test": "pnpm run test:unit",
     "prepublish": "pnpm run build"
   },
-  "keywords": ["vue", "utils", "async", "vueuse", "hooks"],
+  "keywords": [
+    "vue",
+    "utils",
+    "async",
+    "vueuse",
+    "hooks",
+    "ahooks"
+  ],
   "author": "Xu Yiming",
   "license": "MIT",
   "repository": {
@@ -32,6 +39,7 @@
   "devDependencies": {
     "@types/node": "^20.14.11",
     "@vitest/coverage-v8": "^2.0.4",
+    "es-toolkit": "^1.42.0",
     "jsdom": "^24.1.1",
     "typescript": "^5.5.4",
     "vite": "^5.3.4",

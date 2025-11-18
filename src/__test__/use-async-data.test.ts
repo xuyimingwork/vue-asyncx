@@ -1,6 +1,7 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { unFirstArgumentEnhanced, useAsyncData } from '../use-async-data'
 import { isReactive } from 'vue'
+import { debounce } from 'es-toolkit'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -313,5 +314,29 @@ describe('useAsyncData', () => {
     expect(progressExpired.value).toBeFalsy()
   })
 
-  
+  test('setup', async () => {
+    const ref = { 
+      fn: async (result: number) => {
+        await wait(100)
+        return result
+      } 
+    }
+    const spy = vi.spyOn(ref, 'fn')
+    const { queryData, data, queryDataLoading } = useAsyncData(ref.fn, { 
+      setup(fn) {
+        return debounce(fn, 50)
+      }
+    })
+    queryData(1)
+    queryData(2)
+    queryData(3)
+    expect(spy).not.toBeCalled()
+    expect(queryDataLoading.value).toBeFalsy()
+    await wait(50)
+    expect(queryDataLoading.value).toBeTruthy()
+    expect(spy).toBeCalledTimes(1)
+    await wait(100)
+    expect(queryDataLoading.value).toBeFalsy()
+    expect(data.value).toBe(3)
+  })
 })

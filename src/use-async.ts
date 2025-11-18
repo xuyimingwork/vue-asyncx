@@ -21,10 +21,10 @@ export type UseAsyncOptions<Fn extends (...args: any) => any> = {
   watch?: WatchSource
   watchOptions?: UseAsyncWatchOptions<Fn>
   immediate?: boolean 
-  setup?: (fn: Fn) => Fn | undefined
+  setup?: (fn: Fn) => ((...args: any) => any) | void
 }
 
-function getFunction<Fn extends (...args: any) => any = any>(fn: Fn, setup?: (fn: Fn) => Fn | undefined): Fn {
+function getFunction<Fn extends (...args: any) => any = any>(fn: Fn, setup?: (fn: Fn) => (Fn | void)): Fn {
   if (typeof setup !== 'function') return fn
   try {
     const result = setup(fn)
