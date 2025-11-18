@@ -1,3 +1,6 @@
+## 1.8.0
+- useAsyncData 支持配置 setup
+
 ## 1.7.0
 - useAsyncData 支持配置 shallow 使用 shallowRef
 
