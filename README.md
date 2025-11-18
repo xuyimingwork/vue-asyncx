@@ -135,7 +135,7 @@ const { user } = useAsyncData('user', getUserApi, {
 })
 ```
 
-### 中途更新数据
+### 异步函数执行过程中更新数据
 
 `{name}` 数据通常在异步函数调用执行结束时更新，但也可以在异步函数执行过程中更新。
 
@@ -176,6 +176,26 @@ queryProgress(10)
 
 > 注意，`queryProgress()` 时，`'firstArgument' in unFirstArgumentEnhanced(init)` === `false`，这可以用来区分 `queryProgress()` 与 `queryProgress(undefined)`
 
+### Debounce
+
+```ts
+import { debounce } from 'es-toolkit';
+
+const { 
+  user, 
+  queryUser 
+} = useAsyncData('user', getUserApi, { 
+  immediate: true,
+  setup(fn) {
+    return debounce(fn, 500)
+  }
+})
+```
+
+上面例子中，`queryUser` 等价于 `debounce(fn, 500)`。可以使用任意你喜欢的 `debounce` 函数
+
+> `fn` 是 `useAsyncData` 内部对 `getUserApi` 做的封装。`setup` 返回值为函数类型时，会成为最终返回的 `queryUser`，否则，`queryUser` === `fn`
+
 ## API
 
 ### 响应
@@ -187,7 +207,7 @@ queryProgress(10)
 | query{Name}Arguments     | 异步函数执行时的传入的参数列表  | any[] \\ []      | []        |
 | query{Name}ArgumentFirst | query{Name}Arguments 的首个参数 | any \\ undefined | undefined |
 | query{Name}Error         | 异步函数执行时的异常            | any \\ undefined | undefined |
-| {name}Expired            | {name} 数据是否过期                 | any \\ undefined | undefined |
+| {name}Expired            | {name} 数据是否过期             | any \\ undefined | undefined |
 
 ### 配置
 
@@ -200,4 +220,5 @@ queryProgress(10)
 | initialData                 | data 的初始值                                         | any                                                     | undefined |
 | shallow                     | 是否使用 `shallowRef` 保存 data，默认使用 `ref`       | boolean                                                 | false     |
 | enhanceFirstArgument        | 是否强化首个入参                                      | boolean                                                 | false     |
+| setup                       | 转换函数或执行其它初始化操作                          | `(fn: Fn) => ((...args: any) => any) \| void`           | -         |
 

@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest'
-import { ref } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 import { useAsync } from '../use-async'
+import { debounce } from 'es-toolkit'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -267,5 +268,73 @@ describe('useAsync', () => {
     await expect(p2).rejects.toThrow('error2')
     expect(twoError.value).toBe('error2')
     expect(twoLoading.value).toBe(false)
+  })
+
+  test('setup', async () => {
+    const ref = { 
+      fn: async () => {
+        await wait(100)
+      } 
+    }
+    const spy = vi.spyOn(ref, 'fn')
+    const { method, methodLoading } = useAsync(ref.fn, { 
+      setup(fn) {
+        return debounce(fn, 50)
+      }
+    })
+    method()
+    method()
+    method()
+    expect(spy).not.toBeCalled()
+    expect(methodLoading.value).toBeFalsy()
+    await wait(50)
+    expect(methodLoading.value).toBeTruthy()
+    expect(spy).toBeCalledTimes(1)
+    await wait(100)
+    expect(methodLoading.value).toBeFalsy()
+  })
+
+  test('setup 异常', async () => {
+    const ref = { 
+      fn: async () => {
+        await wait(100)
+      } 
+    }
+    const spy = vi.spyOn(ref, 'fn')
+    const { method, methodLoading } = useAsync(ref.fn, { 
+      setup(fn) {
+        throw Error()
+        return debounce(fn, 50) as any
+      }
+    })
+    method()
+    method()
+    method()
+    expect(spy).toBeCalledTimes(3)
+    expect(methodLoading.value).toBeTruthy()
+    await wait(100)
+    expect(methodLoading.value).toBeFalsy()
+  })
+
+  test('setup 无返回', async () => {
+    const ref = { 
+      fn: async () => {
+        await wait(100)
+      } 
+    }
+    const spy = vi.spyOn(ref, 'fn')
+    const source = shallowRef(0)
+    const { methodLoading } = useAsync(ref.fn, { 
+      setup(fn) {
+        watch(source, () => fn())
+      }
+    })
+    expect(spy).toBeCalledTimes(0)
+    source.value++
+    await wait(0)
+    expect(spy).toBeCalledTimes(1)
+    expect(methodLoading.value).toBeTruthy()
+    await wait(100)
+    expect(methodLoading.value).toBeFalsy()
   })
 })
