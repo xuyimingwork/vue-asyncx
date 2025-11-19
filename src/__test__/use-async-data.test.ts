@@ -297,7 +297,6 @@ describe('useAsyncData', () => {
         updateData(update)
       }
       await wait(100)
-      setTimeout(() => updateData(result), 0)
       return updateData(result)
     }, { enhanceFirstArgument: true })
     
@@ -312,6 +311,28 @@ describe('useAsyncData', () => {
     await wait(100)
     expect(progress.value).toBe(100)
     expect(progressExpired.value).toBeFalsy()
+  })
+
+  test('调用异步，结束后更新', async () => {
+    // queryProgress 约耗时 300ms，每隔 100ms 更新
+    const { queryProgress, progress } = useAsyncData('progress', async function(update: number, result: number) {
+      const { updateData } = unFirstArgumentEnhanced(update)
+      update = unFirstArgumentEnhanced(update).firstArgument
+      if (update) {
+        await wait(100)
+        updateData(update)
+      }
+      await wait(100)
+      // return 后仍调用 updateData，
+      setTimeout(() => updateData(result + update), 0)
+      return updateData(result)
+    }, { enhanceFirstArgument: true })
+    
+    queryProgress(50, 100)
+    await wait(150)
+    expect(progress.value).toBe(50)
+    await wait(100)
+    expect(progress.value).toBe(100)
   })
 
   test('setup', async () => {
