@@ -56,23 +56,23 @@ function useAsyncData(...args: any[]): any {
   const data = shallow 
     ? shallowRef<ReturnType<typeof fn>>(initialData) 
     : ref<ReturnType<typeof fn>>(initialData)
-  const track = shallowRef<Track>()
+  const dataTrack = shallowRef<Track>()
 
   // 数据更新
-  function update(v: any, { track: _track, scene }: { scene: 'finish' | 'update', track: Track }) {
-    if (scene === 'update') _track.progress()
-    if (scene === 'finish' && _track.expired('result:ok')) return
-    // 函数返回数据后，又调用了 update 方法
-    if (scene === 'update' && _track.expired('progress')) return
+  function update(v: any, { track, scene, error = false }: { scene: 'finish' | 'update', track: Track, error?: boolean }) {
+    if (scene === 'update') track.progress()
+    if (scene === 'update' && track.expired('progress')) return
+    if (scene === 'finish') track.finish(error)
+    if (scene === 'finish' && track.expired('result:ok')) return
+    // 发生错误时保持已有数据
+    if (scene === 'finish' && error) return
     data.value = v
-    track.value = _track
+    dataTrack.value = track
   }
 
   // 调用结束
   function finish(v: any, { scene, track }: { scene: 'normal' | 'error', track: Track }) {
-    track.finish(scene === 'error')
-    // 异常状态已在底层处理，此处只需要处理正常结束的数据
-    if (scene === 'normal') update(v, { track, scene: 'finish' })
+    update(v, { track, scene: 'finish', error: scene === 'error' })
   }
 
   function normalizeArguments(args: any[], {
@@ -124,16 +124,12 @@ function useAsyncData(...args: any[]): any {
     }
   }
   const result = useAsync(`query${upperFirst(name)}`, method, useAsyncOptions)
-  /**
-   * 数据过期：正常完成调用，times.finished 数值应该与 times.dataUpdateByFinished 一致
-   * - 当 fn1 调用失败，dataUpdateByFinished = 0，finished = 1，dataUpdateByCalled = 0，数据过期
-   * - 继续调用 fn2，fn2 更新 data，未结束：dataUpdateByFinished = 0，finished = 1，dataUpdateByCalled = 2，数据未过期
-   * - 继续 fn2 失败：dataUpdateByFinished = 0，finished = 2，dataUpdateByCalled = 2，数据过期
-   */
+  // 最新调用结果不是 data 时，表示 data 过期。
+  // 如新的调用出现异常，或本次调用更新进度后，最终结果异常
   const dataExpired = computed(() => {
     if (!tracker.tracking.value) return false
-    if (!track.value) return tracker.has.finished.value
-    return track.value.expired('result')
+    if (!dataTrack.value) return tracker.has.finished.value
+    return dataTrack.value.expired('result')
   })
   return {
     ...result,
