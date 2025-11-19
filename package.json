@@ -39,6 +39,7 @@
   "devDependencies": {
     "@types/node": "^20.14.11",
     "@vitest/coverage-v8": "^2.0.4",
+    "@vueuse/core": "^14.0.0",
     "es-toolkit": "^1.42.0",
     "jsdom": "^24.1.1",
     "typescript": "^5.5.4",

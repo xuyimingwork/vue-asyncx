@@ -4,10 +4,11 @@
 
 ## 特性
 
-- 效率+：异步相关样板代码减少40%+
-- 可读+：异步操作命名指向明确、风格统一
-- 质量+：全 TS 支持 + 100% 单元测试
-- 维护+：易于写出符合“干净架构”理念的函数
+- 异步相关样板代码减少40%+
+- 关联状态变量自动命名、风格统一
+- 竟态条件自动处理
+- 完整 TS 类型支持
+- 100% 单元测试覆盖率
 
 ## 安装
 
@@ -176,7 +177,7 @@ queryProgress(10)
 
 > 注意，`queryProgress()` 时，`'firstArgument' in unFirstArgumentEnhanced(init)` === `false`，这可以用来区分 `queryProgress()` 与 `queryProgress(undefined)`
 
-### Debounce
+### Debounce / Throttle
 
 ```ts
 import { debounce } from 'es-toolkit';
@@ -187,6 +188,7 @@ const {
 } = useAsyncData('user', getUserApi, { 
   immediate: true,
   setup(fn) {
+    // throttle 配置方式一致
     return debounce(fn, 500)
   }
 })
@@ -194,7 +196,37 @@ const {
 
 上面例子中，`queryUser` 等价于 `debounce(fn, 500)`。可以使用任意你喜欢的 `debounce` 函数
 
-> `fn` 是 `useAsyncData` 内部对 `getUserApi` 做的封装。`setup` 返回值为函数类型时，会成为最终返回的 `queryUser`，否则，`queryUser` === `fn`
+> `fn` 是 `useAsyncData` 内部对 `getUserApi` 做的封装。`setup` 返回值为函数类型时，会成为最终返回的 `queryUser`。
+
+### DOM/BOM 事件监听 / 轮询
+
+```ts
+import { debounce } from "es-toolkit"
+import { useEventListener, useIntervalFn } from '@vueuse/core'
+
+const { 
+  user, 
+  queryUser 
+} = useAsyncData('user', getUserApi, {
+  immediate: true,
+  setup(fn) {
+    useEventListener(document, 'visibilitychange', fn)
+    useIntervalFn(fn, 1000)
+    useEventListener('resize', debounce(fn, 500))
+  }
+})
+```
+
+在 `setup` 中可以像在 vue 组件的 `setup` 中一样注册外部监听器。在上面的例子中，`queryUser` 会：
+
+- 立即调用
+- 文档显示隐藏时调用
+- 间隔 1s 轮询
+- 窗口尺寸变化时调用（`debounce` 版本）
+
+注意到：`setup` 没返回函数，此时 `queryUser` === `fn`。
+
+> 注意，如果没有使用 `useEventListener` 等自动卸载的工具函数，你需要使用 vue 生命周期钩子手动卸载。
 
 ## API
 
