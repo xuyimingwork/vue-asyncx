@@ -73,8 +73,3 @@ export function createFunctionTracker() {
   
   return tracker
 }
-
-// t1: start => [update] => finish(ok or error)
-// t2: start => [update] => finish(ok or error)
-// 什么是数据过期：新的调用有结果（更新 or 报错），当前数据还是旧值，表明数据已过期
-// 如：新调用报错

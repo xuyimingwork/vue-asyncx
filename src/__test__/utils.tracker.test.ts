@@ -1,18 +1,23 @@
 import { describe, expect, test } from 'vitest'
 import { createFunctionTracker, Track, Tracker } from '../utils'
 
-function check(t: Track, expired: { call: boolean, progress: boolean, result: boolean, ok: boolean }) {
+function check(t: Track, expired: { call: boolean | undefined, progress: boolean | undefined, result: boolean | undefined, ok: boolean | undefined }) {
   const MAP = { 
     call: undefined, 
     progress: 'progress',
     result: 'result',
     ok: 'result:ok'
-  }
+  } as const
   // result:ok 过期，result 一定过期
   if (t.expired('result:ok')) expect(t.expired('result')).toBe(true)
+  // result 过期，progress 一定过期
+  if (t.expired('result')) expect(t.expired('progress')).toBe(true)
   Object.keys(expired).forEach((key) => {
-    const state = key as unknown as keyof typeof expired
-    expect(t.expired(MAP[state as keyof typeof MAP] as any)).toBe((expired[state]))
+    const state = MAP[key as keyof typeof expired]
+    const result = expired[key as keyof typeof expired]
+    // 明确忽略该项检测
+    if (typeof result !== 'boolean') return
+    expect(t.expired(state)).toBe(result)
   })
 }
 
@@ -28,6 +33,42 @@ function init(count: number): Track[] & { tracker: Tracker }  {
     check(track, { call: false, progress: false, result: false, ok: false })
   }
   return Object.assign(tracks, { tracker })
+}
+
+type Operation = { 
+  type: 'init' 
+} | {
+  type: 'progress',
+  index: number
+} | {
+  type: 'finish',
+  index: number,
+  error?: boolean
+}
+
+/**
+ * 接收一串操作，每次操作后对 track 进行逐个检测，查看该操作后各 track 状态是否正确
+ * 
+ * @param operations 
+ * @param tracks 
+ * @param tracker 
+ */
+function operate(operations: Operation[], tracks: Track[] = [], tracker: Tracker = createFunctionTracker()) {
+  operations.forEach(operation => {
+    if (operation.type === 'init') {
+      const track = tracker()
+      check(track, { call: false, progress: false, result: false, ok: false })
+      tracks.push(track)
+      const prev = tracks.slice(0, tracks.length - 1)
+      if (prev.length) prev.every(track => check(track, { call: true, progress: undefined, result: undefined, ok: undefined }))
+      return
+    }
+    if (operation.type === 'progress') {
+      const track = tracks[operation.index]
+      check(track, { call: !!tracks[operation.index + 1], progress: undefined, result: undefined, ok: undefined })
+      track.expired('result')
+    }
+  })
 }
 
 describe('createFunctionTracker', () => {
