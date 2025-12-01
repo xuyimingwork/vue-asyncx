@@ -1,4 +1,4 @@
-优雅好用的异步函数/数据管理工具
+优雅好用的异步函数/数据管理工具 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/xuyimingwork/vue-asyncx)
 
 ![](./docs/compare.png)
 
