@@ -18,6 +18,14 @@ export type UseAsyncDataResult<
     ? ShallowRef<Awaited<ReturnType<Fn>>> 
     : Ref<Awaited<ReturnType<Fn>>> 
 } & {
+  /**
+   * 当前 data 赋值后，有新的调用完成，但 data 未被覆盖。
+   * 
+   * @example
+   * case1: p1 ok，p2 error，data 来自 p1，error 来自 p2，expired 为 true
+   * case2: p1 ok，p2 error，p3 pending，data 来自 p1，error 为 undefined，expired 为 true
+   * case3: p1 ok, p2 error，p3 update，data 来自 p3，error 为 undefined，expired 为 false
+   */
   [K in `${StringDefaultWhenEmpty<DataName, 'data'>}Expired`]: Ref<boolean>
 }
 
