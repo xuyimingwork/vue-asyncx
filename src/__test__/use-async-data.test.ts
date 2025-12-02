@@ -64,12 +64,12 @@ describe('useAsyncData', () => {
     expect(result.one.value).toBe(1)
   })
 
-  test('函数结果', () => {
+  test('函数结果', async () => {
     const sum = (a: number, b: number) => a + b
     const { querySum } = useAsyncData('sum', () => sum(1, 1))
     expect(querySum()).toBe(2)
     const { queryAsyncSum } = useAsyncData('asyncSum', () => new Promise((resolve) => setTimeout(() => resolve(sum(1, 1)), 100)))
-    expect(queryAsyncSum()).resolves.toBe(2)
+    expect(await queryAsyncSum()).toBe(2)
   })
 
   test('多次异步，依次起止', async () => {
