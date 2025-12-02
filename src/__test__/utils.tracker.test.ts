@@ -1,4 +1,4 @@
-import { describe, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { createFunctionTracker, Track, Tracker } from '../utils'
 import { check } from './utils.tracker.helper'
 
@@ -13,6 +13,11 @@ function init(count: number): Track[] & { tracker: Tracker }  {
     if (prev.length) prev.every(track => check(track, { call: true, progress: false, result: false, ok: false }))
     check(track, { call: false, progress: false, result: false, ok: false })
   }
+  expect(tracker.has.progress.value).toBe(false)
+  expect(tracker.has.finished.value).toBe(false)
+  expect(tracker.has.ok.value).toBe(false)
+  expect(tracker.latest.finished.value).toBe(false)
+  expect(tracker.latest.ok.value).toBe(false)
   return Object.assign(tracks, { tracker })
 }
 
