@@ -140,42 +140,31 @@ const { user } = useAsyncData('user', getUserApi, {
 
 `{name}` 数据通常在异步函数调用执行结束时更新，但也可以在异步函数执行过程中更新。
 
-通过配置 `options.enhanceFirstArgument = true` 实现。
-
 ```js
-import { unFirstArgumentEnhanced, useAsyncData } from 'vue-asyncx'
+import { getAsyncDataContext, useAsyncData } from 'vue-asyncx'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const { 
   progress,
   queryProgress
-} = useAsyncData('progress', async (init?: number) => {
-  const { getData, updateData } = unFirstArgumentEnhanced(init)
-  init = unFirstArgumentEnhanced(init).firstArgument
+} = useAsyncData('progress', async (init?: number = 0) => {
+  const { getData, updateData } = getAsyncDataContext()
   // 同步更新为入参 10
-  updateData(init || 0)
+  updateData(init)
   await wait(100)
   // 间隔 100ms 后，更新为 50
   updateData(50)
   await wait(100)
   // 间隔 100ms 后，返回 100，本次异步函数完全结束。
   return 100
-}, { 
-  enhanceFirstArgument: true
 })
 
 queryProgress(10)
 ```
 
-当 `options.enhanceFirstArgument = true` 后
-- 异步函数的首个参数 `init` 便被转换为 `FirstArgumentEnhanced` 类型，包含 `{ getData, updateData, firstArgument }` 属性。
-- 调用 `queryProgress(10)` 时传入的 `10` 在异步函数内部被赋在 `init.firstArgument` 上
-- `unFirstArgumentEnhanced(init)` 先解构出 `getData` 和 `updateData`，再将 `init` 重新赋值为传入的 `10`
-
-> 注意，异步函数的 `init` 不可以直接设置默认值。如：`(init: number = 0) => {}`，可以通过 `unFirstArgumentEnhanced(init, 0)` 设置默认值。
-
-> 注意，`queryProgress()` 时，`'firstArgument' in unFirstArgumentEnhanced(init)` === `false`，这可以用来区分 `queryProgress()` 与 `queryProgress(undefined)`
+> - `getAsyncDataContext` 只在同步调用时才可获取到正确的上下文
+> - `updateData` 内部已自动处理竟态条件，可以放心调用
 
 ### Debounce / Throttle
 
@@ -251,6 +240,5 @@ const {
 | watchOptions.handlerCreator | 自定义传入 `watch` 的 `handler`                       | `(fn: Fn) => WatchCallback`                             | -         |
 | initialData                 | data 的初始值                                         | any                                                     | undefined |
 | shallow                     | 是否使用 `shallowRef` 保存 data，默认使用 `ref`       | boolean                                                 | false     |
-| enhanceFirstArgument        | 是否强化首个入参                                      | boolean                                                 | false     |
 | setup                       | 转换函数或执行其它初始化操作                          | `(fn: Fn) => ((...args: any) => any) \| void`           | -         |
 

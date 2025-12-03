@@ -2,10 +2,14 @@ import { computed, Ref, ref, ShallowRef, shallowRef } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
 import { createFunctionTracker, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
+import { prepareAsyncDataContext } from "./use-async-data.context";
 
 export interface UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: any,
   shallow?: Shallow,
+  /**
+   * @deprecated 已废弃，请使用 getAsyncDataContext
+   */
   enhanceFirstArgument?: boolean
 }
 export type UseAsyncDataResult<
@@ -83,6 +87,16 @@ function useAsyncData(...args: any[]): any {
     update(v, { track, scene: 'finish', error: scene === 'error' })
   }
 
+  function getContext({ track }) {
+    return {
+      getData: () => data.value,
+      updateData: (v: any) => {
+        update(v, { track, scene: 'update' })
+        return v
+      }
+    }
+  }
+
   function normalizeArguments(args: any[], {
     enhanceFirstArgument,
     track
@@ -95,11 +109,7 @@ function useAsyncData(...args: any[]): any {
     const first: FirstArgumentEnhanced = {
       [FLAG_FIRST_ARGUMENT_ENHANCED]: true,
       ...(args.length ? { firstArgument: _first } : {}), 
-      getData: () => data.value,
-      updateData: (v: any) => {
-        update(v, { track, scene: 'update' })
-        return v
-      }
+      ...getContext({ track })
     }
 
     return [first, ...restArgs]
@@ -108,9 +118,8 @@ function useAsyncData(...args: any[]): any {
   const tracker = createFunctionTracker()
   function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
     const track = tracker()
-
     args = normalizeArguments(args, { enhanceFirstArgument, track })
-
+    const restoreAsyncDataContext = prepareAsyncDataContext(getContext({ track }))
     try {
       const p = fn(...args)
       if (p instanceof Promise) {
@@ -129,6 +138,8 @@ function useAsyncData(...args: any[]): any {
       // 调用报错
       finish(e, { scene: 'error', track })
       throw e
+    } finally {
+      restoreAsyncDataContext()
     }
   }
   const result = useAsync(`query${upperFirst(name)}`, method, useAsyncOptions)
@@ -147,7 +158,7 @@ function useAsyncData(...args: any[]): any {
 }
 
 /**
- * 
+ * @deprecated 已废弃，请使用 getAsyncDataContext
  * @param arg 首个参数
  * @param defaultValue 当 arg === undefined 时的默认值
  * @returns 首个参数解构结果（符合 ts 类型要求）
@@ -170,4 +181,5 @@ function isFirstArgumentEnhanced(v: any): v is FirstArgumentEnhanced {
   return typeof v === 'object' && !!v && (FLAG_FIRST_ARGUMENT_ENHANCED in v)
 }
 
+export { getAsyncDataContext } from './use-async-data.context'
 export { useAsyncData }

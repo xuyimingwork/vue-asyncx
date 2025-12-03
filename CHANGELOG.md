@@ -1,3 +1,7 @@
+## 1.9.0
+- useAsyncData 支持 getAsyncDataContext 获取上下文
+- unFirstArgumentEnhanced / enhanceFirstArgument 标注废弃
+
 ## 1.8.0
 - useAsyncData 支持配置 setup
 
