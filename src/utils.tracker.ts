@@ -1,4 +1,4 @@
-import { computed, ref } from "vue"
+import { computed, Ref, ref } from "vue"
 
 export type Tracker = ReturnType<typeof createFunctionTracker>
 export type Track = ReturnType<Tracker>
@@ -8,7 +8,7 @@ const FUNCTION_RUN_STATE = {
   UPDATING: 'updating',
   FULFILLED: 'fulfilled',
   REJECTED: 'rejected'
-};
+} as const;
 
 const FUNCTION_RUN_STATE_TRANSITIONS = {
   [FUNCTION_RUN_STATE.PENDING]: [FUNCTION_RUN_STATE.UPDATING, FUNCTION_RUN_STATE.FULFILLED, FUNCTION_RUN_STATE.REJECTED],
@@ -17,30 +17,69 @@ const FUNCTION_RUN_STATE_TRANSITIONS = {
   [FUNCTION_RUN_STATE.REJECTED]: [],
 }
 
+type State = typeof FUNCTION_RUN_STATE[keyof typeof FUNCTION_RUN_STATE]
+
+function allowTransition(from: State, to: State): boolean {
+  return FUNCTION_RUN_STATE_TRANSITIONS[from].indexOf(to as any) > -1
+}
+
+function max(...args: number[]): number {
+  if (!args.length) return
+  return args.reduce((max, v) => v > max ? v : max, args?.[0])
+}
+
 export function createFunctionTracker() {
+  // 记录【最新的】不同状态的序号
   const pending = ref<number>(0)
   const updating = ref<number>(0)
   const fulfilled = ref<number>(0)
   const rejected = ref<number>(0)
-  const finished = computed(() => fulfilled.value > rejected.value ? fulfilled.value : rejected.value)
-
+  const finished = computed(() => max(fulfilled.value, rejected.value))
+  const record = (sn: number, latest: Ref<number>) => latest.value < sn ? latest.value = sn : latest.value
   function tracker() {
     const sn = ++pending.value
+    let state: State = FUNCTION_RUN_STATE.PENDING
+    let value = undefined
+    let error = undefined
+    const self = {
+      allow: (target: State) => allowTransition(state, target),
+      update: (v?: any) => {
+        if (!self.allow(FUNCTION_RUN_STATE.UPDATING)) return
+        state = FUNCTION_RUN_STATE.UPDATING
+        value = v
+        record(sn, updating)
+      },
+      fulfill: (v?: any) => {
+        if (!self.allow(FUNCTION_RUN_STATE.FULFILLED)) return
+        state = FUNCTION_RUN_STATE.FULFILLED
+        value = v
+        record(sn, fulfilled)
+      },
+      reject: (e?: any) => {
+        if (!self.allow(FUNCTION_RUN_STATE.REJECTED)) return
+        state = FUNCTION_RUN_STATE.REJECTED
+        error = e
+        record(sn, rejected)
+      },
+    }
     return {
-      progress(): void {
-        if (updating.value >= sn) return
-        updating.value = sn
-      },
+      /**
+       * @deprecated
+       */
+      progress: self.update,
+      /**
+       * @deprecated
+       * @param error 
+       */
       finish(error: boolean = false): void {
-        if (finished.value >= sn) return
-        const result = error ? rejected : fulfilled
-        result.value = sn
+        self[error ? 'reject' : 'fulfill']()
       },
+      // 当前的 sn 的 state 数据是否过期
       expired(state?: 'progress' | 'result:ok' | 'result'): boolean {
         // 是否有【新调用】覆盖本调用
         if (!state) return pending.value > sn
         // 是否有【新更新/新结果】覆盖本调用更新
-        if (state === 'progress') return updating.value > sn || finished.value >= sn
+        if (state === 'progress') return !self.allow(FUNCTION_RUN_STATE.UPDATING) || updating.value > sn || fulfilled.value >= sn
         // 是否有【新更新/新好结果】调用覆盖本调用好结果
         if (state === 'result:ok') return updating.value > sn || fulfilled.value > sn
         return updating.value > sn || finished.value > sn

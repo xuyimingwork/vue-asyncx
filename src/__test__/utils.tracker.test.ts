@@ -124,7 +124,7 @@ describe('createFunctionTracker', () => {
     const [t1, t2] = init(2)
 
     t2.finish(true)
-    check(t1, { call: true, progress: true, result: true, ok: false })
+    check(t1, { call: true, progress: false, result: true, ok: false })
     check(t2, { call: false, progress: true, result: false, ok: false })
     t1.finish(true)    
     check(t1, { call: true, progress: true, result: true, ok: false })
@@ -135,7 +135,7 @@ describe('createFunctionTracker', () => {
     const [t1, t2] = init(2)
 
     t2.finish(true)
-    check(t1, { call: true, progress: true, result: true, ok: false })
+    check(t1, { call: true, progress: false, result: true, ok: false })
     check(t2, { call: false, progress: true, result: false, ok: false })
     t1.finish()    
     check(t1, { call: true, progress: true, result: true, ok: false })

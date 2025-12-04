@@ -191,6 +191,30 @@ describe('useAsyncData', () => {
     expect(progress.value).toBe(100)
   })
 
+  test('should update data when later error', async () => {
+    const { queryProgress, progress, progressExpired, queryProgressError } = useAsyncData('progress', async function(update: number, result: number, error: any): Promise<number> {
+      const { updateData } = getAsyncDataContext()
+      if (error) throw error
+      if (update) {
+        await wait(100)
+        updateData(update)
+      }
+      await wait(100)
+      updateData(result)
+      return result
+    }, { initialData: 0 })
+
+    expect(progress.value).toBe(0)
+    queryProgress(1, 2, undefined)
+    queryProgress(3, 4, 'error')
+    await wait(100)
+    expect(progress.value).toBe(1)
+    expect(progressExpired.value).toBe(true)
+    await wait(100)
+    expect(progress.value).toBe(2)
+    expect(progressExpired.value).toBe(true)
+  })
+
   test('should get origin data when data update', async () => {
     // queryProgress 约耗时 300ms，每隔 100ms 更新
     const { list, queryList } = useAsyncData('list', async function(page: number, ms: number) {

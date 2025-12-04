@@ -10,14 +10,14 @@ export function check(t: Track, expired: { call: boolean | undefined, progress: 
   } as const
   // result:ok 过期，result 一定过期
   if (t.expired('result:ok')) expect(t.expired('result')).toBe(true)
-  // result 过期，progress 一定过期
-  if (t.expired('result')) expect(t.expired('progress')).toBe(true)
+  // result:ok 过期，progress 一定过期
+  if (t.expired('result:ok')) expect(t.expired('progress')).toBe(true)
   Object.keys(expired).forEach((key) => {
     const state = MAP[key as keyof typeof expired]
     const result = expired[key as keyof typeof expired]
     // 明确忽略该项检测
     if (typeof result !== 'boolean') return
-    expect(t.expired(state)).toBe(result)
+    expect({ state, result: t.expired(state) }).toEqual({ state, result })
   })
 }
 
