@@ -152,7 +152,6 @@ function useAsyncData(...args: any[]): any {
   // 最新调用结果不是 data 时，表示 data 过期。
   // 如新的调用出现异常，或本次调用更新进度后，最终结果异常
   const dataExpired = computed(() => {
-    if (!tracker.tracking.value) return false
     if (!dataTrack.value) return tracker.has.finished.value
     return dataTrack.value.expired('result')
   })
