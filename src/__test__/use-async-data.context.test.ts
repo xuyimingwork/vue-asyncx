@@ -190,4 +190,22 @@ describe('useAsyncData', () => {
     await wait(100)
     expect(progress.value).toBe(100)
   })
+
+  test('should get origin data when data update', async () => {
+    // queryProgress 约耗时 300ms，每隔 100ms 更新
+    const { list, queryList } = useAsyncData('list', async function(page: number, ms: number) {
+      const { getData } = getAsyncDataContext()
+      await wait(ms)
+      return [...getData(), page]
+    }, { initialData: [] })
+    
+    await queryList(1, 0)
+    expect(list.value).toEqual([1])
+    queryList(2, 50) // 先更新
+    // 如果此处调用 queryList(3, 100)，结果应该是什么？
+    // 或者场景错误，不应该出现 queryList(3, 100) 场景
+    queryList(2, 100) // 后更新
+    await wait(100)
+    expect(list.value).toEqual([1, 2])
+  })
 })

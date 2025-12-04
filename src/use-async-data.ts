@@ -5,7 +5,7 @@ import { createFunctionTracker, StringDefaultWhenEmpty, Track, upperFirst } from
 import { prepareAsyncDataContext } from "./use-async-data.context";
 
 export interface UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
-  initialData?: any,
+  initialData?: Awaited<ReturnType<Fn>>,
   shallow?: Shallow,
   /**
    * @deprecated 已废弃，请使用 getAsyncDataContext
@@ -88,10 +88,15 @@ function useAsyncData(...args: any[]): any {
   }
 
   function getContext({ track }) {
+    /**
+     * 待重构
+     */
+    let snapshot = data.value
     return {
-      getData: () => data.value,
+      getData: () => snapshot,
       updateData: (v: any) => {
         update(v, { track, scene: 'update' })
+        snapshot = v
         return v
       }
     }
@@ -99,17 +104,17 @@ function useAsyncData(...args: any[]): any {
 
   function normalizeArguments(args: any[], {
     enhanceFirstArgument,
-    track
+    context
   }: { 
     enhanceFirstArgument?: boolean
-    track: Track
+    context: any
   }) {
     if (!enhanceFirstArgument) return args
     const [_first, ...restArgs] = args
     const first: FirstArgumentEnhanced = {
       [FLAG_FIRST_ARGUMENT_ENHANCED]: true,
       ...(args.length ? { firstArgument: _first } : {}), 
-      ...getContext({ track })
+      ...context
     }
 
     return [first, ...restArgs]
@@ -118,8 +123,9 @@ function useAsyncData(...args: any[]): any {
   const tracker = createFunctionTracker()
   function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
     const track = tracker()
-    args = normalizeArguments(args, { enhanceFirstArgument, track })
-    const restoreAsyncDataContext = prepareAsyncDataContext(getContext({ track }))
+    const context = getContext({ track })
+    args = normalizeArguments(args, { enhanceFirstArgument, context })
+    const restoreAsyncDataContext = prepareAsyncDataContext(context)
     try {
       const p = fn(...args)
       if (p instanceof Promise) {
