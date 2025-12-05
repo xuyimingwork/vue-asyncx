@@ -121,7 +121,7 @@ export function createFunctionTracker() {
     // 已完成
     finished: computed(() => pending.value === finished.value),
     // 已成功
-    fulfilled: computed(() => pending.value === fulfilled.value),
+    fulfilled: computed(() => pending.value === fulfilled.value && pending.value > 0),
   }
   // 过往调用数据
   tracker.has = {
