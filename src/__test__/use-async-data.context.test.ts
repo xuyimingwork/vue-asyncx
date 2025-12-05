@@ -98,7 +98,7 @@ describe('useAsyncData', () => {
     expect(progress.value).toBeUndefined()
     queryProgress()
     expect(progress.value).toBe(0)
-    await wait(150)
+    await wait(100)
     expect(progress.value).toBe(30)
     await wait(100)
     expect(progress.value).toBe(60)

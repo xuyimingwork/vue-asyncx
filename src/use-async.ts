@@ -67,8 +67,8 @@ function useAsync(...args: any[]): any {
     }
     
     const after = (v: any, { scene }: { scene: 'normal' | 'error' }) => {
-      track.finish(scene === 'error')
-      if (track.expired()) return
+      track.finish(scene === 'error', v)
+      if (!track.isLatestCall()) return
       if (scene === 'error') error.value = v
       loading.value = false
       _args.value = undefined
