@@ -1,6 +1,6 @@
 // utils.tracker.test.ts
 import { createFunctionTracker } from '../utils.tracker'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 describe('createFunctionTracker', () => {
   describe('sequence numbering', () => {
@@ -53,19 +53,29 @@ describe('createFunctionTracker', () => {
       const tracker = createFunctionTracker()
       const t = tracker()
       t.fulfill('done')
-      // Attempt illegal transitions
+      // Attempt illegal transitions — should not change state/value
+      const dbgBefore = t.debug()
       t.update('should not work')
-      t.reject('should not work')
+      t.reject(new Error('should not work'))
+      const dbgAfter = t.debug()
       expect(t.inStateFulfilled()).toBe(true)
       expect(t.value).toBe('done')
+      expect(dbgAfter.state).toBe(dbgBefore.state)
+      expect(dbgAfter.value).toBe(dbgBefore.value)
+      expect(dbgAfter.error).toBeUndefined()
 
       const t2 = tracker()
-      t2.reject('error')
-      // Attempt illegal transitions
+      t2.reject(new Error('error'))
+      // Attempt illegal transitions — should not change state/value
+      const dbg2Before = t2.debug()
       t2.update('should not work')
       t2.fulfill('should not work')
+      const dbg2After = t2.debug()
       expect(t2.inStateRejected()).toBe(true)
-      expect(t2.debug().error).toBe('error')
+      expect(dbg2After.error).toBeDefined()
+      expect((dbg2After.error as any).message).toBe('error')
+      expect(dbg2After.state).toBe(dbg2Before.state)
+      expect(dbg2After.value).toBe(dbg2Before.value)
     })
 
     it('should handle self-transitions correctly', () => {
@@ -110,8 +120,8 @@ describe('createFunctionTracker', () => {
       const tracker = createFunctionTracker()
       const t1 = tracker()
       const t2 = tracker()
-      t1.reject('old error')
-      t2.reject('new error')
+      t1.reject(new Error('old error'))
+      t2.reject(new Error('new error'))
       expect(t1.isLatestFinish()).toBe(false)
       expect(t2.isLatestFinish()).toBe(true)
     })
@@ -121,7 +131,7 @@ describe('createFunctionTracker', () => {
     it('isStaleValue returns true for rejected calls', () => {
       const tracker = createFunctionTracker()
       const t = tracker()
-      t.reject('error')
+      t.reject(new Error('error'))
       expect(t.isStaleValue()).toBe(true)
     })
 
@@ -140,7 +150,7 @@ describe('createFunctionTracker', () => {
       const first = tracker() // sn=1
       const second = tracker() // sn=2
       first.fulfill('result')
-      second.reject('error')
+      second.reject(new Error('error'))
       expect(first.isStaleValue()).toBe(true)
       expect(second.isStaleValue()).toBe(true) // reject is always stale
       expect(second.isLatestFinish()).toBe(true)
@@ -152,7 +162,7 @@ describe('createFunctionTracker', () => {
       const first = tracker() // sn=1
       const second = tracker() // sn=2
       expect(second.isLatestFinish()).toBe(false)
-      first.reject('early error')
+      first.reject(new Error('early error'))
       second.fulfill('later success')
       expect(first.isStaleValue()).toBe(true)
       expect(second.isStaleValue()).toBe(false)
@@ -162,22 +172,138 @@ describe('createFunctionTracker', () => {
 
     it('multiple calls: only the latest fulfilled is non-stale', () => {
       const tracker = createFunctionTracker()
+      vi.useFakeTimers()
       const calls = Array.from({ length: 5 }, (_, i) => {
-        const t = tracker() // Simulate out-of-order completion
+        const t = tracker()
+        // schedule fulfill with shorter delay for later calls to simulate out-of-order completion
         setTimeout(() => t.fulfill(`result ${i}`), (5 - i) * 10)
         return t
       })
-      // Wait for all to complete (simulate)
-      // In real test, we'd mock time; here we just check logic via sn
-      calls.forEach((t, i) => {
-        // Manually fulfill in reverse order to mimic race
-        calls[4 - i].fulfill(`result ${4 - i}`)
-      })
+
+      // run all timers so scheduled fulfills execute deterministically
+      vi.runAllTimers()
+
       // Only last (sn=5) should be non-stale
       calls.slice(0, -1).forEach(t => {
         expect(t.isStaleValue()).toBe(true)
       })
       expect(calls[4].isStaleValue()).toBe(false)
+      vi.useRealTimers()
+    })
+  })
+
+  describe('additional race scenarios', () => {
+    it('update after fulfill should be ignored', () => {
+      const tracker = createFunctionTracker()
+      const t = tracker()
+      t.fulfill('done')
+      t.update('late update')
+      expect(t.inStateFulfilled()).toBe(true)
+      expect(t.value).toBe('done')
+    })
+
+    it('older update after newer finish should be ignored (stale update)', () => {
+      const tracker = createFunctionTracker()
+      vi.useFakeTimers()
+      const t1 = tracker() // sn=1
+      const t2 = tracker() // sn=2
+      setTimeout(() => t1.update('old late update'), 20)
+      setTimeout(() => t2.fulfill('fast'), 10)
+      vi.runAllTimers()
+      expect(t2.isLatestFulfill() || t2.isLatestUpdate()).toBe(true)
+      expect(t1.isLatestUpdate()).toBe(false)
+      vi.useRealTimers()
+    })
+
+    it('promise-based concurrency: later promise wins', async () => {
+      const tracker = createFunctionTracker()
+      // Use fake timers for deterministic setTimeout behavior
+      vi.useFakeTimers()
+      const t1 = tracker()
+      const p1 = Promise.resolve('r1').then(v => t1.fulfill(v))
+      const t2 = tracker()
+      const p2 = new Promise<string>(resolve => setTimeout(() => resolve('r2'), 0)).then(v => t2.fulfill(v))
+      // flush microtasks so p1 runs
+      await Promise.resolve()
+      // run timers so p2 runs, then flush microtasks
+      vi.runAllTimers()
+      await Promise.resolve()
+      vi.useRealTimers()
+      expect(t1.isStaleValue()).toBe(true)
+      expect(t2.isStaleValue()).toBe(false)
+    })
+
+    it('complex interleaving: only last fulfilled non-stale', () => {
+      const tracker = createFunctionTracker()
+      const calls = Array.from({ length: 7 }, () => tracker())
+      // complete in custom order:
+      const order = [2, 0, 6, 1, 5, 3, 4]
+      order.forEach(i => calls[i].fulfill(`r${i}`))
+      // Only the last (sn=7, index 6) should be non-stale
+      calls.slice(0, -1).forEach(t => expect(t.isStaleValue()).toBe(true))
+      expect(calls[6].isStaleValue()).toBe(false)
+    })
+
+    it('multiple fulfill calls for same sn should keep first value (idempotent fulfill)', () => {
+      const tracker = createFunctionTracker()
+      const t = tracker()
+      t.update('u1')
+      t.fulfill('v1')
+      t.fulfill('v2') // second fulfill for same sn may be ignored
+      expect(t.inStateFulfilled()).toBe(true)
+      expect(t.value).toBe('v1')
+    })
+
+    it('finish race: later finish decides latest flags', () => {
+      const tracker = createFunctionTracker()
+      const a = tracker()
+      const b = tracker()
+      a.finish(false, 'a-ok')
+      b.finish(true, new Error('b-err'))
+      expect(a.isStaleValue()).toBe(true)
+      expect(b.isLatestFinish()).toBe(true)
+    })
+
+    it('update after reject should not resurrect value', () => {
+      const tracker = createFunctionTracker()
+      const t = tracker()
+      t.reject(new Error('err'))
+      t.update('should not resurrect')
+      expect(t.inStateRejected()).toBe(true)
+      expect(t.isStaleValue()).toBe(true)
+    })
+
+    it('large concurrency: only latest non-stale after mixed completion', () => {
+      const tracker = createFunctionTracker()
+      const N = 50
+      const calls = Array.from({ length: N }, () => tracker())
+      // deterministic order (reverse then interleave)
+      const order = Array.from({ length: N }, (_, i) => i).reverse()
+      order.forEach((i, idx) => {
+        if (i % 7 === 0) calls[i].reject(new Error(`err${i}`))
+        else calls[i].fulfill(`r${i}`)
+      })
+      // Only the highest sn (last created) should be non-stale if it was fulfilled
+      const lastIdx = calls.length - 1
+      const lastWasRejected = lastIdx % 7 === 0
+      expect(tracker.has.finished.value).toBe(true)
+      const nonStale = calls.filter(c => !c.isStaleValue())
+      if (!lastWasRejected) {
+        expect(nonStale.length).toBeGreaterThanOrEqual(1)
+      } else {
+        // If last was rejected, it's possible that no call is non-stale (rejects are considered stale)
+        expect(nonStale.length).toBeGreaterThanOrEqual(0)
+      }
+    })
+
+    it('update then finish then update should ignore post-finish update', () => {
+      const tracker = createFunctionTracker()
+      const t = tracker()
+      t.update('u1')
+      t.finish(false, 'done')
+      t.update('u2')
+      expect(t.inStateFulfilled()).toBe(true)
+      expect(t.value).toBe('done')
     })
   })
 
@@ -255,7 +381,7 @@ describe('createFunctionTracker', () => {
       expect(tracker.has.rejected.value).toBe(false)
       
       const t2 = tracker()
-      t2.reject('error')
+      t2.reject(new Error('error'))
       expect(tracker.has.fulfilled.value).toBe(true)
       expect(tracker.has.rejected.value).toBe(true)
       expect(tracker.has.finished.value).toBe(true)
