@@ -11,6 +11,7 @@ function init(count: number): Track[] & { tracker: Tracker }  {
     const prev = tracks.slice(0, tracks.length - 1)
     // 新调用发生后，所有之前的调用全部过期
     if (prev.length) prev.every(track => check(track, { call: true, progress: false, result: false, ok: false }))
+    // 最新调用所有内容均未过期
     check(track, { call: false, progress: false, result: false, ok: false })
   }
   expect(tracker.has.progress.value).toBe(false)
@@ -27,6 +28,12 @@ describe('createFunctionTracker', () => {
 
     t1.finish()
     check(t1, { call: false, progress: true, result: false, ok: false })
+  })
+
+  test('1 tracker - debug', () => {
+    const [t1] = init(1)
+
+    expect(t1.debug()).toBeTruthy()
   })
 
   test('1 tracker - progress', () => {
