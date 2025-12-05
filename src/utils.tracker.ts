@@ -75,11 +75,15 @@ export function createFunctionTracker() {
       },
       isLatestUpdate() {
         if (!self.inStateUpdating()) return false
-        return updating.value <= sn && fulfilled.value < sn
+        return fulfilled.value < sn && updating.value === sn
       },
       isLatestFulfill() {
         if (!self.inStateFulfilled()) return false
-        return updating.value <= sn && fulfilled.value <= sn
+        return updating.value <= sn && fulfilled.value === sn
+      },
+      isLatestFinish() {
+        if (!self.inStateFinished()) return false
+        return updating.value <= sn && finished.value === sn
       },
       isStaleValue() {
         // 如果调用处于拒绝状态，value 一定是不新鲜的
@@ -92,6 +96,12 @@ export function createFunctionTracker() {
           state,
           value,
           error,
+          is: {
+            latestCall: self.isLatestCall(),
+            latestFulfill: self.isLatestFulfill(),
+            latestUpdate: self.isLatestUpdate(),
+            staleValue: self.isStaleValue(),
+          },
           latest: {
             pending: pending.value,
             updating: updating.value,
@@ -107,10 +117,6 @@ export function createFunctionTracker() {
        * @deprecated
        */
       progress: self.update,
-      /**
-       * TODO: 调整顺序
-       * @param error 
-       */
       finish(error: boolean = false, v?: any): void {
         self[error ? 'reject' : 'fulfill'](v)
       },
@@ -122,20 +128,40 @@ export function createFunctionTracker() {
        */
       expired(state?: 'progress' | 'result:ok' | 'result'): boolean {
         // 是否有【新调用】覆盖本调用
-        if (!state) return pending.value > sn
-        // 是否有【新更新/新结果】覆盖本调用更新
-        // if (state === 'progress') return !self.allow(FUNCTION_RUN_STATE.UPDATING) || updating.value > sn || fulfilled.value >= sn
-        if (state === 'progress') return !self.isLatestUpdate()
-        // 是否有【新更新/新好结果】调用覆盖本调用好结果
-        // if (state === 'result:ok') return updating.value > sn || fulfilled.value > sn
-        if (state === 'result:ok') return !self.isLatestFulfill()
+        if (!state) return !self.isLatestCall()
+
+        // progress：
+        // - 如果当前处于 updating，则根据 isLatestUpdate 判断是否被更晚的 update/finish 覆盖
+        // - 如果当前处于 pending（尚未 update），则不认为 progress 过期
+        // - 否则（已 finished），progress 被视为过期
+        if (state === 'progress') {
+          // 如果存在比当前 sn 的更新或成功，则 progress 被视为过期
+          // 注意：后续的 rejected finish 不应使之前的 progress 失效
+          if (self.inStateUpdating()) return !self.isLatestUpdate()
+          if (updating.value > sn || fulfilled.value > sn) return true
+          if (self.inStatePending()) return false
+          return true
+        }
+
+        // result:ok：
+        // - 当前为 fulfilled 时，根据 isLatestFulfill 判断是否被更晚成功覆盖
+        // - 否则只有当存在比当前 sn 的 fulfilled 或 updating（新的成功或更新）时，才认为 ok 被覆盖
+        //   注意：后续的 rejected finish 不应该使之前的 ok 失效
+        if (state === 'result:ok') {
+          if (self.inStateFulfilled()) return !self.isLatestFulfill()
+          return fulfilled.value > sn || updating.value > sn
+        }
+
+        // result：
+        // - 如果当前已 finished（fulfilled/rejected），根据 isLatestFinish 判断是否被更晚的完成覆盖
+        // - 否则（未 finished），只要存在比当前 sn 更晚的 update/finish，就认为 result 已过期
+        if (self.inStateFinished()) return !self.isLatestFinish()
         return updating.value > sn || finished.value > sn
       },
       update: self.update,
       fulfill: self.fulfill,
       reject: self.reject,
       get value() { return value },
-      get error() { return error },
       isLatestCall: self.isLatestCall,
       isLatestUpdate: self.isLatestUpdate,
       isLatestFulfill: self.isLatestFulfill,
