@@ -71,32 +71,28 @@ function useAsyncData(...args: any[]): any {
   const dataTrack = shallowRef<Track>()
 
   // 数据更新
-  function update(v: any, { track, scene, error = false }: { scene: 'finish' | 'update', track: Track, error?: boolean }) {
-    if (scene === 'update') track.progress()
-    if (scene === 'update' && track.expired('progress')) return
-    if (scene === 'finish') track.finish(error)
-    if (scene === 'finish' && track.expired('result:ok')) return
-    // 发生错误时保持已有数据
-    if (scene === 'finish' && error) return
+  function update(v: any, { track }: { track: Track }) {
+    // 结果错误时不更新已有数据
+    if (track.inStateRejected()) return
+    if (track.inStateUpdating() && !track.isLatestUpdate()) return
+    if (track.inStateFulfilled() && !track.isLatestFulfill()) return
     data.value = v
     dataTrack.value = track
   }
 
   // 调用结束
   function finish(v: any, { scene, track }: { scene: 'normal' | 'error', track: Track }) {
-    update(v, { track, scene: 'finish', error: scene === 'error' })
+    track.finish(scene === 'error', v)
+    if (track.inStateFinished()) update(v, { track })
   }
 
-  function getContext({ track }) {
-    /**
-     * 待重构
-     */
-    let snapshot = data.value
+  function getContext({ track }: { track: Track }) {
     return {
-      getData: () => snapshot,
+      getData: () => track.value,
       updateData: (v: any) => {
-        update(v, { track, scene: 'update' })
-        snapshot = v
+        track.update(v)
+        // 拒绝结束后更新场景
+        if (track.inStateUpdating()) update(v, { track })
         return v
       }
     }
@@ -122,7 +118,7 @@ function useAsyncData(...args: any[]): any {
 
   const tracker = createFunctionTracker()
   function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
-    const track = tracker()
+    const track = tracker(data.value)
     const context = getContext({ track })
     args = normalizeArguments(args, { enhanceFirstArgument, context })
     const restoreAsyncDataContext = prepareAsyncDataContext(context)
@@ -153,7 +149,7 @@ function useAsyncData(...args: any[]): any {
   // 如新的调用出现异常，或本次调用更新进度后，最终结果异常
   const dataExpired = computed(() => {
     if (!dataTrack.value) return tracker.has.finished.value
-    return dataTrack.value.expired('result')
+    return dataTrack.value.isStaleValue()
   })
   return {
     ...result,
