@@ -83,7 +83,7 @@ function useAsyncData(...args: any[]): any {
   // 调用结束
   function finish(v: any, { scene, track }: { scene: 'normal' | 'error', track: Track }) {
     track.finish(scene === 'error', v)
-    if (track.inStateFinished()) update(v, { track })
+    update(v, { track })
   }
 
   function getContext({ track }: { track: Track }) {

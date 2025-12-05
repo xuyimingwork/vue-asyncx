@@ -1,264 +1,222 @@
-import { describe, expect, test } from 'vitest'
-import { createFunctionTracker, Track, Tracker } from '../utils'
-import { check } from './utils.tracker.helper'
-
-function init(count: number): Track[] & { tracker: Tracker }  {
-  const tracker = createFunctionTracker()
-  const tracks: Track[] = []
-  for(let i = 0; i < count; i++) {
-    const track = tracker()  
-    tracks.push(track)
-    const prev = tracks.slice(0, tracks.length - 1)
-    // 新调用发生后，所有之前的调用全部过期
-    if (prev.length) prev.every(track => check(track, { call: true, progress: false, result: false, ok: false }))
-    // 最新调用所有内容均未过期
-    check(track, { call: false, progress: false, result: false, ok: false })
-  }
-  expect(tracker.has.progress.value).toBe(false)
-  expect(tracker.has.finished.value).toBe(false)
-  expect(tracker.has.ok.value).toBe(false)
-  expect(tracker.latest.finished.value).toBe(false)
-  expect(tracker.latest.ok.value).toBe(false)
-  return Object.assign(tracks, { tracker })
-}
+// utils.tracker.test.ts
+import { createFunctionTracker } from '../utils.tracker'
+import { describe, expect, it } from 'vitest'
 
 describe('createFunctionTracker', () => {
-  test('1 tracker', () => {
-    const [t1] = init(1)
-
-    t1.finish()
-    check(t1, { call: false, progress: true, result: false, ok: false })
+  it('should assign strictly increasing sequence numbers', () => {
+    const tracker = createFunctionTracker()
+    const t1 = tracker()
+    const t2 = tracker()
+    const t3 = tracker()
+    expect(t1.debug().sn).toBe(1)
+    expect(t2.debug().sn).toBe(2)
+    expect(t3.debug().sn).toBe(3)
   })
 
-  test('1 tracker - debug', () => {
-    const [t1] = init(1)
+  it('should allow valid state transitions: pending → updating → fulfilled', () => {
+    const tracker = createFunctionTracker()
+    const t = tracker('initial')
+    expect(t.inStatePending()).toBe(true)
+    expect(t.value).toBe('initial')
 
-    expect(t1.debug()).toBeTruthy()
+    t.update('loading...')
+    expect(t.inStateUpdating()).toBe(true)
+    expect(t.value).toBe('loading...')
+
+    t.fulfill('success')
+    expect(t.inStateFulfilled()).toBe(true)
+    expect(t.value).toBe('success')
   })
 
-  test('1 tracker - progress', () => {
-    const [t1] = init(1)
-
-    t1.progress()
-    check(t1, { call: false, progress: false, result: false, ok: false })
-
-    t1.finish()
-    check(t1, { call: false, progress: true, result: false, ok: false })
+  it('should allow pending → rejected', () => {
+    const tracker = createFunctionTracker()
+    const t = tracker()
+    t.reject(new Error('fail'))
+    expect(t.inStateRejected()).toBe(true)
+    expect(t.isStaleValue()).toBe(true)
+    expect(tracker.has.rejected.value).toBe(true)
   })
 
-  test('1 tracker - error', () => {
-    const [t1] = init(1)
+  it('should reject invalid state transitions', () => {
+    const tracker = createFunctionTracker()
+    const t = tracker()
+    t.fulfill('done')
 
-    t1.finish(true)
-    check(t1, { call: false, progress: true, result: false, ok: false })
+    // Attempt illegal transitions
+    t.update('should not work')
+    t.reject('should not work')
+
+    expect(t.inStateFulfilled()).toBe(true)
+    expect(t.value).toBe('done')
+
+    const t2 = tracker()
+    t2.reject('error')
+
+    // Attempt illegal transitions
+    t2.update('should not work')
+    t2.fulfill('should not work')
+
+    expect(t2.inStateRejected()).toBe(true)
+    expect(t2.value).toBeUndefined()
+    expect(t2.debug().error).toBe('error')
   })
 
-  test('2 trackers - 12', () => {
-    const [t1, t2] = init(2)
+  it('record function should only increase latest refs', () => {
+    const tracker = createFunctionTracker()
+    const t1 = tracker()
+    const t2 = tracker()
 
-    t1.finish()
-    check(t1, { call: true, progress: true, result: false, ok: false })
-    check(t2, { call: false, progress: false, result: false, ok: false })
-    t2.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: false, progress: true, result: false, ok: false })
+    t1.fulfill('first')
+    expect(tracker.latest.fulfilled.value).toBe(false) // t2 not done yet
+
+    t2.fulfill('second')
+    expect(tracker.latest.fulfilled.value).toBe(true)
+    expect(tracker.has.fulfilled.value).toBe(true)
   })
 
-  test('2 trackers - 12 progress 12', () => {
-    const [t1, t2] = init(2)
+  it('isLatestFulfill and isLatestUpdate work correctly', () => {
+    const tracker = createFunctionTracker()
+    const t1 = tracker()
+    const t2 = tracker()
 
-    t1.progress()
-    check(t1, { call: true, progress: false, result: false, ok: false })
-    check(t2, { call: false, progress: false, result: false, ok: false })
-    t2.progress()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: false, progress: false, result: false, ok: false })
+    t1.update('old load')
+    t2.update('new load')
+    expect(t1.isLatestUpdate()).toBe(false)
+    expect(t2.isLatestUpdate()).toBe(true)
 
-    t1.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: false, progress: false, result: false, ok: false })
-    t2.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: false, progress: true, result: false, ok: false })
+    t1.fulfill('old result')
+    t2.fulfill('new result')
+    expect(t1.isLatestFulfill()).toBe(false)
+    expect(t2.isLatestFulfill()).toBe(true)
+    expect(t2.isLatestFinish()).toBe(true)
   })
 
-  test('2 trackers - 12 error 12', () => {
-    const [t1, t2] = init(2)
-
-    t1.finish(true)
-    check(t1, { call: true, progress: true, result: false, ok: false })
-    check(t2, { call: false, progress: false, result: false, ok: false })
-    t2.finish(true)
-    // ok data come from previous call, as long as no later update/ok, ok keep false
-    check(t1, { call: true, progress: true, result: true, ok: false })
-    check(t2, { call: false, progress: true, result: false, ok: false })
+  it('isStaleValue returns true for rejected calls', () => {
+    const tracker = createFunctionTracker()
+    const t = tracker()
+    t.reject('error')
+    expect(t.isStaleValue()).toBe(true)
   })
 
-  test('2 trackers - 12 error 1', () => {
-    const [t1, t2] = init(2)
+  it('isStaleValue returns true if newer call has finished', () => {
+    const tracker = createFunctionTracker()
+    const slow = tracker() // sn=1
+    const fast = tracker() // sn=2
 
-    t1.finish(true)
-    check(t1, { call: true, progress: true, result: false, ok: false })
-    check(t2, { call: false, progress: false, result: false, ok: false })
-    t2.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: false, progress: true, result: false, ok: false })
+    fast.fulfill('fast')
+    slow.fulfill('slow')
+
+    expect(fast.isStaleValue()).toBe(false)
+    expect(slow.isStaleValue()).toBe(true) // because sn=2 > sn=1 and finished
   })
 
-  test('2 trackers - 12 error 2', () => {
-    const [t1, t2] = init(2)
+  it('finish() method delegates to fulfill or reject', () => {
+    const tracker = createFunctionTracker()
+    const t1 = tracker()
+    const t2 = tracker()
 
-    t1.finish()
-    check(t1, { call: true, progress: true, result: false, ok: false })
-    check(t2, { call: false, progress: false, result: false, ok: false })
-    t2.finish(true)
-    check(t1, { call: true, progress: true, result: true, ok: false })
-    check(t2, { call: false, progress: true, result: false, ok: false })
+    t1.finish(false, 'success via finish')
+    t2.finish(true, new Error('error via finish'))
+
+    expect(t1.inStateFulfilled()).toBe(true)
+    expect(t1.value).toBe('success via finish')
+    expect(t2.inStateRejected()).toBe(true)
   })
 
-  test('2 trackers - 21', () => {
-    const [t1, t2] = init(2)
+  it('debug() returns full introspection object', () => {
+    const tracker = createFunctionTracker()
+    const t = tracker('start')
+    t.update('progress')
 
-    t2.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: false, progress: true, result: false, ok: false })
-    t1.finish()    
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: false, progress: true, result: false, ok: false })
+    const dbg = t.debug()
+    expect(dbg.sn).toBe(1)
+    expect(dbg.state).toBe('updating')
+    expect(dbg.value).toBe('progress')
+    expect(dbg.error).toBeUndefined()
+    expect(dbg.is.latestCall).toBe(true)
+    expect(dbg.is.latestUpdate).toBe(true)
+    expect(dbg.is.staleValue).toBe(false)
+    expect(dbg.latest.pending).toBe(1)
+    expect(dbg.latest.updating).toBe(1)
+    expect(dbg.latest.fulfilled).toBe(0)
+    expect(dbg.latest.rejected).toBe(0)
   })
 
-  test('2 trackers - 21 error 21', () => {
-    const [t1, t2] = init(2)
+  it('has.progress becomes true after any update', () => {
+    const tracker = createFunctionTracker()
+    expect(tracker.has.updating.value).toBe(false)
 
-    t2.finish(true)
-    check(t1, { call: true, progress: false, result: true, ok: false })
-    check(t2, { call: false, progress: true, result: false, ok: false })
-    t1.finish(true)    
-    check(t1, { call: true, progress: true, result: true, ok: false })
-    check(t2, { call: false, progress: true, result: false, ok: false })
+    const t = tracker()
+    t.update('loading')
+    expect(tracker.has.updating.value).toBe(true)
   })
 
-  test('2 trackers - 21 error 2', () => {
-    const [t1, t2] = init(2)
+  it('tracking and has flags reflect call lifecycle', () => {
+    const tracker = createFunctionTracker()
+    expect(tracker.has.tracking.value).toBe(false)
+    expect(tracker.has.finished.value).toBe(false)
 
-    t2.finish(true)
-    check(t1, { call: true, progress: false, result: true, ok: false })
-    check(t2, { call: false, progress: true, result: false, ok: false })
-    t1.finish()    
-    check(t1, { call: true, progress: true, result: true, ok: false })
-    check(t2, { call: false, progress: true, result: false, ok: false })
+    const t = tracker()
+    expect(tracker.has.tracking.value).toBe(true)
+
+    t.fulfill('ok')
+
+    expect(tracker.has.finished.value).toBe(true)
+    expect(tracker.has.fulfilled.value).toBe(true)
+    expect(tracker.latest.finished.value).toBe(true)
+    expect(tracker.latest.fulfilled.value).toBe(true)
   })
 
-  test('2 trackers - 21 error 1', () => {
-    const [t1, t2] = init(2)
+  it('race: fulfill (sn=1) then reject (sn=2) → fulfill is stale', () => {
+    const tracker = createFunctionTracker()
+    const first = tracker()  // sn=1
+    const second = tracker() // sn=2
 
-    t2.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: false, progress: true, result: false, ok: false })
-    t1.finish(true)    
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: false, progress: true, result: false, ok: false })
+    first.fulfill('result')
+    second.reject('error')
+
+    expect(first.isStaleValue()).toBe(true)
+    expect(second.isStaleValue()).toBe(true) // reject is always stale
+    expect(second.isLatestFinish()).toBe(true)
+    expect(tracker.has.finished.value).toBe(true)
   })
 
-  test('3 trackers - 123', () => {
-    const [t1, t2, t3] = init(3)
+  it('race: reject (sn=1) then fulfill (sn=2) → reject is stale, fulfill is latest', () => {
+    const tracker = createFunctionTracker()
+    const first = tracker()  // sn=1
+    const second = tracker() // sn=2
 
-    t1.finish()
-    check(t1, { call: true, progress: true, result: false, ok: false })
-    check(t2, { call: true, progress: false, result: false, ok: false })
-    check(t3, { call: false, progress: false, result: false, ok: false })
-    t2.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: true, progress: true, result: false, ok: false })
-    check(t3, { call: false, progress: false, result: false, ok: false })
-    t3.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: true, progress: true, result: true, ok: true })
-    check(t3, { call: false, progress: true, result: false, ok: false })
+    expect(second.isLatestFinish()).toBe(false)
+
+    first.reject('early error')
+    second.fulfill('later success')
+
+    expect(first.isStaleValue()).toBe(true)
+    expect(second.isStaleValue()).toBe(false)
+    expect(second.isLatestFinish()).toBe(true)
+    expect(tracker.latest.fulfilled.value).toBe(true)
   })
 
-  test('3 trackers - 123 error 123', () => {
-    const [t1, t2, t3] = init(3)
+  it('multiple calls: only the latest fulfilled is non-stale', () => {
+    const tracker = createFunctionTracker()
+    const calls = Array.from({ length: 5 }, (_, i) => {
+      const t = tracker()
+      // Simulate out-of-order completion
+      setTimeout(() => t.fulfill(`result ${i}`), (5 - i) * 10)
+      return t
+    })
 
-    t1.finish(true)
-    check(t1, { call: true, progress: true, result: false, ok: false })
-    check(t2, { call: true, progress: false, result: false, ok: false })
-    check(t3, { call: false, progress: false, result: false, ok: false })
-    t2.finish(true)
-    check(t1, { call: true, progress: true, result: true, ok: false })
-    check(t2, { call: true, progress: true, result: false, ok: false })
-    check(t3, { call: false, progress: false, result: false, ok: false })
-    t3.finish(true)
-    check(t1, { call: true, progress: true, result: true, ok: false })
-    check(t2, { call: true, progress: true, result: true, ok: false })
-    check(t3, { call: false, progress: true, result: false, ok: false })
-  })
+    // Wait for all to complete (simulate)
+    // In real test, we'd mock time; here we just check logic via sn
+    calls.forEach((t, i) => {
+      // Manually fulfill in reverse order to mimic race
+      calls[4 - i].fulfill(`result ${4 - i}`)
+    })
 
-  test('3 trackers - 123 error 12', () => {
-    const [t1, t2, t3] = init(3)
-
-    t1.finish(true)
-    check(t1, { call: true, progress: true, result: false, ok: false })
-    check(t2, { call: true, progress: false, result: false, ok: false })
-    check(t3, { call: false, progress: false, result: false, ok: false })
-    t2.finish(true)
-    check(t1, { call: true, progress: true, result: true, ok: false })
-    check(t2, { call: true, progress: true, result: false, ok: false })
-    check(t3, { call: false, progress: false, result: false, ok: false })
-    t3.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: true, progress: true, result: true, ok: true })
-    check(t3, { call: false, progress: true, result: false, ok: false })
-  })
-
-  test('3 trackers - 123 error 13', () => {
-    const [t1, t2, t3] = init(3)
-
-    t1.finish(true)
-    check(t1, { call: true, progress: true, result: false, ok: false })
-    check(t2, { call: true, progress: false, result: false, ok: false })
-    check(t3, { call: false, progress: false, result: false, ok: false })
-    t2.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: true, progress: true, result: false, ok: false })
-    check(t3, { call: false, progress: false, result: false, ok: false })
-    t3.finish(true)
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: true, progress: true, result: true, ok: false })
-    check(t3, { call: false, progress: true, result: false, ok: false })
-  })
-
-  test('3 trackers - 123 error 23', () => {
-    const [t1, t2, t3] = init(3)
-
-    t1.finish()
-    check(t1, { call: true, progress: true, result: false, ok: false })
-    check(t2, { call: true, progress: false, result: false, ok: false })
-    check(t3, { call: false, progress: false, result: false, ok: false })
-    t2.finish(true)
-    check(t1, { call: true, progress: true, result: true, ok: false })
-    check(t2, { call: true, progress: true, result: false, ok: false })
-    check(t3, { call: false, progress: false, result: false, ok: false })
-    t3.finish(true)
-    check(t1, { call: true, progress: true, result: true, ok: false })
-    check(t2, { call: true, progress: true, result: true, ok: false })
-    check(t3, { call: false, progress: true, result: false, ok: false })
-  })
-
-  test('3 trackers - 312', () => {
-    const [t1, t2, t3] = init(3)
-
-    t3.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: true, progress: true, result: true, ok: true })
-    check(t3, { call: false, progress: true, result: false, ok: false })
-    t1.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: true, progress: true, result: true, ok: true })
-    check(t3, { call: false, progress: true, result: false, ok: false })
-    t2.finish()
-    check(t1, { call: true, progress: true, result: true, ok: true })
-    check(t2, { call: true, progress: true, result: true, ok: true })
-    check(t3, { call: false, progress: true, result: false, ok: false })
+    // Only last (sn=5) should be non-stale
+    calls.slice(0, -1).forEach(t => {
+      expect(t.isStaleValue()).toBe(true)
+    })
+    expect(calls[4].isStaleValue()).toBe(false)
   })
 })
