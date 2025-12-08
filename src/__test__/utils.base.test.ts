@@ -14,6 +14,11 @@ describe('upperFirst', () => {
     expect(upperFirst('abc')).toBe('Abc')
     expect(upperFirst('Abc')).toBe('Abc')
   })
+
+  test('should handle single character', () => {
+    expect(upperFirst('a')).toBe('A')
+    expect(upperFirst('Z')).toBe('Z')
+  })
 })
 
 describe('max', () => {
@@ -26,5 +31,17 @@ describe('max', () => {
 
   test('should return undefined when no input', () => {
     expect(max()).toBeUndefined()
+  })
+
+  test('should handle negative numbers', () => {
+    expect(max(-3, -2, -5)).toBe(-2)
+  })
+
+  test('should handle mixed positive and negative', () => {
+    expect(max(-1, 0, 5, -10)).toBe(5)
+  })
+
+  test('should handle all equal numbers', () => {
+    expect(max(4, 4, 4)).toBe(4)
   })
 })
