@@ -24,6 +24,7 @@ function allowTransition(from: State, to: State): boolean {
   return FUNCTION_RUN_STATE_TRANSITIONS[from].indexOf(to as any) > -1
 }
 
+// Track async call lifecycle with ordering to resolve races.
 export function createFunctionTracker() {
   // 记录【最新的】不同状态的序号
   const pending = ref<number>(0)
@@ -35,6 +36,9 @@ export function createFunctionTracker() {
     if (latest.value >= sn) return
     latest.value = sn
   }
+  /**
+   * Create a single call tracker. `v` can seed the initial value.
+   */
   function tracker(v?: any) {
     const sn = ++pending.value
     let state: State = FUNCTION_RUN_STATE.PENDING
@@ -54,42 +58,55 @@ export function createFunctionTracker() {
       allowToStateUpdating: () => allowToState(FUNCTION_RUN_STATE.UPDATING),
       allowToStateFulfilled: () => allowToState(FUNCTION_RUN_STATE.FULFILLED),
       allowToStateRejected: () => allowToState(FUNCTION_RUN_STATE.REJECTED),
+      /** Transition to updating; ignored if not allowed. */
       update: (v?: any) => {
         if (!self.allowToStateUpdating()) return
         state = FUNCTION_RUN_STATE.UPDATING
         value = v
         record(sn, updating)
       },
+      /** Transition to fulfilled; ignored if not allowed. */
       fulfill: (v?: any) => {
         if (!self.allowToStateFulfilled()) return
         state = FUNCTION_RUN_STATE.FULFILLED
         value = v
         record(sn, fulfilled)
       },
+      /** Transition to rejected; ignored if not allowed. */
       reject: (e?: any) => {
         if (!self.allowToStateRejected()) return
         state = FUNCTION_RUN_STATE.REJECTED
         error = e
         record(sn, rejected)
       },
+      /** Convenience terminal transition (error=true → reject, else fulfill). */
       finish(error: boolean = false, v?: any): void {
-        self[error ? 'reject' : 'fulfill'](v)
+        if (error) {
+          self.reject(v)
+          return
+        }
+        self.fulfill(v)
       },
+      /** Whether this call is the newest invocation. */
       isLatestCall() {
         return pending.value === sn
       },
+      /** Whether this updating call is the latest update. */
       isLatestUpdate() {
         if (!self.inStateUpdating()) return false
         return fulfilled.value < sn && updating.value === sn
       },
+      /** Whether this fulfilled call is the latest fulfillment. */
       isLatestFulfill() {
         if (!self.inStateFulfilled()) return false
         return updating.value <= sn && fulfilled.value === sn
       },
+      /** Whether this finished call (fulfilled/rejected) is the latest finish. */
       isLatestFinish() {
         if (!self.inStateFinished()) return false
         return updating.value <= sn && finished.value === sn
       },
+      /** Whether this value is stale due to newer update/finish or rejection. */
       isStaleValue() {
         // 如果调用处于拒绝状态，value 一定是不新鲜的
         if (self.inStateRejected()) return true
