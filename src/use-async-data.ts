@@ -24,6 +24,12 @@ export type UseAsyncDataResult<
 } & {
   /**
    * 当前 data 赋值后，有新的调用完成，但 data 未被覆盖。
+   * 如：
+   * - 某次调用的更新 data 后，该调用报错
+   * - 某次调用成功后，后续调用报错
+   * 与 error 区别：
+   * - error 跟随调用，新调用发起后 error 立即重置
+   * - expired 跟随 data，新调用的过程与结果才会影响 expired
    * 
    * @example
    * case1: p1 ok，p2 error，data 来自 p1，error 来自 p2，expired 为 true
@@ -145,13 +151,6 @@ function useAsyncData(...args: any[]): any {
     }
   }
   const result = useAsync(`query${upperFirst(name)}`, method, useAsyncOptions)
-  /**
-   * 存在已有结果的调用且不是当前值
-   * 如：更新/成功后一直错
-   * 与错误的区别：
-   * - 错误跟随调用，在新调用发起后即重置
-   * - dataExpired 跟随数据，只要数据不能反应最新调用结果即为过期
-   */
   const dataExpired = computed(() => {
     if (!dataTrack.value) return tracker.has.finished.value
     return dataTrack.value.isStaleValue()

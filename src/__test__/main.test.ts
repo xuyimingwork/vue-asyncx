@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest"
 import { unFirstArgumentEnhanced, useAsync, useAsyncData, useAsyncFunction, getAsyncDataContext } from '../main'
 
 describe('main', () => {
-  test('导出', () => {
+  test('exports', () => {
     expect(typeof useAsync === 'function').toBe(true)
     expect(typeof useAsyncData === 'function').toBe(true)
     expect(typeof getAsyncDataContext === 'function').toBe(true)
