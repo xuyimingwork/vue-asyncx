@@ -31,7 +31,10 @@ export function createFunctionTracker() {
   const fulfilled = ref<number>(0)
   const rejected = ref<number>(0)
   const finished = computed(() => max(fulfilled.value, rejected.value))
-  const record = (sn: number, latest: Ref<number>) => latest.value < sn ? latest.value = sn : latest.value
+  const record = (sn: number, latest: Ref<number>): void => {
+    if (latest.value >= sn) return
+    latest.value = sn
+  }
   function tracker(v?: any) {
     const sn = ++pending.value
     let state: State = FUNCTION_RUN_STATE.PENDING
@@ -40,7 +43,9 @@ export function createFunctionTracker() {
     const inState = (target: State) => state === target
     const allowToState = (target: State) => allowTransition(state, target)
     const self = {
+      get sn() { return sn },
       get value() { return value },
+      get error() { return error }, 
       inStatePending: () => inState(FUNCTION_RUN_STATE.PENDING),
       inStateUpdating: () => inState(FUNCTION_RUN_STATE.UPDATING),
       inStateFulfilled: () => inState(FUNCTION_RUN_STATE.FULFILLED),
@@ -90,27 +95,6 @@ export function createFunctionTracker() {
         if (self.inStateRejected()) return true
         // 如果有更新的值或结果，则当前值是不新鲜的
         return updating.value > sn || finished.value > sn
-      },
-      debug() {
-        return {
-          sn,
-          state,
-          value,
-          error,
-          is: {
-            latestCall: self.isLatestCall(),
-            latestFulfill: self.isLatestFulfill(),
-            latestUpdate: self.isLatestUpdate(),
-            staleValue: self.isStaleValue(),
-          },
-          latest: {
-            pending: pending.value,
-            updating: updating.value,
-            fulfilled: fulfilled.value,
-            rejected: rejected.value,
-            finished: finished.value,
-          }
-        }
       }
     }
     return self
