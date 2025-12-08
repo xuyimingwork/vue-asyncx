@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import { unFirstArgumentEnhanced, useAsyncData } from '../use-async-data'
+import { getAsyncDataContext } from '../use-async-data.context'
 import { isReactive } from 'vue'
 import { debounce } from 'es-toolkit'
 
@@ -366,5 +367,186 @@ describe('useAsyncData', () => {
     await wait(100)
     expect(queryDataLoading.value).toBeFalsy()
     expect(data.value).toBe(3)
+  })
+})
+
+describe('useAsyncData with getAsyncDataContext', () => {
+  test('should update data during async execution', async () => {
+    const { queryProgress, progress } = useAsyncData('progress', async function() {
+      const { getData, updateData } = getAsyncDataContext()
+      expect(getData()).toBeUndefined()
+      updateData(0)
+      await wait(100)
+      expect(getData()).toBe(0)
+      updateData(30)
+      await wait(100)
+      expect(getData()).toBe(30)
+      updateData(60)
+      await wait(100)
+      expect(getData()).toBe(60)
+      return 100
+    })
+    
+    expect(progress.value).toBeUndefined()
+    queryProgress()
+    expect(progress.value).toBe(0)
+    await wait(100)
+    expect(progress.value).toBe(30)
+    await wait(100)
+    expect(progress.value).toBe(60)
+    await wait(100)
+    expect(progress.value).toBe(100)
+  })
+
+  test('should handle multiple calls with intermediate updates', async () => {
+    const { queryProgress, progress } = useAsyncData('progress', async function() {
+      const { getData, updateData } = getAsyncDataContext()
+      updateData(0)
+      await wait(100)
+      expect(getData()).toBe(0)
+      updateData(30)
+      await wait(100)
+      expect(getData()).toBe(30)
+      updateData(60)
+      await wait(100)
+      expect(getData()).toBe(60)
+      return 100
+    })
+    
+    expect(progress.value).toBeUndefined()
+    queryProgress()
+    expect(progress.value).toBe(0)
+    await wait(150)
+    expect(progress.value).toBe(30)
+    queryProgress()
+    expect(progress.value).toBe(0)
+    await wait(150)
+    expect(progress.value).toBe(30)
+    await wait(100)
+    expect(progress.value).toBe(60)
+    await wait(100)
+    expect(progress.value).toBe(100)
+  })
+
+  test('should mark data as expired when error occurs', async () => {
+    const { queryProgress, progress, progressExpired, queryProgressError } = useAsyncData('progress', async function(update: number, result: number, error: any) {
+      const { updateData } = getAsyncDataContext()
+      if (error) throw error
+      if (update) {
+        await wait(100)
+        updateData(update)
+      }
+      await wait(100)
+      return updateData(result)
+    })
+    
+    // Initial state - data not expired
+    expect(progressExpired.value).toBeFalsy()
+    // p1 request fails, data expires
+    await expect(queryProgress(1, 1, 'error')).rejects.toBe('error')
+    expect(queryProgressError.value).toBeTruthy()
+    expect(progressExpired.value).toBeTruthy()
+    // Trigger p2, data still expired
+    queryProgress(50, 100, undefined)
+    expect(progressExpired.value).toBeTruthy()
+    expect(queryProgressError.value).toBeUndefined()
+    // p2 updates data mid-execution, data no longer expired
+    await wait(150)
+    expect(progress.value).toBe(50)
+    expect(progressExpired.value).toBeFalsy()
+    // p2 completes, data not expired
+    await wait(100)
+    expect(progress.value).toBe(100)
+    expect(progressExpired.value).toBeFalsy()
+  })
+
+  test('should update data after async completion', async () => {
+    const { queryProgress, progress } = useAsyncData('progress', async function(update: number, result: number) {
+      const { updateData } = getAsyncDataContext()
+      if (update) {
+        await wait(100)
+        updateData(update)
+      }
+      await wait(100)
+      // Call updateData after return
+      setTimeout(() => updateData(result + update), 0)
+      return updateData(result)
+    })
+    
+    queryProgress(50, 100)
+    await wait(150)
+    expect(progress.value).toBe(50)
+    await wait(100)
+    expect(progress.value).toBe(100)
+  })
+
+  test('should update data when later call reports error', async () => {
+    const { queryProgress, progress, progressExpired, queryProgressError } = useAsyncData('progress', async function(update: number, result: number, error: any): Promise<number> {
+      const { updateData } = getAsyncDataContext()
+      if (error) throw error
+      if (update) {
+        await wait(100)
+        updateData(update)
+      }
+      await wait(100)
+      updateData(result)
+      return result
+    }, { initialData: 0 })
+
+    // Initial value
+    expect(progress.value).toBe(0)
+
+    // Later call reports error
+    // Keep updates from previous call
+    queryProgress(1, 2, undefined)
+    queryProgress(3, 4, 'error')
+    await wait(100)
+    expect(progress.value).toBe(1)
+    expect(progressExpired.value).toBe(true)
+    await wait(100)
+    expect(progress.value).toBe(2)
+    expect(progressExpired.value).toBe(true)
+  })
+
+  test('should get original data when updating', async () => {
+    const { list, queryList } = useAsyncData('list', async function(page: number, ms: number) {
+      const { getData } = getAsyncDataContext()
+      await wait(ms)
+      return [...getData(), page]
+    }, { initialData: [] })
+    
+    await queryList(1, 0)
+    expect(list.value).toEqual([1])
+    queryList(2, 50) // Updates first
+    queryList(3, 100) // Updates later
+    await wait(50)
+    expect(list.value).toEqual([1, 2])
+    await wait(50)
+    expect(list.value).toEqual([1, 3])
+  })
+
+  test('should handle sequential updates during async execution', async () => {
+    const { queryData, data } = useAsyncData('data', async function(value: number) {
+      const { getData, updateData } = getAsyncDataContext()
+      updateData(value)
+      await wait(50)
+      expect(getData()).toBe(value)
+      updateData(value * 2)
+      await wait(50)
+      expect(getData()).toBe(value * 2)
+      updateData(value * 3)
+      return value * 3
+    })
+    
+    queryData(10)
+    expect(data.value).toBe(10)
+    await wait(50)
+    expect(data.value).toBe(20)
+    await wait(50)
+    expect(data.value).toBe(30)
+  })
+
+  test('should throw error when getAsyncDataContext called outside useAsyncData', () => {
+    expect(() => getAsyncDataContext()).toThrowError('[vue-asyncx] getAsyncDataContext 必须在 useAsyncData 的封装函数内调用')
   })
 })
