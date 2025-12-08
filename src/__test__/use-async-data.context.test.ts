@@ -204,7 +204,11 @@ describe('useAsyncData', () => {
       return result
     }, { initialData: 0 })
 
+    // initial value
     expect(progress.value).toBe(0)
+
+    // later call report error
+    // keep update set previous call to data
     queryProgress(1, 2, undefined)
     queryProgress(3, 4, 'error')
     await wait(100)
@@ -226,10 +230,10 @@ describe('useAsyncData', () => {
     await queryList(1, 0)
     expect(list.value).toEqual([1])
     queryList(2, 50) // 先更新
-    // 如果此处调用 queryList(3, 100)，结果应该是什么？
-    // 或者场景错误，不应该出现 queryList(3, 100) 场景
-    queryList(2, 100) // 后更新
-    await wait(100)
+    queryList(3, 100) // 后更新
+    await wait(50)
     expect(list.value).toEqual([1, 2])
+    await wait(50)
+    expect(list.value).toEqual([1, 3])
   })
 })
