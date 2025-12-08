@@ -6,7 +6,7 @@ import { debounce } from 'es-toolkit'
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 describe('useAsync', () => {
-  test('非法参数', () => {
+  test('When invalid parameters are passed to useAsync, it should throw appropriate errors', () => {
     // @ts-expect-error
     expect(() => useAsync()).toThrowError('参数错误：未传递')
     // @ts-expect-error
@@ -15,21 +15,21 @@ describe('useAsync', () => {
     expect(() => useAsync('', 1)).toThrowError('参数错误：fn')
   })
 
-  test('默认名称', () => {
+  test('When no custom name is provided to useAsync, it should use default method names', () => {
     const result = useAsync(() => 1)
     expect(result.method).toBeTruthy()
     expect(result.methodLoading).toBeTruthy()
     expect(result.methodArguments).toBeTruthy()
   })
 
-  test('自定义名称', () => {
+  test('When a custom name is provided to useAsync, it should use the custom method names', () => {
     const result = useAsync('getOne', () => 1)
     expect(result.getOne).toBeTruthy()
     expect(result.getOneLoading).toBeTruthy()
     expect(result.getOneArguments).toBeTruthy()
   })
 
-  test('立即执行', () => {
+  test('When immediate option is true, useAsync should execute the function immediately', () => {
     const temp = { fn: () => 1 }
     const fnSpy = vi.spyOn(temp, 'fn')
     expect(fnSpy).not.toBeCalled()
@@ -37,7 +37,7 @@ describe('useAsync', () => {
     expect(fnSpy).toBeCalledTimes(1)
   })
 
-  test('使用 watch', async () => {
+  test('When watch option is provided, useAsync should execute function when watched value changes', async () => {
     const temp = { fn: () => 1 }
     const fnSpy = vi.spyOn(temp, 'fn')
     expect(fnSpy).not.toBeCalled()
@@ -49,7 +49,7 @@ describe('useAsync', () => {
     expect(fnSpy).toBeCalledTimes(2)
   })
 
-  test('使用 watch 参数', async () => {
+  test('When watchOptions.immediate is true, useAsync should execute function immediately', async () => {
     const temp = { fn: () => 1 }
     const fnSpy = vi.spyOn(temp, 'fn')
     expect(fnSpy).not.toBeCalled()
@@ -61,7 +61,7 @@ describe('useAsync', () => {
     expect(fnSpy).toBeCalledTimes(2)
   })
 
-  test('watch 参数优先级', async () => {
+  test('When both watchOptions.immediate and immediate options are provided, watchOptions takes priority', async () => {
     const temp = { fn: () => 1 }
     const fnSpy = vi.spyOn(temp, 'fn')
     expect(fnSpy).not.toBeCalled()
@@ -69,7 +69,7 @@ describe('useAsync', () => {
     expect(fnSpy).toBeCalledTimes(0)
   })
 
-  test('watch 自定义 handler', async () => {
+  test('When custom handlerCreator is provided, useAsync should use the custom handler', async () => {
     const temp = { fn: () => 1, handler: () => false }
     const fnSpy = vi.spyOn(temp, 'fn')
     const handlerSpy = vi.spyOn(temp, 'handler')
@@ -88,7 +88,7 @@ describe('useAsync', () => {
     expect(fnSpy).toBeCalledTimes(0)
   })
 
-  test('watch 自定义 handler 异常', async () => {
+  test('When handlerCreator throws an error, useAsync should fall back to default handler', async () => {
     const temp = { fn: () => 1, handler: () => false }
     const fnSpy = vi.spyOn(temp, 'fn')
     const handlerSpy = vi.spyOn(temp, 'handler')
@@ -108,7 +108,7 @@ describe('useAsync', () => {
     expect(fnSpy).toBeCalledTimes(1)
   })
 
-  test('watch 自定义 handler 无效', async () => {
+  test('When handlerCreator returns invalid value, useAsync should fall back to default handler', async () => {
     const temp = { fn: () => 1, handler: () => false }
     const fnSpy = vi.spyOn(temp, 'fn')
     expect(fnSpy).not.toBeCalled()
@@ -120,21 +120,21 @@ describe('useAsync', () => {
     expect(fnSpy).toBeCalledTimes(1)
   })
 
-  test('异步加载', () => {
+  test('When executing an async function, methodLoading should be true during execution', () => {
     const { method, methodLoading } = useAsync(() => new Promise((resolve) => setTimeout(resolve, 100)))
     expect(methodLoading.value).toBe(false)
     method()
     expect(methodLoading.value).toBe(true)
   })
 
-  test('异步加载完成', async () => {
+  test('When async function completes, methodLoading should be false', async () => {
     const { method, methodLoading } = useAsync(() => new Promise((resolve) => setTimeout(resolve, 100)))
     expect(methodLoading.value).toBe(false)
     await method()
     expect(methodLoading.value).toBe(false)
   })
 
-  test('函数参数', async () => {
+  test('When method is called with arguments, it should store arguments in reactive references', async () => {
     const { doAsyncMethod, doAsyncMethodArguments, doAsyncMethodArgumentFirst } = useAsync('doAsyncMethod', function (a: number, b: number) {
       return new Promise((resolve) => {
         setTimeout(() => resolve(a + b), 100)
@@ -151,14 +151,14 @@ describe('useAsync', () => {
     })
   })
 
-  test('函数结果', async () => {
+  test('When method is called, it should return the correct result', async () => {
     const { method } = useAsync(() => 1)
     expect(method()).toBe(1)
     const { doAsyncMethod } = useAsync('doAsyncMethod', () => new Promise((resolve) => setTimeout(() => resolve(1), 100)))
     await expect(doAsyncMethod()).resolves.toBe(1)
   })
 
-  test('多次异步，结果顺序', async () => {
+  test('When multiple async methods are called in order, loading state should reflect the latest call', async () => {
     const { one, oneLoading } = useAsync('one', async (ms: number) => {
       await wait(ms)
       return ms
@@ -177,7 +177,7 @@ describe('useAsync', () => {
     expect(oneLoading.value).toBe(false)
   })
 
-  test('多次异步，结果异序', async () => {
+  test('When multiple async methods are called out of order, loading state should reflect the latest call', async () => {
     const { one, oneLoading } = useAsync('one', async (ms: number) => {
       await wait(ms)
       return ms
@@ -195,7 +195,7 @@ describe('useAsync', () => {
     expect(oneLoading.value).toBe(false)
   })
 
-  test('交叉异步，互不影响', async () => {
+  test('When multiple different async methods are called, their loading states should not interfere', async () => {
     const { one, oneLoading } = useAsync('one', async (ms: number) => {
       await wait(ms)
       return ms
@@ -224,7 +224,7 @@ describe('useAsync', () => {
     expect(twoLoading.value).toBe(false)
   })
 
-  test('方法异常', () => {
+  test('When sync method throws an error, it should propagate the error and reset loading state', () => {
     const error = Error()
     const { one, oneLoading } = useAsync('one', () => {
       throw error
@@ -234,7 +234,7 @@ describe('useAsync', () => {
     expect(oneLoading.value).toBe(false)
   })
 
-  test('异步异常', async () => {
+  test('When async method throws an error, it should propagate the error and reset loading state', async () => {
     const twoError = Error()
     const { two, twoLoading } = useAsync('two', async () => {
       await wait(100)
@@ -249,7 +249,7 @@ describe('useAsync', () => {
     expect(twoLoading.value).toBe(false)
   })
 
-  test('异步乱序异常', async () => {
+  test('When multiple async methods with errors are called out of order, only latest error should be stored', async () => {
     const { two, twoLoading, twoError } = useAsync('two', async (error?: any) => {
       await wait(100)
       if (error) throw error
@@ -270,7 +270,7 @@ describe('useAsync', () => {
     expect(twoLoading.value).toBe(false)
   })
 
-  test('setup', async () => {
+  test('When setup function is provided, useAsync should use the setup-wrapped function', async () => {
     const ref = { 
       fn: async () => {
         await wait(100)
@@ -294,7 +294,7 @@ describe('useAsync', () => {
     expect(methodLoading.value).toBeFalsy()
   })
 
-  test('setup 异常', async () => {
+  test('When setup function throws an error, useAsync should fall back to original function', async () => {
     const ref = { 
       fn: async () => {
         await wait(100)
@@ -316,7 +316,7 @@ describe('useAsync', () => {
     expect(methodLoading.value).toBeFalsy()
   })
 
-  test('setup 无返回', async () => {
+  test('When setup function returns undefined, useAsync should manage loading state for external calls', async () => {
     const ref = { 
       fn: async () => {
         await wait(100)
