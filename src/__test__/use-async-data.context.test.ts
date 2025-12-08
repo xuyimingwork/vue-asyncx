@@ -73,6 +73,31 @@ describe('context multiple', () => {
     restore1()
     expect(() => getAsyncDataContext()).toThrowError()
   })
+
+  test('should throw when restore is called twice', () => {
+    const context = { getData: () => 1, updateData: (v) => {} }
+    const restore = prepareAsyncDataContext(context)
+    expect(getAsyncDataContext()).toBe(context)
+    restore()
+    expect(() => restore()).toThrowError()
+  })
+
+  test('should handle triple-nested prepare/restore in order', () => {
+    const c1 = { getData: () => 'c1', updateData: (v: string) => {} }
+    const r1 = prepareAsyncDataContext(c1)
+    const c2 = { getData: () => 'c2', updateData: (v: string) => {} }
+    const r2 = prepareAsyncDataContext(c2)
+    const c3 = { getData: () => 'c3', updateData: (v: string) => {} }
+    const r3 = prepareAsyncDataContext(c3)
+
+    expect(getAsyncDataContext().getData()).toBe('c3')
+    r3()
+    expect(getAsyncDataContext().getData()).toBe('c2')
+    r2()
+    expect(getAsyncDataContext().getData()).toBe('c1')
+    r1()
+    expect(() => getAsyncDataContext()).toThrowError()
+  })
 })
 
 describe('context getData and updateData behavior', () => {
