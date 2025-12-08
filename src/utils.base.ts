@@ -9,5 +9,5 @@ export function upperFirst(string: string): string {
 
 export function max(...args: number[]): number {
   if (!args.length) return
-  return args.reduce((max, v) => v > max ? v : max, args?.[0])
+  return args.reduce((max, v) => v > max ? v : max, args[0])
 }

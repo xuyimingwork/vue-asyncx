@@ -145,8 +145,13 @@ function useAsyncData(...args: any[]): any {
     }
   }
   const result = useAsync(`query${upperFirst(name)}`, method, useAsyncOptions)
-  // 最新调用结果不是 data 时，表示 data 过期。
-  // 如新的调用出现异常，或本次调用更新进度后，最终结果异常
+  /**
+   * 存在已有结果的调用且不是当前值
+   * 如：更新/成功后一直错
+   * 与错误的区别：
+   * - 错误跟随调用，在新调用发起后即重置
+   * - dataExpired 跟随数据，只要数据不能反应最新调用结果即为过期
+   */
   const dataExpired = computed(() => {
     if (!dataTrack.value) return tracker.has.finished.value
     return dataTrack.value.isStaleValue()
