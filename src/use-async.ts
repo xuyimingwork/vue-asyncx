@@ -37,7 +37,7 @@ function getFunction<Fn extends (...args: any) => any = any>(fn: Fn, setup?: (fn
 function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>
 function useAsync<Fn extends (...args: any) => any, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, Name>
 function useAsync(...args: any[]): any {
-  if (!Array.isArray(args) || !args.length) throw TypeError('参数错误：未传递')
+  if (!Array.isArray(args) || !args.length) throw TypeError('Expected at least 1 argument, but got 0.')
   const { name, fn, options }: { 
     name: string, 
     fn: (...args: any) => any,
@@ -45,14 +45,13 @@ function useAsync(...args: any[]): any {
   } = typeof args[0] === 'function' 
     ? { name: 'method', fn: args[0], options: args[1] }
     : { name: args[0] || 'method', fn: args[1], options: args[2] }
-  if (typeof name !== 'string') throw TypeError('参数错误：name')
-  if (typeof fn !== 'function') throw TypeError('参数错误：fn')
+  if (typeof name !== 'string') throw TypeError(`Expected "name" to be a string, but received ${typeof name}.`)
+  if (typeof fn !== 'function') throw TypeError(`Expected "fn" to be a function, but received ${typeof fn}.`)
 
   // 调用过程的加载状态
   const loading = ref(false)
   // 调用过程的入参，调用结束后重置
   const _args = ref<Parameters<typeof fn>>()
-  const argFirst = computed(() => _args.value?.[0])
   // 上次调用的错误，下次调用开始后重置
   const error = ref()
   const tracker = createFunctionTracker()
@@ -118,8 +117,8 @@ function useAsync(...args: any[]): any {
   return {
     [name]: method,
     [`${name}Loading`]: loading,
-    [`${name}Arguments`]: _args,
-    [`${name}ArgumentFirst`]: argFirst,
+    [`${name}Arguments`]: computed(() => _args.value),
+    [`${name}ArgumentFirst`]: computed(() => _args.value?.[0]),
     [`${name}Error`]: error,
   }
 }

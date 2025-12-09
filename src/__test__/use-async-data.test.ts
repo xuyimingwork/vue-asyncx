@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { unFirstArgumentEnhanced, useAsyncData } from '../use-async-data'
 import { getAsyncDataContext } from '../use-async-data.context'
 import { isReactive } from 'vue'
@@ -7,6 +7,7 @@ import { debounce } from 'es-toolkit'
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 describe('useAsyncData', () => {
+  afterEach(() => vi.useRealTimers())
   test('非法参数', () => {
     // @ts-expect-error
     expect(() => useAsyncData()).toThrowError('参数错误：未传递')
@@ -509,20 +510,23 @@ describe('useAsyncData with getAsyncDataContext', () => {
   })
 
   test('should get original data when updating', async () => {
+    vi.useFakeTimers()
     const { list, queryList } = useAsyncData('list', async function(page: number, ms: number) {
       const { getData } = getAsyncDataContext()
       await wait(ms)
       return [...getData(), page]
     }, { initialData: [] })
-    
-    await queryList(1, 0)
+    queryList(1, 0)
+    expect(list.value).toEqual([])
+    await vi.advanceTimersToNextTimerAsync()
     expect(list.value).toEqual([1])
     queryList(2, 50) // Updates first
     queryList(3, 100) // Updates later
-    await wait(50)
+    await vi.advanceTimersToNextTimerAsync()
     expect(list.value).toEqual([1, 2])
-    await wait(50)
+    await vi.advanceTimersToNextTimerAsync()
     expect(list.value).toEqual([1, 3])
+    vi.useRealTimers()
   })
 
   test('should handle sequential updates during async execution', async () => {
