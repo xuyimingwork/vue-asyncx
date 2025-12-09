@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { nextTick, ref } from 'vue'
+import { nextTick, reactive, ref } from 'vue'
 import { useAsync, useAsyncFunction } from '../use-async'
 import { debounce } from 'es-toolkit'
 
@@ -86,15 +86,32 @@ describe('useAsync', () => {
         expect(method(null, undefined, obj, arr)).toEqual({ a: null, b: undefined, c: obj, d: arr })
         expect(spy).toBeCalledWith(null, undefined, obj, arr)
       })
+
+      test('should return independent values for each call even after a rejected call', async () => {
+        const { method } = useAsync(async (type: string) => {
+          if (type === 'err') throw new Error('fail')
+          return `result-${type}`
+        })
+        await expect(method('err')).rejects.toThrow()
+        const result = await method('ok')
+        expect(result).toBe('result-ok') // 必须是原始返回值，不能是 undefined 或错误值
+      })
     })
 
-    test('useAsyncFunction should be the same as useAsync', () => {
+    test('Align: useAsyncFunction should be the same as useAsync', () => {
       expect(useAsyncFunction).toBe(useAsync)
     })
   })
 
   describe('Execution Control', () => {
     describe('Immediate Execution', () => {
+      test('should not execute the function immediately when immediate option is not provided', () => {
+        const temp = { fn: () => 1 }
+        const fnSpy = vi.spyOn(temp, 'fn')
+        expect(fnSpy).not.toBeCalled()
+        useAsync(temp.fn)
+        expect(fnSpy).toBeCalledTimes(0)
+      })
       test('should execute the function immediately when immediate option is true', () => {
         const temp = { fn: () => 1 }
         const fnSpy = vi.spyOn(temp, 'fn')
@@ -113,7 +130,19 @@ describe('useAsync', () => {
     })
 
     describe('Watch Functionality', () => {
-      test('should execute function when watched value changes', async () => {
+      test('should execute function when watch source value changes', async () => {
+        const spy = vi.fn(() => 1)
+        const source = ref(1)
+        useAsync(spy, { watch: source, immediate: false })
+        expect(spy).not.toHaveBeenCalled() // 关键：确保没立即执行
+        await nextTick()
+        expect(spy).not.toHaveBeenCalled()
+        source.value = 2
+        await nextTick()
+        expect(spy).toHaveBeenCalledTimes(1)
+      })
+
+      test('should execute function when watched value changes with immediate: true', async () => {
         const temp = { fn: () => 1 }
         const fnSpy = vi.spyOn(temp, 'fn')
         const source = ref(1)
@@ -137,12 +166,22 @@ describe('useAsync', () => {
         expect(spy).toHaveBeenCalledTimes(3)
       })
 
-      test('should support watching reactive object with deep option', async () => {
-        const obj = ref({ count: 0 })
+      test('should execute function when null or undefined in watch array', async () => {
         const spy = vi.fn()
-        useAsync(spy, { watch: obj, watchOptions: { deep: true, immediate: true } })
+        const source = ref(1)
+        useAsync(spy, { watch: [source, null, undefined] as any, immediate: true })
         expect(spy).toHaveBeenCalledTimes(1)
-        obj.value.count++
+        source.value = 2
+        await nextTick()
+        expect(spy).toHaveBeenCalledTimes(2)
+      })
+
+      test('should support watching reactive object with deep option', async () => {
+        const obj = reactive({ count: 0 })
+        const spy = vi.fn()
+        useAsync(spy, { watch: obj as any, watchOptions: { deep: true, immediate: true } })
+        expect(spy).toHaveBeenCalledTimes(1)
+        obj.count++
         await nextTick()
         expect(spy).toHaveBeenCalledTimes(2)
       })
@@ -225,7 +264,7 @@ describe('useAsync', () => {
             if (!source) return false
             return fn()
           },
-          handlerCreator(fn) {
+          handlerCreator() {
             throw Error()
           },
         }
@@ -245,7 +284,7 @@ describe('useAsync', () => {
         const temp = { fn: () => 1, handler: () => false }
         const fnSpy = vi.spyOn(temp, 'fn')
         useAsync(temp.fn, { watchOptions: { 
-          handlerCreator(fn) {
+          handlerCreator() {
             return '' as any
           }
         }, immediate: true })
@@ -263,6 +302,69 @@ describe('useAsync', () => {
         const spy = vi.fn(() => 1)
         useAsync(spy, { watch: undefined, immediate: true })
         expect(spy).toBeCalledTimes(1)
+      })
+
+      test('should correctly handle interleaved manual and watch-triggered calls', async () => {
+        const spy = vi.fn((x: number) => wait(x).then(() => x))
+        const source = ref(1)
+        const { method, methodLoading, methodArguments, methodError } = useAsync(
+          spy,
+          { watch: source, watchOptions: { handlerCreator: (fn) => (v) => fn(v) } }
+        )
+
+        // 1. 手动调用 (sn=1)
+        method(10)
+        expect(spy).toBeCalledTimes(1)
+        expect(methodLoading.value).toBe(true)
+        expect(methodArguments.value).toEqual([10])
+
+        // 2. 修改 source，触发 watch 调用 (sn=2)
+        source.value = 20
+        await nextTick() // => 可能无法 fake
+        expect(spy).toBeCalledTimes(2)
+        expect(methodLoading.value).toBe(true)
+        expect(methodArguments.value).toEqual([20]) // 应立即更新为新参数
+
+        // 3. 再次手动调用 (sn=3)
+        method(30)
+        expect(spy).toBeCalledTimes(3)
+        expect(methodLoading.value).toBe(true)
+        expect(methodArguments.value).toEqual([30])
+
+        // 先完成 sn=1（应被忽略：不影响 loading/arguments/error）
+        await wait(10)
+        expect(methodLoading.value).toBe(true)      // 仍在加载（sn=2,3 未完成）
+        expect(methodArguments.value).toEqual([30]) // 仍为最新参数
+        expect(methodError.value).toBeUndefined()
+
+        // 再完成 sn=2（仍非最新，应被忽略）
+        await wait(10)
+        expect(methodLoading.value).toBe(true)      // sn=3 还没完
+        expect(methodArguments.value).toEqual([30])
+
+        // 最后完成 sn=3（应结束 loading，清空 arguments）
+        await wait(10)
+        expect(methodLoading.value).toBe(false)
+        expect(methodArguments.value).toBeUndefined() // 调用结束后重置
+        expect(methodError.value).toBeUndefined()
+      })
+
+      test('should pass nothing to watch-triggered calls when handlerCreator is not provided', async () => {
+        const spy = vi.fn((...args) => args.length)
+        const source = ref(1)
+        useAsync(spy, { watch: source })
+        source.value = 2
+        await nextTick()
+        expect(spy).toHaveBeenCalledWith() // no args
+      })
+
+      test('should pass arguments to watch-triggered calls as handlerCreator set', async () => {
+        const spy = vi.fn((...args) => args.length)
+        const source = ref(1)
+        useAsync(spy, { watch: source, watchOptions: { handlerCreator: (fn) => () => fn('hello world') } })
+        source.value = 2
+        await nextTick()
+        expect(spy).toHaveBeenCalledWith('hello world')
       })
     })  
 
@@ -403,6 +505,23 @@ describe('useAsync', () => {
         expect(method(2, 3)).toBe(5)
         expect(spy).toBeCalledTimes(2)
       })
+
+      test('should handle error thrown by setup-wrapped function', async () => {
+        const { method, methodError, methodLoading } = useAsync(() => 'ok', {
+          setup: () => () => { throw new Error('from setup') }
+        })
+        expect(() => method()).toThrow('from setup')
+        expect(methodError.value).toBeUndefined() // 因为是同步抛错，error 不会被捕获进 ref
+        expect(methodLoading.value).toBe(false)
+      })
+
+      test('should not cause infinite loop when setup returns another useAsync method', () => {
+        const inner = useAsync(() => 'inner')
+        const outer = useAsync(() => 'outer', {
+          setup: () => inner.method
+        })
+        expect(outer.method()).toBe('inner') // 应正常工作，无递归
+      })
     })
   })
 
@@ -486,6 +605,26 @@ describe('useAsync', () => {
         expect(oneError.value).toBe(error)
       })
 
+      test('should capture non-Error sync function throws (string, null, object)', () => {
+        const cases = [
+          'string error',
+          null,
+          undefined,
+          { code: 400 },
+          404
+        ]
+
+        for (const err of cases) {
+          const { method, methodError } = useAsync(() => { throw err })
+          try {
+            method()
+          } catch(e) {
+            expect(e).toBe(err)
+          }
+          expect(methodError.value).toStrictEqual(err)
+        }
+      })
+
       test('should clear error when a new call is made', async () => {
         const error = Error()
         const { one, oneLoading, oneError } = useAsync('one', async () => {
@@ -502,112 +641,202 @@ describe('useAsync', () => {
         expect(oneLoading.value).toBe(false)
         expect(oneError.value).toBe(error)
       })
+
+      test('should clear error when a new sync call is made', () => {
+        let shouldThrow = true
+        const { method, methodError } = useAsync(() => {
+          if (shouldThrow) throw new Error('first')
+          return 'ok'
+        })
+        expect(() => method()).toThrow()
+        expect(methodError.value).toBeDefined()
+
+        shouldThrow = false
+        method() // 第二次调用（sync 成功）
+        expect(methodError.value).toBeUndefined() // 应在调用开始时清空
+      })
     })
   })
 
   describe('Concurrency Control', () => {
-    test('loading state should reflect the latest call when multiple async methods are called in order', async () => {
-      vi.useFakeTimers()
-      const { one, oneLoading } = useAsync('one', async (ms: number) => {
-        await wait(ms)
-        return ms
+    describe('Loading State', () => {
+      test('should reflect the latest call when multiple async methods are finished in order', async () => {
+        vi.useFakeTimers()
+        const { one, oneLoading } = useAsync('one', async (ms: number) => {
+          await wait(ms)
+          return ms
+        })
+        expect(oneLoading.value).toBe(false)
+        one(100)
+        one(200)
+        expect(oneLoading.value).toBe(true)
+        await vi.advanceTimersToNextTimerAsync()
+        // earlier call is finished, but later call is not finished yet, so loading should be true
+        expect(oneLoading.value).toBe(true)
+        await vi.runAllTimersAsync()
+        // all calls are finished, so loading should be false
+        expect(oneLoading.value).toBe(false)
       })
-      expect(oneLoading.value).toBe(false)
-      one(100)
-      one(200)
-      expect(oneLoading.value).toBe(true)
-      await vi.advanceTimersToNextTimerAsync()
-      // earlier call is finished, but later call is not finished yet, so loading should be true
-      expect(oneLoading.value).toBe(true)
-      await vi.runAllTimersAsync()
-      // all calls are finished, so loading should be false
-      expect(oneLoading.value).toBe(false)
+
+      test('should reflect the latest call when multiple async methods are finished out of order', async () => {
+        vi.useFakeTimers()
+        const { one, oneLoading } = useAsync('one', async (ms: number) => {
+          await wait(ms)
+          return ms
+        })
+        expect(oneLoading.value).toBe(false)
+        one(200)
+        one(100)
+        expect(oneLoading.value).toBe(true)
+        await vi.advanceTimersToNextTimerAsync()
+        // later call is finished earlier, so loading should be false
+        expect(oneLoading.value).toBe(false)
+        await vi.runAllTimersAsync()
+        // all calls are finished, so loading should be false
+        expect(oneLoading.value).toBe(false)
+      })
+
+      test('should not interfere when multiple different async methods are called', async () => {
+        vi.useFakeTimers()
+        const { one, oneLoading } = useAsync('one', async (ms: number) => {
+          await wait(ms)
+          return ms
+        })
+        const { two, twoLoading } = useAsync('two', async (ms: number) => {
+          await wait(ms)
+          return ms
+        })
+
+        const oneFirst = one(200)
+        expect(oneLoading.value).toBe(true)
+        expect(twoLoading.value).toBe(false)
+        const twoFirst = two(100)
+        expect(oneLoading.value).toBe(true)
+        expect(twoLoading.value).toBe(true)
+
+        await vi.advanceTimersToNextTimerAsync()
+        await expect(twoFirst).resolves.toBe(100)
+        expect(oneLoading.value).toBe(true)
+        expect(twoLoading.value).toBe(false)
+        
+        await vi.advanceTimersToNextTimerAsync()
+        await expect(oneFirst).resolves.toBe(200)
+        expect(oneLoading.value).toBe(false)
+        expect(twoLoading.value).toBe(false)
+      })
     })
 
-    test('loading state should reflect the latest call when multiple async methods are called out of order', async () => {
-      vi.useFakeTimers()
-      const { one, oneLoading } = useAsync('one', async (ms: number) => {
-        await wait(ms)
-        return ms
+    describe('Arguments State', () => {
+      test('should reflect the latest call when multiple async methods are finished in order', async () => {
+        vi.useFakeTimers()
+        const { slow, slowArguments } = useAsync('slow', async (x: number) => {
+          await wait(100)
+          return x
+        })
+        slow(1)
+        expect(slowArguments.value).toEqual([1])
+        slow(2)
+        expect(slowArguments.value).toEqual([2]) // updated to latest
+        await vi.advanceTimersByTimeAsync(50)
+        expect(slowArguments.value).toEqual([2]) // still latest
+        await vi.runAllTimersAsync()
+        expect(slowArguments.value).toBeUndefined()
       })
-      expect(oneLoading.value).toBe(false)
-      one(200)
-      one(100)
-      expect(oneLoading.value).toBe(true)
-      await vi.advanceTimersToNextTimerAsync()
-      // later call is finished earlier, so loading should be false
-      expect(oneLoading.value).toBe(false)
-      await vi.runAllTimersAsync()
-      // all calls are finished, so loading should be false
-      expect(oneLoading.value).toBe(false)
+
+      test('should reflect the latest call when multiple async methods are finished out of order', async () => {
+        vi.useFakeTimers()
+        const { method, methodArguments, methodArgumentFirst } = useAsync(async (x: number) => {
+          await wait(x === 1 ? 200 : 50); // call1 慢，call2 快
+          return x;
+        });
+
+        method(1); // 慢调用
+        expect(methodArguments.value).toEqual([1]);
+        expect(methodArgumentFirst.value).toBe(1)
+
+        await vi.advanceTimersByTimeAsync(10);
+        method(2); // 快调用 —— 应立即覆盖 arguments
+        expect(methodArguments.value).toEqual([2]); // ✅ 关键：即使 call1 还在 pending，arguments 已更新
+        expect(methodArgumentFirst.value).toBe(2)
+
+        await vi.advanceTimersToNextTimerAsync(); // call2 完成
+        expect(methodArguments.value).toBeUndefined(); // 完成后清空
+        expect(methodArgumentFirst.value).toBeUndefined()
+
+        await vi.runAllTimersAsync(); // call1 完成（但已是过期调用）
+        expect(methodArguments.value).toBeUndefined(); // 仍为空
+        expect(methodArgumentFirst.value).toBeUndefined()
+      });
+
+      test('should reflect the latest call when intermediate calls rejected', async () => {
+        vi.useFakeTimers()
+        const { method, methodArguments } = useAsync(async (id: number, shouldFail = false) => {
+          if (shouldFail) throw new Error('fail')
+          await wait(50)
+          return id
+        })
+
+        method(1, true) // reject
+        expect(methodArguments.value).toEqual([1, true])
+
+        await vi.advanceTimersByTimeAsync(10)
+        method(2, false) // fulfill
+        expect(methodArguments.value).toEqual([2, false]) // ✅ 应立即更新
+
+        await vi.runAllTimersAsync()
+        expect(methodArguments.value).toBeUndefined() // fulfill 后清空
+      })
     })
 
-    test('loading state should not interfere when multiple different async methods are called', async () => {
-      vi.useFakeTimers()
-      const { one, oneLoading } = useAsync('one', async (ms: number) => {
-        await wait(ms)
-        return ms
-      })
-      const { two, twoLoading } = useAsync('two', async (ms: number) => {
-        await wait(ms)
-        return ms
+    describe('Error State', () => {
+      test('should reflect the latest call when multiple async methods are finished with errors in order', async () => {
+        vi.useFakeTimers()
+        const { two, twoLoading, twoError } = useAsync('two', async (error?: any) => {
+          await wait(100)
+          if (error) throw error
+          return 'ok'
+        })
+        expect(twoLoading.value).toBe(false)
+        expect(twoError.value).toBeUndefined()
+        const p1 = two('error')
+        expect(twoLoading.value).toBe(true)
+        await vi.advanceTimersByTimeAsync(50)
+        // p1 50ms 后调用 p2
+        const p2 = two('error2')
+        await vi.advanceTimersToNextTimerAsync()
+        // p1 完成，由于 p2 已发起，error 不会被赋值
+        await expect(p1).rejects.toThrow('error')
+        expect(twoError.value).toBeUndefined()
+        // p2 未完成，loading 为 true
+        expect(twoLoading.value).toBe(true)
+        await vi.runAllTimersAsync()
+        await expect(p2).rejects.toThrow('error2')
+        expect(twoError.value).toBe('error2')
+        expect(twoLoading.value).toBe(false)
       })
 
-      const oneFirst = one(200)
-      expect(oneLoading.value).toBe(true)
-      expect(twoLoading.value).toBe(false)
-      const twoFirst = two(100)
-      expect(oneLoading.value).toBe(true)
-      expect(twoLoading.value).toBe(true)
+      test('should always be undefined when latest call is fulfilled first', async () => {
+        vi.useFakeTimers()
+        const { method, methodError, methodLoading } = useAsync(async (id: number) => {
+          await wait(id === 1 ? 200 : 50); // call1 慢且失败，call2 快且成功
+          if (id === 1) throw new Error('old fail');
+          return 'ok';
+        });
 
-      await vi.advanceTimersToNextTimerAsync()
-      await expect(twoFirst).resolves.toBe(100)
-      expect(oneLoading.value).toBe(true)
-      expect(twoLoading.value).toBe(false)
-      
-      await vi.advanceTimersToNextTimerAsync()
-      await expect(oneFirst).resolves.toBe(200)
-      expect(oneLoading.value).toBe(false)
-      expect(twoLoading.value).toBe(false)
-    })
+        const p1 = method(1); // 慢 + 失败
+        await vi.advanceTimersByTimeAsync(10)
+        method(2); // 快 + 成功
 
-    test('arguments state should reflect the latest call when multiple async methods are called', async () => {
-      vi.useFakeTimers()
-      const { slow, slowArguments } = useAsync('slow', async (x: number) => {
-        await wait(100)
-        return x
-      })
-      slow(1)
-      expect(slowArguments.value).toEqual([1])
-      slow(2)
-      expect(slowArguments.value).toEqual([2]) // updated to latest
-      await vi.advanceTimersByTimeAsync(50)
-      expect(slowArguments.value).toEqual([2]) // still latest
-      await vi.runAllTimersAsync()
-      expect(slowArguments.value).toBeUndefined()
-    })
+        // p2 先完成
+        await vi.advanceTimersToNextTimerAsync();
+        expect(methodError.value).toBeUndefined();
+        expect(methodLoading.value).toBe(false);
 
-    test('error state should reflect the latest call when multiple async methods with errors are called out of order', async () => {
-      vi.useFakeTimers()
-      const { two, twoLoading, twoError } = useAsync('two', async (error?: any) => {
-        await wait(100)
-        if (error) throw error
-        return 'ok'
-      })
-      expect(twoLoading.value).toBe(false)
-      expect(twoError.value).toBeUndefined()
-      const p1 = two('error')
-      expect(twoLoading.value).toBe(true)
-      await vi.advanceTimersByTimeAsync(50)
-      const p2 = two('error2')
-      await vi.advanceTimersToNextTimerAsync()
-      await expect(p1).rejects.toThrow('error')
-      expect(twoError.value).toBeUndefined()
-      expect(twoLoading.value).toBe(true)
-      await vi.runAllTimersAsync()
-      await expect(p2).rejects.toThrow('error2')
-      expect(twoError.value).toBe('error2')
-      expect(twoLoading.value).toBe(false)
+        await vi.runAllTimersAsync();
+        // p1 后 reject（不应影响状态）
+        await expect(p1).rejects.toThrow();
+        expect(methodError.value).toBeUndefined();
+      });
     })
   })
 })
