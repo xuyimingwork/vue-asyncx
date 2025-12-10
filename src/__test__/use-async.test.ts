@@ -167,6 +167,11 @@ describe('useAsync', () => {
       })
 
       test('should execute function when null or undefined in watch array', async () => {
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation((message) => {
+          if (typeof message === 'string' && message.includes('Invalid watch source: null')) {
+            return
+          }
+        })
         const spy = vi.fn()
         const source = ref(1)
         useAsync(spy, { watch: [source, null, undefined] as any, immediate: true })
@@ -174,6 +179,7 @@ describe('useAsync', () => {
         source.value = 2
         await nextTick()
         expect(spy).toHaveBeenCalledTimes(2)
+        consoleWarnSpy.mockRestore()
       })
 
       test('should support watching reactive object with deep option', async () => {
