@@ -6,6 +6,10 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
+      typecheck: {
+        enabled: true,
+        exclude: ['demo/**']
+      },
       environment: 'jsdom',
       exclude: [...configDefaults.exclude, 'e2e/**'],
       root: fileURLToPath(new URL('./src', import.meta.url)),
