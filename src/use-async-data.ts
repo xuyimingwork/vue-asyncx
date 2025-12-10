@@ -1,7 +1,7 @@
 import { computed, Ref, ref, ShallowRef, shallowRef } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
-import { createFunctionTracker, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
+import { createFunctionTracker, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
 import { prepareAsyncDataContext } from "./use-async-data.context";
 
 export interface UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
@@ -16,7 +16,7 @@ export type UseAsyncDataResult<
   Fn extends (...args: any) => any,
   DataName extends string,
   Shallow extends boolean = false
-> = UseAsyncResult<Fn, `query${Capitalize<(StringDefaultWhenEmpty<DataName, 'data'>)>}`> 
+> = Simplify<UseAsyncResult<Fn, `query${Capitalize<(StringDefaultWhenEmpty<DataName, 'data'>)>}`> 
   & { 
   [K in (StringDefaultWhenEmpty<DataName, 'data'>)]: Shallow extends true 
     ? ShallowRef<Awaited<ReturnType<Fn>>> 
@@ -37,7 +37,7 @@ export type UseAsyncDataResult<
    * case3: p1 ok, p2 error，p3 update，data 来自 p3，error 为 undefined，expired 为 false
    */
   [K in `${StringDefaultWhenEmpty<DataName, 'data'>}Expired`]: Ref<boolean>
-}
+}>
 
 const FLAG_FIRST_ARGUMENT_ENHANCED = '__va_fae'
 
@@ -53,13 +53,13 @@ function useAsyncData<
   Data = any,
   Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
   Shallow extends boolean = false
->(fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, 'data', Shallow>
+>(fn: Fn, options?: Simplify<UseAsyncDataOptions<Fn, Shallow>>): UseAsyncDataResult<Fn, 'data', Shallow>
 function useAsyncData<
   Data = any,
   Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
   DataName extends string = string,
   Shallow extends boolean = false
->(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, DataName, Shallow>
+>(name: DataName, fn: Fn, options?: Simplify<UseAsyncDataOptions<Fn, Shallow>>): UseAsyncDataResult<Fn, DataName, Shallow>
 function useAsyncData(...args: any[]): any {
   if (!Array.isArray(args) || !args.length) throw TypeError('参数错误：未传递')
 
