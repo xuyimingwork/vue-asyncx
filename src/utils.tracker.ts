@@ -4,24 +4,24 @@ import { max } from "./utils.base";
 export type Tracker = ReturnType<typeof createFunctionTracker>
 export type Track = ReturnType<Tracker>
 
-const FUNCTION_RUN_STATE = {
-  PENDING: 'pending',
-  UPDATING: 'updating',
-  FULFILLED: 'fulfilled',
-  REJECTED: 'rejected'
+const STATE = {
+  PENDING: 0,
+  UPDATING: 1,
+  FULFILLED: 2,
+  REJECTED: 3
 } as const;
 
-const FUNCTION_RUN_STATE_TRANSITIONS = {
-  [FUNCTION_RUN_STATE.PENDING]: [FUNCTION_RUN_STATE.UPDATING, FUNCTION_RUN_STATE.FULFILLED, FUNCTION_RUN_STATE.REJECTED],
-  [FUNCTION_RUN_STATE.UPDATING]: [FUNCTION_RUN_STATE.UPDATING, FUNCTION_RUN_STATE.FULFILLED, FUNCTION_RUN_STATE.REJECTED],
-  [FUNCTION_RUN_STATE.FULFILLED]: [],
-  [FUNCTION_RUN_STATE.REJECTED]: [],
+const STATE_TRANSITIONS = {
+  [STATE.PENDING]: [STATE.UPDATING, STATE.FULFILLED, STATE.REJECTED],
+  [STATE.UPDATING]: [STATE.UPDATING, STATE.FULFILLED, STATE.REJECTED],
+  [STATE.FULFILLED]: [],
+  [STATE.REJECTED]: [],
 }
 
-type State = typeof FUNCTION_RUN_STATE[keyof typeof FUNCTION_RUN_STATE]
+type State = typeof STATE[keyof typeof STATE]
 
 function allowTransition(from: State, to: State): boolean {
-  return FUNCTION_RUN_STATE_TRANSITIONS[from].indexOf(to as any) > -1
+  return STATE_TRANSITIONS[from].indexOf(to as any) > -1
 }
 
 // Track async call lifecycle with ordering to resolve races.
@@ -41,7 +41,7 @@ export function createFunctionTracker() {
    */
   function tracker(v?: any) {
     const sn = ++pending.value
-    let state: State = FUNCTION_RUN_STATE.PENDING
+    let state: State = STATE.PENDING
     let value = v
     let error = undefined
     const inState = (target: State) => state === target
@@ -50,32 +50,32 @@ export function createFunctionTracker() {
       get sn() { return sn },
       get value() { return value },
       get error() { return error }, 
-      inStatePending: () => inState(FUNCTION_RUN_STATE.PENDING),
-      inStateUpdating: () => inState(FUNCTION_RUN_STATE.UPDATING),
-      inStateFulfilled: () => inState(FUNCTION_RUN_STATE.FULFILLED),
-      inStateRejected: () => inState(FUNCTION_RUN_STATE.REJECTED),
+      inStatePending: () => inState(STATE.PENDING),
+      inStateUpdating: () => inState(STATE.UPDATING),
+      inStateFulfilled: () => inState(STATE.FULFILLED),
+      inStateRejected: () => inState(STATE.REJECTED),
       inStateFinished: () => self.inStateFulfilled() || self.inStateRejected(),
-      allowToStateUpdating: () => allowToState(FUNCTION_RUN_STATE.UPDATING),
-      allowToStateFulfilled: () => allowToState(FUNCTION_RUN_STATE.FULFILLED),
-      allowToStateRejected: () => allowToState(FUNCTION_RUN_STATE.REJECTED),
+      allowToStateUpdating: () => allowToState(STATE.UPDATING),
+      allowToStateFulfilled: () => allowToState(STATE.FULFILLED),
+      allowToStateRejected: () => allowToState(STATE.REJECTED),
       /** Transition to updating; ignored if not allowed. */
       update: (v?: any) => {
         if (!self.allowToStateUpdating()) return
-        state = FUNCTION_RUN_STATE.UPDATING
+        state = STATE.UPDATING
         value = v
         record(sn, updating)
       },
       /** Transition to fulfilled; ignored if not allowed. */
       fulfill: (v?: any) => {
         if (!self.allowToStateFulfilled()) return
-        state = FUNCTION_RUN_STATE.FULFILLED
+        state = STATE.FULFILLED
         value = v
         record(sn, fulfilled)
       },
       /** Transition to rejected; ignored if not allowed. */
       reject: (e?: any) => {
         if (!self.allowToStateRejected()) return
-        state = FUNCTION_RUN_STATE.REJECTED
+        state = STATE.REJECTED
         error = e
         record(sn, rejected)
       },
