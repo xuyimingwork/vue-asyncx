@@ -1,7 +1,7 @@
 import { computed, ComputedRef, Ref, ref, watch, WatchCallback, WatchOptions, WatchSource } from "vue"
-import { createFunctionTracker, StringDefaultWhenEmpty,  } from "./utils"
+import { createFunctionTracker, Simplify, StringDefaultWhenEmpty,  } from "./utils"
 
-export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = {
+export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = Simplify<{
   [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn
 } & {
   [K in `${StringDefaultWhenEmpty<Name, 'method'>}Loading`]: Ref<boolean>
@@ -11,18 +11,18 @@ export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string
   [K in `${StringDefaultWhenEmpty<Name, 'method'>}ArgumentFirst`]: ComputedRef<Parameters<Fn>['0']>
 } & {
   [K in `${StringDefaultWhenEmpty<Name, 'method'>}Error`]: Ref<any>
-}
+}>
 
 export interface UseAsyncWatchOptions<Fn extends (...args: any) => any> extends WatchOptions {
   handlerCreator?: (fn: Fn) => WatchCallback
 }
 
-export type UseAsyncOptions<Fn extends (...args: any) => any> = {
+export type UseAsyncOptions<Fn extends (...args: any) => any> = Simplify<{
   watch?: WatchSource
   watchOptions?: UseAsyncWatchOptions<Fn>
   immediate?: boolean 
   setup?: (fn: Fn) => ((...args: any) => any) | void
-}
+}>
 
 function getFunction<Fn extends (...args: any) => any = any>(fn: Fn, setup?: (fn: Fn) => (Fn | void)): Fn {
   if (typeof setup !== 'function') return fn
