@@ -4,7 +4,7 @@ import { useAsync } from "./use-async"
 import { createFunctionTracker, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
 import { prepareAsyncDataContext } from "./use-async-data.context";
 
-export interface UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
+interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
   shallow?: Shallow,
   /**
@@ -12,6 +12,7 @@ export interface UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow e
    */
   enhanceFirstArgument?: boolean
 }
+type UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> = Simplify<_UseAsyncDataOptions<Fn, Shallow>>
 export type UseAsyncDataResult<
   Fn extends (...args: any) => any,
   DataName extends string,
@@ -53,13 +54,13 @@ function useAsyncData<
   Data = any,
   Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
   Shallow extends boolean = false
->(fn: Fn, options?: Simplify<UseAsyncDataOptions<Fn, Shallow>>): UseAsyncDataResult<Fn, 'data', Shallow>
+>(fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, 'data', Shallow>
 function useAsyncData<
   Data = any,
   Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
   DataName extends string = string,
   Shallow extends boolean = false
->(name: DataName, fn: Fn, options?: Simplify<UseAsyncDataOptions<Fn, Shallow>>): UseAsyncDataResult<Fn, DataName, Shallow>
+>(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, DataName, Shallow>
 function useAsyncData(...args: any[]): any {
   if (!Array.isArray(args) || !args.length) throw TypeError('参数错误：未传递')
 
