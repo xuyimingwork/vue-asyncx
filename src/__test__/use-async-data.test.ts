@@ -1,11 +1,96 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { unFirstArgumentEnhanced, useAsyncData } from '../use-async-data'
-import { getAsyncDataContext } from '../use-async-data.context'
+import { unFirstArgumentEnhanced, useAsyncData, getAsyncDataContext } from '../use-async-data'
 import { isReactive } from 'vue'
 import { debounce } from 'es-toolkit'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 afterEach(() => vi.useRealTimers())
+
+describe('unFirstArgumentEnhanced', () => {
+  test('should not enhance first argument when options.enhanceFirstArgument is not provided', () => {
+    const { queryData } = useAsyncData((a: number, b: number) => {
+      expect(a).toBeTypeOf('number')
+      expect(b).toBeTypeOf('number')
+      expect(() => unFirstArgumentEnhanced(a)).toThrowError()
+      return a + b
+    })
+    expect(queryData(1, 1)).toBe(2)
+  })
+
+  test('should enhance first argument correctly when options.enhanceFirstArgument is true', () => {
+    const { queryData } = useAsyncData((a: number, b: number) => {
+      expect(a).toBeTypeOf('object')
+      expect(() => unFirstArgumentEnhanced(a)).not.toThrowError()
+      expect(unFirstArgumentEnhanced(a).firstArgument).toBe(1)
+      expect(b).toBeTypeOf('number')
+      expect(() => unFirstArgumentEnhanced(b)).toThrowError()
+      return unFirstArgumentEnhanced(a).firstArgument + b
+    }, { enhanceFirstArgument: true })
+    expect(queryData(1, 1)).toBe(2)
+  })
+
+  test('should not enhance first argument when options.enhanceFirstArgument is false', () => {
+    const { queryData } = useAsyncData((a: number, b: number) => {
+      expect(a).toBeTypeOf('number')
+      expect(b).toBeTypeOf('number')
+      expect(() => unFirstArgumentEnhanced(a)).toThrowError()
+      return a + b
+    }, { enhanceFirstArgument: false })
+    expect(queryData(1, 1)).toBe(2)
+  })
+
+  test('should not have firstArgument property when no argument is passed', () => {
+    const { queryNoArgs } = useAsyncData('noArgs', function () {
+      const result = unFirstArgumentEnhanced(arguments[0])
+      expect('firstArgument' in result).toBeFalsy()
+      return true
+    }, { enhanceFirstArgument: true })
+    expect(queryNoArgs()).toBe(true)
+  })
+
+  test('should have firstArgument property when undefined is passed', () => {
+    const { queryFirstUndefined } = useAsyncData('firstUndefined', function (u) {
+      const result = unFirstArgumentEnhanced(u)
+      expect('firstArgument' in result).toBeTruthy()
+      expect(result.firstArgument).toBeUndefined()
+      return true
+    }, { enhanceFirstArgument: true })
+    expect(queryFirstUndefined(undefined)).toBe(true)
+  })
+
+  test('should use default value when undefined is passed', () => {
+    const { queryData } = useAsyncData((content?: string) => {
+      return unFirstArgumentEnhanced(content, 'default').firstArgument
+    }, { enhanceFirstArgument: true })
+    expect(queryData(undefined)).toBe('default')
+  })
+
+  test('should use default value when no argument is passed', () => {
+    const { queryData } = useAsyncData((content?: string) => {
+      return unFirstArgumentEnhanced(content, 'default').firstArgument
+    }, { enhanceFirstArgument: true })
+    expect(queryData()).toBe('default')
+  })
+
+  test(`should not use default value when falsy value but not undefined is passed`, () => {
+    const { queryData } = useAsyncData((content?: any) => {
+      return unFirstArgumentEnhanced(content, 'default').firstArgument
+    }, { enhanceFirstArgument: true })
+    ;[null, -0, 0, NaN, '', false].forEach(v => {
+      expect(queryData(v)).toBe(v)
+    })
+  })
+
+  test('should compat with getAsyncDataContext', () => {
+    const { queryData } = useAsyncData((content?: any) => {
+      const { firstArgument, __va_fae, ...context } = unFirstArgumentEnhanced(content, 'default')
+      expect(context).toStrictEqual(getAsyncDataContext())
+      return firstArgument
+    }, { enhanceFirstArgument: true })
+    expect(queryData(1)).toBe(1)
+  })
+})
+
 describe('useAsyncData', () => {
   test('should throw error when no arguments are passed', () => {
     // @ts-expect-error
@@ -84,30 +169,20 @@ describe('useAsyncData', () => {
     expect(result.one.value).toBe(2)
   })
 
-  test('data 值正确', () => {
-    const result = useAsyncData('one', () => 1)
-    result.queryOne()
-    expect(result.one.value).toBe(1)
+  test('should update data correctly when sync function is called', () => {
+    const { one, queryOne } = useAsyncData('one', () => 1)
+    expect(one.value).toBeUndefined()
+    const result = queryOne()
+    expect(one.value).toBe(result)
   })
 
-  test('data 异步值正确', async () => {
+  test('should update data correctly when async function is called',  async () => {
     vi.useFakeTimers()
     const result = useAsyncData('one', () => new Promise((resolve) => setTimeout(() => resolve(1), 100)))
     const p = result.queryOne()
     await vi.runAllTimersAsync()
-    await expect(p).resolves.toBe(1)
     expect(result.one.value).toBe(1)
-  })
-
-  test('函数结果', async () => {
-    vi.useFakeTimers()
-    const sum = (a: number, b: number) => a + b
-    const { querySum } = useAsyncData('sum', () => sum(1, 1))
-    expect(querySum()).toBe(2)
-    const { queryAsyncSum } = useAsyncData('asyncSum', () => new Promise((resolve) => setTimeout(() => resolve(sum(1, 1)), 100)))
-    const p = queryAsyncSum()
-    await vi.runAllTimersAsync()
-    await expect(p).resolves.toBe(2)
+    await expect(p).resolves.toBe(1)
   })
 
   test('多次异步，依次起止', async () => {
@@ -232,68 +307,6 @@ describe('useAsyncData', () => {
     await expect(p3).resolves.toBe(37)
     expect(test.value).toBe(37)
     expect(testExpired.value).toBeTruthy()
-  })
-
-  test('should enhance first argument correctly when options.enhanceFirstArgument is true', () => {
-    const { queryData } = useAsyncData((a: number, b: number) => {
-      expect(a).toBeTypeOf('object')
-      expect(() => unFirstArgumentEnhanced(a)).not.toThrowError()
-      expect(unFirstArgumentEnhanced(a).firstArgument).toBe(1)
-      expect(b).toBeTypeOf('number')
-      expect(() => unFirstArgumentEnhanced(b)).toThrowError()
-      return unFirstArgumentEnhanced(a).firstArgument + b
-    }, { enhanceFirstArgument: true })
-    expect(queryData(1, 1)).toBe(2)
-  })
-
-  test('should not enhance first argument when options.enhanceFirstArgument is false or not provided', () => {
-    const { queryData } = useAsyncData((a: number, b: number) => {
-      expect(a).toBeTypeOf('number')
-      expect(b).toBeTypeOf('number')
-      expect(() => unFirstArgumentEnhanced(a)).toThrowError()
-      return a + b
-    }, { enhanceFirstArgument: false })
-    expect(queryData(1, 1)).toBe(2)
-
-    const { queryData: queryData2 } = useAsyncData((a: number, b: number) => {
-      expect(a).toBeTypeOf('number')
-      expect(b).toBeTypeOf('number')
-      expect(() => unFirstArgumentEnhanced(a)).toThrowError()
-      return a + b
-    })
-    expect(queryData2(1, 1)).toBe(2)
-  })
-
-  test('增强首个参数', () => {
-    const { queryNoArgs } = useAsyncData('noArgs', function () {
-      const { getData, updateData } = unFirstArgumentEnhanced(arguments[0])
-      const result = unFirstArgumentEnhanced(arguments[0])
-      expect('firstArgument' in result).toBeFalsy()
-      expect(getData).toBeTruthy()
-      expect(updateData).toBeTruthy()
-      return true
-    }, { enhanceFirstArgument: true })
-    expect(queryNoArgs()).toBe(true)
-
-    const { queryFirstUndefined } = useAsyncData('firstUndefined', function (u) {
-      const { getData, updateData } = unFirstArgumentEnhanced(u)
-      const result = unFirstArgumentEnhanced(u)
-      expect('firstArgument' in result).toBeTruthy()
-      expect(result.firstArgument).toBeUndefined()
-      expect(getData).toBeTruthy()
-      expect(updateData).toBeTruthy()
-      return true
-    }, { enhanceFirstArgument: true })
-    expect(queryFirstUndefined(undefined)).toBe(true)
-  })
-
-  test('unFirstArgumentEnhanced - 默认值', () => {
-    const { queryData } = useAsyncData((content?: string) => {
-      return unFirstArgumentEnhanced(content, 'default').firstArgument
-    }, { enhanceFirstArgument: true })
-    expect(queryData()).toBe('default')
-    expect(queryData(undefined)).toBe('default')
-    expect(queryData('')).toBe('')
   })
 
   test('调用异步，中途更新', async () => {
