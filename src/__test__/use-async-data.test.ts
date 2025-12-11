@@ -5,9 +5,8 @@ import { isReactive } from 'vue'
 import { debounce } from 'es-toolkit'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
+afterEach(() => vi.useRealTimers())
 describe('useAsyncData', () => {
-  afterEach(() => vi.useRealTimers())
   test('非法参数', () => {
     // @ts-expect-error
     expect(() => useAsyncData()).toThrowError('参数错误：未传递')
@@ -61,17 +60,23 @@ describe('useAsyncData', () => {
   })
 
   test('data 异步值正确', async () => {
+    vi.useFakeTimers()
     const result = useAsyncData('one', () => new Promise((resolve) => setTimeout(() => resolve(1), 100)))
-    await result.queryOne()
+    const p = result.queryOne()
+    await vi.runAllTimersAsync()
+    await expect(p).resolves.toBe(1) 
     expect(result.one.value).toBe(1)
   })
 
   test('函数结果', async () => {
+    vi.useFakeTimers()
     const sum = (a: number, b: number) => a + b
     const { querySum } = useAsyncData('sum', () => sum(1, 1))
     expect(querySum()).toBe(2)
     const { queryAsyncSum } = useAsyncData('asyncSum', () => new Promise((resolve) => setTimeout(() => resolve(sum(1, 1)), 100)))
-    expect(await queryAsyncSum()).toBe(2)
+    const p = queryAsyncSum()
+    await vi.runAllTimersAsync()
+    await expect(p).resolves.toBe(2)
   })
 
   test('多次异步，依次起止', async () => {
@@ -94,36 +99,43 @@ describe('useAsyncData', () => {
   })
 
   test('多次异步，结果顺序', async () => {
+    vi.useFakeTimers()
     const sumFunc = async (a: number, b: number) => {
       await wait(a + b)
       return a + b
     }
     const { querySum, sum } = useAsyncData('sum', sumFunc)
-    
+    // fast
     const p1 = querySum(40, 30)
+    // slow
     const p2 = querySum(50, 40)
-
     expect(sum.value).toBeUndefined()
+    await vi.advanceTimersToNextTimerAsync()
     await expect(p1).resolves.toBe(70)
     expect(sum.value).toBe(70)
+    await vi.advanceTimersToNextTimerAsync()
     await expect(p2).resolves.toBe(90)
     expect(sum.value).toBe(90)
   })
 
   test('多次异步，结果异序', async () => {
+    vi.useFakeTimers()
     const sumFunc = async (a: number, b: number) => {
       await wait(a + b)
       return a + b
     }
     const { querySum, sum } = useAsyncData('sum', sumFunc)
-    
+    // slow
     const p1 = querySum(170, 30)
+    // fast
     const p2 = querySum(70, 30)
-
     expect(sum.value).toBeUndefined()
+
+    await vi.advanceTimersToNextTimerAsync()
     await expect(p2).resolves.toBe(100)
     expect(sum.value).toBe(100)
 
+    await vi.advanceTimersToNextTimerAsync()
     await expect(p1).resolves.toBe(200)
     expect(sum.value).toBe(100)
   })
@@ -145,6 +157,7 @@ describe('useAsyncData', () => {
   })
 
   test('调用异步异常', async () => {
+    vi.useFakeTimers()
     const testFunc = async (result: number, error?: Error, ms?: number) => {
       if (ms) await wait(ms)
       if (error) throw error
@@ -154,27 +167,37 @@ describe('useAsyncData', () => {
     const { queryTest, test, testExpired } = useAsyncData('test', testFunc)
 
     expect(test.value).toBeUndefined()
-    const v = await queryTest(35, undefined, 30)
-    expect(v).toBe(test.value)
+    const p = queryTest(35, undefined, 30)
+    await vi.runAllTimersAsync()
+    await expect(p).resolves.toBe(test.value)
 
     // 后者先到，展示后者数据，前者报错不影响
     const p1 = queryTest(36, new Error(), 100)
     const p2 = queryTest(51, undefined, 50)
-    const r2 = await p2
-    expect(r2).toBe(test.value)
+
+    // p2 先结束
+    await vi.advanceTimersToNextTimerAsync()
+    await expect(p2).resolves.toBe(test.value)
     expect(testExpired.value).toBeFalsy()
+
+    // p1 后结束
+    await vi.advanceTimersToNextTimerAsync()
     await expect(p1).rejects.toThrowError()
     expect(test.value).toBe(51)
     expect(testExpired.value).toBeFalsy()
 
-    // 后者先到，报错，前者后到，忽略后到的前者数据
+    // 后者先到，报错，前者后到，更新后到的前者数据
     const p3 = queryTest(37, undefined, 100)
     const p4 = queryTest(52, new Error(), 50)
     expect(testExpired.value).toBeFalsy()
+    // p4 先结束，报错
+    await vi.advanceTimersToNextTimerAsync()
     await expect(p4).rejects.toThrowError()
     expect(test.value).toBe(51)
     expect(testExpired.value).toBeTruthy()
 
+    // p3 后结束，由于 p4 报错，p3 是最新的正确数据，更新 test.value 为 p3 的值
+    await vi.advanceTimersToNextTimerAsync()
     await expect(p3).resolves.toBe(37)
     expect(test.value).toBe(37)
     expect(testExpired.value).toBeTruthy()
@@ -231,6 +254,7 @@ describe('useAsyncData', () => {
   })
 
   test('调用异步，中途更新', async () => {
+    vi.useFakeTimers()
     const { queryProgress, progress } = useAsyncData('progress', async function() {
       const { getData, updateData } = unFirstArgumentEnhanced(arguments[0])
       expect(getData()).toBeUndefined()
@@ -249,16 +273,17 @@ describe('useAsyncData', () => {
     expect(progress.value).toBeUndefined()
     queryProgress()
     expect(progress.value).toBe(0)
-    await wait(150)
+    await vi.advanceTimersByTimeAsync(150)
     expect(progress.value).toBe(30)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(60)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(100)
   })
 
   test('调用异步，中途更新，多次', async () => {
     // queryProgress 约耗时 300ms，每隔 100ms 更新
+    vi.useFakeTimers()
     const { queryProgress, progress } = useAsyncData('progress', async function() {
       const { getData, updateData } = unFirstArgumentEnhanced(arguments[0])
       updateData(0)
@@ -276,20 +301,21 @@ describe('useAsyncData', () => {
     expect(progress.value).toBeUndefined()
     queryProgress()
     expect(progress.value).toBe(0)
-    await wait(150)
+    await vi.advanceTimersByTimeAsync(150)
     expect(progress.value).toBe(30)
     queryProgress()
     expect(progress.value).toBe(0)
-    await wait(150)
+    await vi.advanceTimersByTimeAsync(150)
     expect(progress.value).toBe(30)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(60)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(100)
   })
 
   test('调用异步，中途更新，数据过期', async () => {
     // queryProgress 约耗时 300ms，每隔 100ms 更新
+    vi.useFakeTimers()
     const { queryProgress, progress, progressExpired, queryProgressError } = useAsyncData('progress', async function(update: number, result: number, error: any) {
       const { updateData } = unFirstArgumentEnhanced(update)
       update = unFirstArgumentEnhanced(update).firstArgument
@@ -313,17 +339,18 @@ describe('useAsyncData', () => {
     expect(progressExpired.value).toBeTruthy()
     expect(queryProgressError.value).toBeUndefined()
     // p2 中途更新数据，数据不过期
-    await wait(150)
+    await vi.advanceTimersByTimeAsync(150)
     expect(progress.value).toBe(50)
     expect(progressExpired.value).toBeFalsy()
     // p2 完成，数据不过期
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(100)
     expect(progressExpired.value).toBeFalsy()
   })
 
   test('调用异步，结束后更新', async () => {
     // queryProgress 约耗时 300ms，每隔 100ms 更新
+    vi.useFakeTimers()
     const { queryProgress, progress } = useAsyncData('progress', async function(update: number, result: number) {
       const { updateData } = unFirstArgumentEnhanced(update)
       update = unFirstArgumentEnhanced(update).firstArgument
@@ -336,15 +363,17 @@ describe('useAsyncData', () => {
       setTimeout(() => updateData(result + update), 0)
       return updateData(result)
     }, { enhanceFirstArgument: true })
-    
+     
     queryProgress(50, 100)
-    await wait(150)
+    await vi.advanceTimersByTimeAsync(150)
     expect(progress.value).toBe(50)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(100)
+    await vi.runAllTimersAsync()
   })
 
   test('setup', async () => {
+    vi.useFakeTimers()
     const ref = { 
       fn: async (result: number) => {
         await wait(100)
@@ -362,10 +391,10 @@ describe('useAsyncData', () => {
     queryData(3)
     expect(spy).not.toBeCalled()
     expect(queryDataLoading.value).toBeFalsy()
-    await wait(50)
+    await vi.advanceTimersByTimeAsync(50)
     expect(queryDataLoading.value).toBeTruthy()
     expect(spy).toBeCalledTimes(1)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(queryDataLoading.value).toBeFalsy()
     expect(data.value).toBe(3)
   })
@@ -373,6 +402,7 @@ describe('useAsyncData', () => {
 
 describe('useAsyncData with getAsyncDataContext', () => {
   test('should update data during async execution', async () => {
+    vi.useFakeTimers()
     const { queryProgress, progress } = useAsyncData('progress', async function() {
       const { getData, updateData } = getAsyncDataContext()
       expect(getData()).toBeUndefined()
@@ -391,15 +421,16 @@ describe('useAsyncData with getAsyncDataContext', () => {
     expect(progress.value).toBeUndefined()
     queryProgress()
     expect(progress.value).toBe(0)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(30)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(60)
-    await wait(100)
+    await vi.runAllTimersAsync()
     expect(progress.value).toBe(100)
   })
 
   test('should handle multiple calls with intermediate updates', async () => {
+    vi.useFakeTimers()
     const { queryProgress, progress } = useAsyncData('progress', async function() {
       const { getData, updateData } = getAsyncDataContext()
       updateData(0)
@@ -417,19 +448,20 @@ describe('useAsyncData with getAsyncDataContext', () => {
     expect(progress.value).toBeUndefined()
     queryProgress()
     expect(progress.value).toBe(0)
-    await wait(150)
+    await vi.advanceTimersByTimeAsync(150)
     expect(progress.value).toBe(30)
     queryProgress()
     expect(progress.value).toBe(0)
-    await wait(150)
+    await vi.advanceTimersByTimeAsync(150)
     expect(progress.value).toBe(30)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(60)
-    await wait(100)
+    await vi.runAllTimersAsync()
     expect(progress.value).toBe(100)
   })
 
   test('should mark data as expired when error occurs', async () => {
+    vi.useFakeTimers()
     const { queryProgress, progress, progressExpired, queryProgressError } = useAsyncData('progress', async function(update: number, result: number, error: any) {
       const { updateData } = getAsyncDataContext()
       if (error) throw error
@@ -452,16 +484,17 @@ describe('useAsyncData with getAsyncDataContext', () => {
     expect(progressExpired.value).toBeTruthy()
     expect(queryProgressError.value).toBeUndefined()
     // p2 updates data mid-execution, data no longer expired
-    await wait(150)
+    await vi.advanceTimersByTimeAsync(150)
     expect(progress.value).toBe(50)
     expect(progressExpired.value).toBeFalsy()
     // p2 completes, data not expired
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(100)
     expect(progressExpired.value).toBeFalsy()
   })
 
   test('should update data after async completion', async () => {
+    vi.useFakeTimers()
     const { queryProgress, progress } = useAsyncData('progress', async function(update: number, result: number) {
       const { updateData } = getAsyncDataContext()
       if (update) {
@@ -475,13 +508,14 @@ describe('useAsyncData with getAsyncDataContext', () => {
     })
     
     queryProgress(50, 100)
-    await wait(150)
+    await vi.advanceTimersByTimeAsync(150)
     expect(progress.value).toBe(50)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(100)
   })
 
   test('should update data when later call reports error', async () => {
+    vi.useFakeTimers()
     const { queryProgress, progress, progressExpired, queryProgressError } = useAsyncData('progress', async function(update: number, result: number, error: any): Promise<number> {
       const { updateData } = getAsyncDataContext()
       if (error) throw error
@@ -501,10 +535,10 @@ describe('useAsyncData with getAsyncDataContext', () => {
     // Keep updates from previous call
     queryProgress(1, 2, undefined)
     queryProgress(3, 4, 'error')
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(1)
     expect(progressExpired.value).toBe(true)
-    await wait(100)
+    await vi.advanceTimersByTimeAsync(100)
     expect(progress.value).toBe(2)
     expect(progressExpired.value).toBe(true)
   })
@@ -530,6 +564,7 @@ describe('useAsyncData with getAsyncDataContext', () => {
   })
 
   test('should handle sequential updates during async execution', async () => {
+    vi.useFakeTimers()
     const { queryData, data } = useAsyncData('data', async function(value: number) {
       const { getData, updateData } = getAsyncDataContext()
       updateData(value)
@@ -544,9 +579,9 @@ describe('useAsyncData with getAsyncDataContext', () => {
     
     queryData(10)
     expect(data.value).toBe(10)
-    await wait(50)
+    await vi.advanceTimersByTimeAsync(50)
     expect(data.value).toBe(20)
-    await wait(50)
+    await vi.advanceTimersByTimeAsync(50)
     expect(data.value).toBe(30)
   })
 
