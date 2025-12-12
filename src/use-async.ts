@@ -1,5 +1,5 @@
 import { computed, ComputedRef, Ref, ref, watch, WatchCallback, WatchOptions, WatchSource } from "vue"
-import { createFunctionTracker, Simplify, StringDefaultWhenEmpty,  } from "./utils"
+import { createFunctionTracker, Simplify, StringDefaultWhenEmpty, Track,  } from "./utils"
 
 export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = Simplify<{
   [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn
@@ -24,19 +24,9 @@ export type UseAsyncOptions<Fn extends (...args: any) => any> = Simplify<{
   setup?: (fn: Fn) => ((...args: any) => any) | void
 }>
 
-function getFunction<Fn extends (...args: any) => any = any>(fn: Fn, setup?: (fn: Fn) => (Fn | void)): Fn {
-  if (typeof setup !== 'function') return fn
-  try {
-    const result = setup(fn)
-    return typeof result === 'function' ? result : fn
-  } catch {
-    return fn
-  }
-}
-
-function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>
-function useAsync<Fn extends (...args: any) => any, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, Name>
-function useAsync(...args: any[]): any {
+export function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>
+export function useAsync<Fn extends (...args: any) => any, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, Name>
+export function useAsync(...args: any[]): any {
   if (!Array.isArray(args) || !args.length) throw TypeError('Expected at least 1 argument, but got 0.')
   const { name, fn, options }: { 
     name: string, 
@@ -48,45 +38,45 @@ function useAsync(...args: any[]): any {
   if (typeof name !== 'string') throw TypeError(`Expected "name" to be a string, but received ${typeof name}.`)
   if (typeof fn !== 'function') throw TypeError(`Expected "fn" to be a function, but received ${typeof fn}.`)
 
-  // 调用过程的加载状态
   const loading = ref(false)
-  // 调用过程的入参，调用结束后重置
   const _args = ref<Parameters<typeof fn>>()
-  // 上次调用的错误，下次调用开始后重置
   const error = ref()
+
   const tracker = createFunctionTracker()
+
+  // 函数执行时立即调用，保证状态始终跟随最新的调用
+  const before = (args: any[]) => {
+    error.value = undefined
+    loading.value = true
+    _args.value = args
+  }
+
+  // 函数结束时调用并更新状态，通过 track 确保只有最新的调用才能更新状态
+  const after = (v: any, { scene, track }: { scene: 'normal' | 'error', track: Track }) => {
+    track.finish(scene === 'error', v)
+    if (!track.isLatestCall()) return
+    if (scene === 'error') error.value = v
+    loading.value = false
+    _args.value = undefined
+  }
 
   function _method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
     const track = tracker()
-    const before = (args: any[]) => {
-      // 方法调用，则上次报错置空、则开始加载、则调用参数更新
-      error.value = undefined
-      loading.value = true
-      _args.value = args
-    }
-    
-    const after = (v: any, { scene }: { scene: 'normal' | 'error' }) => {
-      track.finish(scene === 'error', v)
-      if (!track.isLatestCall()) return
-      if (scene === 'error') error.value = v
-      loading.value = false
-      _args.value = undefined
-    }
 
     before(args)
     try {
       const p = fn(...args)
       if (p instanceof Promise) {
         p.then(
-          () => after(undefined, { scene: 'normal' }),
-          e => after(e, { scene: 'error' })
+          () => after(undefined, { scene: 'normal', track }),
+          e => after(e, { scene: 'error', track })
         )
       } else {
-        after(undefined, { scene: 'normal' })
+        after(undefined, { scene: 'normal', track })
       }
       return p
     } catch (e) {
-      after(e, { scene: 'error' })
+      after(e, { scene: 'error', track })
       throw e
     }
   }
@@ -123,4 +113,14 @@ function useAsync(...args: any[]): any {
   }
 }
 
-export { useAsync, useAsync as useAsyncFunction }
+export { useAsync as useAsyncFunction }
+
+function getFunction<Fn extends (...args: any) => any = any>(fn: Fn, setup?: (fn: Fn) => (Fn | void)): Fn {
+  if (typeof setup !== 'function') return fn
+  try {
+    const result = setup(fn)
+    return typeof result === 'function' ? result : fn
+  } catch {
+    return fn
+  }
+}
