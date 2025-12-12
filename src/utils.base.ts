@@ -7,7 +7,7 @@ export function upperFirst(string: string): string {
   return chr.toUpperCase() + trailing
 }
 
-export function max(...args: number[]): number {
-  if (!args.length) return
+export function max(...args: number[]): number | undefined {
+  if (!args.length) return undefined
   return args.reduce((max, v) => v > max ? v : max, args[0])
 }

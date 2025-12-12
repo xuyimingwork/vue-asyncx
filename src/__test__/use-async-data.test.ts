@@ -330,6 +330,19 @@ describe('useAsyncData', () => {
       expect(dataExpired.value).toBe(true);
     });
 
+    test('should not expire when first call not update/finished', async () => {
+      const { data, dataExpired, queryData } = useAsyncData(async () => 'success', {
+        initialData: 'initial'
+      });
+      const p = queryData()
+      // 请求发起不应过期
+      expect(data.value).toBe('initial');
+      expect(dataExpired.value).toBe(false);
+      await p
+      expect(data.value).toBe('success');
+      expect(dataExpired.value).toBe(false);
+    });
+
     test('should data expired when sync later call throws error', () => {
       const error = new Error('error')
       const { one, oneExpired, queryOne, queryOneError } = useAsyncData('one', (result: number, error?: Error) => { 
