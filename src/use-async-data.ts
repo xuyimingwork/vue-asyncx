@@ -3,6 +3,7 @@ import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
 import { createFunctionTracker, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
 import { prepareAsyncDataContext } from "./use-async-data.context";
+import { normalizeArguments } from "./use-async-data.enhance-first-argument";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -12,7 +13,7 @@ interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends
    */
   enhanceFirstArgument?: boolean
 }
-type UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> = Simplify<_UseAsyncDataOptions<Fn, Shallow>>
+export type UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> = Simplify<_UseAsyncDataOptions<Fn, Shallow>>
 export type UseAsyncDataResult<
   Fn extends (...args: any) => any,
   DataName extends string,
@@ -40,28 +41,18 @@ export type UseAsyncDataResult<
   [K in `${StringDefaultWhenEmpty<DataName, 'data'>}Expired`]: Ref<boolean>
 }>
 
-const FLAG_FIRST_ARGUMENT_ENHANCED = '__va_fae'
-
-export type FirstArgumentEnhanced<T = any, D = any> = {
-  [FLAG_FIRST_ARGUMENT_ENHANCED]: true
-  firstArgument?: T, 
-  getData: () => D,
-  updateData: (v: D) => void
-}
-
-
-function useAsyncData<
+export function useAsyncData<
   Data = any,
   Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
   Shallow extends boolean = false
 >(fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, 'data', Shallow>
-function useAsyncData<
+export function useAsyncData<
   Data = any,
   Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
   DataName extends string = string,
   Shallow extends boolean = false
 >(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, DataName, Shallow>
-function useAsyncData(...args: any[]): any {
+export function useAsyncData(...args: any[]): any {
   if (!Array.isArray(args) || !args.length) throw TypeError('参数错误：未传递')
 
   const { name, fn, options } = typeof args[0] === 'function' 
@@ -79,7 +70,7 @@ function useAsyncData(...args: any[]): any {
 
   // 数据更新
   function update(v: any, { track }: { track: Track }) {
-    // 结果错误时不更新已有数据
+    // 结果错误时不更新已有数据（error 已在底层设置）
     if (track.inStateRejected()) return
     if (track.inStateUpdating() && !track.isLatestUpdate()) return
     if (track.inStateFulfilled() && !track.isLatestFulfill()) return
@@ -97,30 +88,12 @@ function useAsyncData(...args: any[]): any {
     return {
       getData: () => track.value,
       updateData: (v: any) => {
+        if (!track.allowToStateUpdating()) return
         track.update(v)
-        // 拒绝结束后更新场景
-        if (track.inStateUpdating()) update(v, { track })
+        update(v, { track })
         return v
       }
     }
-  }
-
-  function normalizeArguments(args: any[], {
-    enhanceFirstArgument,
-    context
-  }: { 
-    enhanceFirstArgument?: boolean
-    context: any
-  }) {
-    if (!enhanceFirstArgument) return args
-    const [_first, ...restArgs] = args
-    const first: FirstArgumentEnhanced = {
-      [FLAG_FIRST_ARGUMENT_ENHANCED]: true,
-      ...(args.length ? { firstArgument: _first } : {}), 
-      ...context
-    }
-
-    return [first, ...restArgs]
   }
 
   const tracker = createFunctionTracker()
@@ -163,29 +136,5 @@ function useAsyncData(...args: any[]): any {
   }
 }
 
-/**
- * @deprecated 已废弃，请使用 getAsyncDataContext
- * @param arg 首个参数
- * @param defaultValue 当 arg === undefined 时的默认值
- * @returns 首个参数解构结果（符合 ts 类型要求）
- */
-export function unFirstArgumentEnhanced<Arg = any, Data = any>(arg: Arg, defaultValue?: Arg): Arg extends undefined 
-  ? FirstArgumentEnhanced<Arg, Data> 
-  : Required<FirstArgumentEnhanced<Arg, Data>> {
-  if (!isFirstArgumentEnhanced(arg)) throw Error('请配置 options.enhanceFirstArgument = true')
-  const enhanced: FirstArgumentEnhanced<Arg, Data> = arg
-  /**
-   * js 的参数默认值规则：当参数为 undefined 时，使用默认值。
-   * 即 hello() 与 hello(undefined) 都会触发默认值赋值规则。
-   * 因此，当有配置默认值时，直接判断 enhanced.firstArgument 与 undefined 是否全等即可
-   */
-  if (arguments.length === 2 && enhanced.firstArgument === undefined) return { ...enhanced, firstArgument: defaultValue } as any
-  return enhanced as any
-}
-
-function isFirstArgumentEnhanced(v: any): v is FirstArgumentEnhanced {
-  return typeof v === 'object' && !!v && (FLAG_FIRST_ARGUMENT_ENHANCED in v)
-}
-
+export { unFirstArgumentEnhanced } from './use-async-data.enhance-first-argument'
 export { getAsyncDataContext } from './use-async-data.context'
-export { useAsyncData }
