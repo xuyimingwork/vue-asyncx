@@ -465,7 +465,7 @@ describe('useAsyncData', () => {
       expect(progress.value).toBe(100)
     })
 
-    test('should update data when later call throw error', async () => {
+    test('should updateData ok when later call throw error', async () => {
       vi.useFakeTimers()
       const { queryProgress, progress, queryProgressError } = useAsyncData('progress', async function (update: number, result: number, error: any): Promise<number> {
         const { updateData } = getAsyncDataContext()
@@ -483,13 +483,14 @@ describe('useAsyncData', () => {
       queryProgress(1, 2, undefined)
       queryProgress(3, 4, 'error')
 
-      // 到达  p2 报错节点
+      // 到达 p2 报错节点，p2 结束
       await vi.advanceTimersByTimeAsync(0)
       expect(queryProgressError.value).toBe('error')
 
       //  到达 p1 更新节点
       await vi.advanceTimersByTimeAsync(100)
       expect(progress.value).toBe(1) //  update data 正常更新
+
       // 所有流程结束
       await vi.runAllTimersAsync()
     })
@@ -610,7 +611,7 @@ describe('useAsyncData', () => {
   })
 
   describe('Race Condition', () => {
-    test('should handle out-of-order async results', async () => {
+    test('should reflect latest call result when calls finished out of order', async () => {
       vi.useFakeTimers()
       const { queryDouble, double } = useAsyncData('double', async (a: number, delay: number) => {
         await wait(delay)
@@ -623,52 +624,115 @@ describe('useAsyncData', () => {
       expect(double.value).toBe(198)
     })
 
-    // 竟态场景
-    test('调用异步异常', async () => {
+    test('should update data when later call throw error', async () => {
       vi.useFakeTimers()
-      const testFunc = async (result: number, error?: Error, ms?: number) => {
-        if (ms) await wait(ms)
+      const { 
+        queryProgress, 
+        progress, 
+        progressExpired,
+        queryProgressError,
+        queryProgressLoading
+      } = useAsyncData('progress', async function (update: number, result: number, error: any): Promise<number> {
+        const { updateData } = getAsyncDataContext()
+        await wait(0)
         if (error) throw error
+        if (update) {
+          await wait(100)
+          updateData(update)
+        }
+        await wait(100)
+        updateData(result)
         return result
-      }
+      }, { initialData: 0 })
 
-      const { queryTest, test, testExpired } = useAsyncData('test', testFunc)
+      queryProgress(0.5, 1, undefined)
+      queryProgress(1.5, 2, 'error')
 
-      expect(test.value).toBeUndefined()
-      const p = queryTest(35, undefined, 30)
+      // 到达 p2 报错节点，p2 结束
+      await vi.advanceTimersByTimeAsync(0)
+      expect(progress.value).toBe(0) // p2 报错，数据不更新
+      expect(queryProgressLoading.value).toBeFalsy() // p2 报错，loading 结束
+      expect(queryProgressError.value).toBe('error')
+
+      //  到达 p1 更新节点
+      await vi.advanceTimersByTimeAsync(100)
+      expect(progress.value).toBe(0.5) // p1 updateData 正常更新
+      expect(progressExpired.value).toBe(true) // p2 已结束，数据是过期数据
+      expect(queryProgressLoading.value).toBeFalsy() // p2 已结束，loading 不影响
+      expect(queryProgressError.value).toBe('error') // 保持 p2 报错信息
+
+      // 所有流程结束
       await vi.runAllTimersAsync()
-      await expect(p).resolves.toBe(test.value)
+      expect(progress.value).toBe(1) // p1 updateData 正常更新
+      expect(progressExpired.value).toBe(true) // p2 已结束，数据是过期数据
+      expect(queryProgressLoading.value).toBeFalsy() // p2 已结束，loading 不影响
+      expect(queryProgressError.value).toBe('error') // 保持 p2 报错信息
+    })
 
-      // 后者先到，展示后者数据，前者报错不影响
-      const p1 = queryTest(36, new Error(), 100)
-      const p2 = queryTest(51, undefined, 50)
+    test('should handle mixed success and failure in high concurrency', async () => {
+      vi.useFakeTimers()
+      const { queryData, data, dataExpired, queryDataError } = useAsyncData('data', async (index: number, shouldFail: boolean, delay: number) => {
+        await wait(delay)
+        if (shouldFail) throw new Error(`Error at ${index}`)
+        return index
+      })
 
-      // p2 先结束
-      await vi.advanceTimersToNextTimerAsync()
-      await expect(p2).resolves.toBe(test.value)
-      expect(testExpired.value).toBeFalsy()
+      // 模拟混合成功和失败的并发请求，乱序结束
+      Array.from({ length: 200 }, (_, i) => {
+        const shouldFail = i % 3 === 0 // 每3个请求中有1个失败
+        const delay = Math.random() * 500 + 50
+        return queryData(i, shouldFail, delay)
+      })
 
-      // p1 后结束
-      await vi.advanceTimersToNextTimerAsync()
-      await expect(p1).rejects.toThrowError()
-      expect(test.value).toBe(51)
-      expect(testExpired.value).toBeFalsy()
+      await vi.runAllTimersAsync()
+      
+      // 最后一个请求是成功的（199不是3的倍数）
+      expect(data.value).toBe(199)
+      expect(dataExpired.value).toBe(false)
+      expect(queryDataError.value).toBeUndefined()
+    })
 
-      // 后者先到，报错，前者后到，更新后到的前者数据
-      const p3 = queryTest(37, undefined, 100)
-      const p4 = queryTest(52, new Error(), 50)
-      expect(testExpired.value).toBeFalsy()
-      // p4 先结束，报错
-      await vi.advanceTimersToNextTimerAsync()
-      await expect(p4).rejects.toThrowError()
-      expect(test.value).toBe(51)
-      expect(testExpired.value).toBeTruthy()
+    test('should handle concurrent requests with intermediate updates', async () => {
+      vi.useFakeTimers()
+      const { queryData, data, queryDataLoading } = useAsyncData('data', async (index: number, updateSteps: number, delay: number) => {
+        const { updateData } = getAsyncDataContext()
+        
+        // 中间更新
+        for (let i = 1; i <= updateSteps; i++) {
+          await wait(delay / (updateSteps + 1))
+          updateData(`${index}-step-${i}`)
+        }
+        
+        await wait(delay / (updateSteps + 1))
+        return `${index}-final`
+      })
 
-      // p3 后结束，由于 p4 报错，p3 是最新的正确数据，更新 test.value 为 p3 的值
-      await vi.advanceTimersToNextTimerAsync()
-      await expect(p3).resolves.toBe(37)
-      expect(test.value).toBe(37)
-      expect(testExpired.value).toBeTruthy()
+      // 并发请求，带有不同数量的中间更新
+      queryData(1, 5, 200) // 5次中间更新，共200ms
+      queryData(2, 3, 150) // 3次中间更新，共150ms
+      queryData(3, 10, 100) // 10次中间更新，共300ms
+      queryData(4, 1, 50) // 1次中间更新，共50ms
+
+      // 快速推进时间，观察中间状态
+      await vi.advanceTimersByTimeAsync(10)
+      expect(data.value).toBe('3-step-1')
+
+      await vi.advanceTimersByTimeAsync(10)
+      expect(data.value).toBe('3-step-2')
+
+      await vi.advanceTimersByTimeAsync(10)
+      expect(data.value).toBe('4-step-1')
+
+      await vi.advanceTimersByTimeAsync(10)
+      expect(data.value).toBe('4-step-1') // 4 更新后不会再更新
+      expect(queryDataLoading.value).toBeTruthy() // 4 正在更新
+
+      await vi.advanceTimersByTimeAsync(10)
+      expect(data.value).toBe('4-final')
+      expect(queryDataLoading.value).toBeFalsy() // 4 完成
+      
+      await vi.runAllTimersAsync()
+      expect(data.value).toBe('4-final')
     })
   })
 
