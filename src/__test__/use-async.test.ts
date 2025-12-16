@@ -18,14 +18,14 @@ describe('useAsync', () => {
 
       test('should throw TypeError when name is not a string', () => {
         // @ts-expect-error
-        expect(() => useAsync()).toThrow(TypeError)
+        expect(() => useAsync(1, () => {})).toThrow(TypeError)
         // @ts-expect-error
         expect(() => useAsync(1, () => {})).toThrow('Expected "name" to be a string, but received number.')
       })
 
       test('should throw TypeError when fn is not a function', () => {
         // @ts-expect-error
-        expect(() => useAsync()).toThrow(TypeError)
+        expect(() => useAsync('method', 1)).toThrow(TypeError)
         // @ts-expect-error
         expect(() => useAsync('method', 1)).toThrow('Expected "fn" to be a function, but received number.')
       })
