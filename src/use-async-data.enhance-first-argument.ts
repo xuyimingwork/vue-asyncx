@@ -10,10 +10,30 @@ export type FirstArgumentEnhanced<T = any, D = any> = {
 }
 
 /**
- * @deprecated 已废弃，请使用 getAsyncDataContext
- * @param arg 首个参数
- * @param defaultValue 当 arg === undefined 时的默认值
- * @returns 首个参数解构结果（符合 ts 类型要求）
+ * @deprecated 已废弃，请使用 getAsyncDataContext 替代
+ * 
+ * 将增强的第一个参数解构为原始参数和上下文对象。
+ * 当 `options.enhanceFirstArgument = true` 时，传递给异步函数的第一个参数会被增强为包含原始参数和上下文方法的对象。
+ * 
+ * @param arg 增强后的第一个参数
+ * @param defaultValue 当原始参数为 undefined 时的默认值
+ * @returns 包含原始参数和上下文方法的对象
+ * 
+ * @example
+ * // 使用 unFirstArgumentEnhanced（已废弃）
+ * const { queryData } = useAsyncData((id) => {
+ *   const { firstArgument, getData, updateData } = unFirstArgumentEnhanced(id, 1)
+ *   // 使用 firstArgument, getData, updateData
+ *   return fetch(`/api/data/${firstArgument}`)
+ * }, { enhanceFirstArgument: true })
+ * 
+ * @example
+ * // 迁移到 getAsyncDataContext
+ * const { queryData } = useAsyncData((id = 1) => {
+ *   const { getData, updateData } = getAsyncDataContext()
+ *   // 使用 id, getData, updateData
+ *   return fetch(`/api/data/${id}`)
+ * })
  */
 export function unFirstArgumentEnhanced<Arg = any, Data = any>(arg: Arg, defaultValue?: Arg): Arg extends undefined 
   ? FirstArgumentEnhanced<Arg, Data> 
