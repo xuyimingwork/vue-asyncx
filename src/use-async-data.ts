@@ -3,7 +3,7 @@ import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
 import { createTracker, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
 import { prepareAsyncDataContext } from "./use-async-data.context";
-import { normalizeArguments } from "./use-async-data.enhance-first-argument";
+import { createEnhancedArgumentsNormalizer } from "./use-async-data.enhance-first-argument";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -53,14 +53,14 @@ export function useAsyncData<
   Shallow extends boolean = false
 >(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, DataName, Shallow>
 export function useAsyncData(...args: any[]): any {
-  if (!Array.isArray(args) || !args.length) throw TypeError('参数错误：未传递')
+  if (!Array.isArray(args) || !args.length) throw TypeError('Expected at least 1 argument, but got 0.')
 
   const { name, fn, options } = typeof args[0] === 'function' 
     ? { name: 'data', fn: args[0], options: args[1] } 
     : { name: args[0] || 'data', fn: args[1], options: args[2] }
 
-  if (typeof name !== 'string') throw TypeError('参数错误：name')
-  if (typeof fn !== 'function') throw TypeError('参数错误：fn')
+  if (typeof name !== 'string') throw TypeError(`Expected "name" to be a string, but received ${typeof name}.`)
+  if (typeof fn !== 'function') throw TypeError(`Expected "fn" to be a function, but received ${typeof fn}.`)
 
   const { enhanceFirstArgument, initialData, shallow, ...useAsyncOptions } = options as UseAsyncDataOptions<typeof fn, boolean> || {}
   const data = shallow 
@@ -70,7 +70,7 @@ export function useAsyncData(...args: any[]): any {
 
   // 数据更新
   function update(v: any, { track }: { track: Track }) {
-    // 结果错误时不更新已有数据（error 已在底层设置）
+    // 结果错误时不更新 data（error 已在 useAsync 设置）
     if (track.inStateRejected()) return
     if (track.inStateUpdating() && !track.isLatestUpdate()) return
     if (track.inStateFulfilled() && !track.isLatestFulfill()) return
@@ -78,7 +78,7 @@ export function useAsyncData(...args: any[]): any {
     dataTrack.value = track
   }
 
-  // 调用结束
+  // 封装结束场景下的数据更新
   function finish(v: any, { scene, track }: { scene: 'normal' | 'error', track: Track }) {
     track.finish(scene === 'error', v)
     update(v, { track })
@@ -96,11 +96,14 @@ export function useAsyncData(...args: any[]): any {
     }
   }
 
+  const normalizeArguments = createEnhancedArgumentsNormalizer({ enhanceFirstArgument })
+
   const tracker = createTracker()
+
   function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
     const track = tracker(data.value)
     const context = getContext({ track })
-    args = normalizeArguments(args, { enhanceFirstArgument, context })
+    args = normalizeArguments(args, context)
     const restoreAsyncDataContext = prepareAsyncDataContext(context)
     try {
       const p = fn(...args)
@@ -110,7 +113,6 @@ export function useAsyncData(...args: any[]): any {
           () => finish(undefined, { scene: 'error', track })
         )
       } else {
-        // 非 promise 正常结束
         finish(p, { scene: 'normal', track })
       }
       return p

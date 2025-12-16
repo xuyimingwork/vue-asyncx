@@ -105,17 +105,23 @@ describe('useAsyncData', () => {
   describe('Parameter Validation', () => {
     test('should throw error when no arguments are passed', () => {
       // @ts-expect-error
-      expect(() => useAsyncData()).toThrowError('参数错误：未传递')
+      expect(() => useAsyncData()).toThrow(TypeError)
+      // @ts-expect-error
+      expect(() => useAsyncData()).toThrow('Expected at least 1 argument, but got 0.')
     })
 
     test('should throw error when name is not a string', () => {
       // @ts-expect-error
-      expect(() => useAsyncData(1, () => { })).toThrowError('参数错误：name')
+      expect(() => useAsyncData()).toThrow(TypeError)
+      // @ts-expect-error
+      expect(() => useAsyncData(1, () => {})).toThrow('Expected "name" to be a string, but received number.')
     })
 
     test('should throw error when fn is not a function', () => {
       // @ts-expect-error
-      expect(() => useAsyncData('', 1)).toThrowError('参数错误：fn')
+      expect(() => useAsyncData('', 1)).toThrow(TypeError)
+      // @ts-expect-error
+      expect(() => useAsyncData('', 1)).toThrow('Expected "fn" to be a function, but received number.')
     })
   })
 
