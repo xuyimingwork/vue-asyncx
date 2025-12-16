@@ -1,5 +1,6 @@
 import { computed, ComputedRef, Ref, ref, watch, WatchCallback, WatchOptions, WatchSource } from "vue"
-import { createTracker, message, Simplify, StringDefaultWhenEmpty, Track, warn,  } from "./utils"
+import { createTracker, getFunction, Simplify, StringDefaultWhenEmpty, Track,  } from "./utils"
+import { parseArguments } from "./shared"
 
 export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = Simplify<{
   [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn
@@ -27,16 +28,7 @@ export type UseAsyncOptions<Fn extends (...args: any) => any> = Simplify<{
 export function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>
 export function useAsync<Fn extends (...args: any) => any, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, Name>
 export function useAsync(...args: any[]): any {
-  if (!Array.isArray(args) || !args.length) throw TypeError(message('Expected at least 1 argument, but got 0.'))
-  const { name, fn, options }: { 
-    name: string, 
-    fn: (...args: any) => any,
-    options: UseAsyncOptions<(...args: any) => any>, 
-  } = typeof args[0] === 'function' 
-    ? { name: 'method', fn: args[0], options: args[1] }
-    : { name: args[0] || 'method', fn: args[1], options: args[2] }
-  if (typeof name !== 'string') throw TypeError(message(`Expected "name" to be a string, but received ${typeof name}.`))
-  if (typeof fn !== 'function') throw TypeError(message(`Expected "fn" to be a function, but received ${typeof fn}.`))
+  const { name, fn, options } = parseArguments(args, { name: 'method' })
 
   const loading = ref(false)
   const _args = ref<Parameters<typeof fn>>()
@@ -109,14 +101,3 @@ export function useAsync(...args: any[]): any {
 }
 
 export { useAsync as useAsyncFunction }
-
-function getFunction(creator: any, args: any[], fallback: (...args: any) => any, error: string) {
-  if (typeof creator !== 'function') return fallback
-  try {
-    const result = creator(...args)
-    return typeof result === 'function' ? result : fallback
-  } catch(e) {
-    warn(error, e)
-    return fallback
-  }
-}

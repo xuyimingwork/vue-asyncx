@@ -1,9 +1,10 @@
 import { computed, Ref, ref, ShallowRef, shallowRef } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
-import { createTracker, message, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
+import { createTracker, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
 import { prepareAsyncDataContext } from "./use-async-data.context";
 import { createEnhancedArgumentsNormalizer } from "./use-async-data.enhance-first-argument";
+import { parseArguments } from "./shared";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -53,14 +54,7 @@ export function useAsyncData<
   Shallow extends boolean = false
 >(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, DataName, Shallow>
 export function useAsyncData(...args: any[]): any {
-  if (!Array.isArray(args) || !args.length) throw TypeError(message('Expected at least 1 argument, but got 0.'))
-
-  const { name, fn, options } = typeof args[0] === 'function' 
-    ? { name: 'data', fn: args[0], options: args[1] } 
-    : { name: args[0] || 'data', fn: args[1], options: args[2] }
-
-  if (typeof name !== 'string') throw TypeError(message(`Expected "name" to be a string, but received ${typeof name}.`))
-  if (typeof fn !== 'function') throw TypeError(message(`Expected "fn" to be a function, but received ${typeof fn}.`))
+  const { name, fn, options } = parseArguments(args, { name: 'data' })
 
   const { enhanceFirstArgument, initialData, shallow, ...useAsyncOptions } = options as UseAsyncDataOptions<typeof fn, boolean> || {}
   const data = shallow 
