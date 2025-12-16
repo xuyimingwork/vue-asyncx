@@ -1,3 +1,12 @@
+## 1.9.1
+- 修复：options.setup、options.watchOptions.handlerCreator 报错时告警提示
+- 修复：getData 竟态安全
+- 体验：梳理所有对外报错/告警，提供更准确的报错/告警消息
+- 体验：getAsyncDataContext jsdoc 补充使用示例
+- 体验：unFirstArgumentEnhanced jsdoc 补充迁移指南
+- 测试：重新调整了测试用例，场景覆盖更加全面
+- 测试：新增类型测试，保障类型准确性
+
 ## 1.9.0
 - useAsyncData 支持 getAsyncDataContext 获取上下文
 - unFirstArgumentEnhanced / enhanceFirstArgument 标注废弃
