@@ -1,7 +1,7 @@
 import { computed, Ref, ref } from "vue"
 import { max } from "./utils.base";
 
-export type Tracker = ReturnType<typeof createFunctionTracker>
+export type Tracker = ReturnType<typeof createTracker>
 export type Track = ReturnType<Tracker>
 
 const STATE = {
@@ -25,7 +25,7 @@ function allowTransition(from: State, to: State): boolean {
 }
 
 // Track async call lifecycle with ordering to resolve races.
-export function createFunctionTracker() {
+export function createTracker() {
   // 记录【最新的】不同状态的序号
   const pending = ref<number>(0)
   const updating = ref<number>(0)
@@ -140,3 +140,5 @@ export function createFunctionTracker() {
 
   return tracker
 }
+
+

@@ -1,7 +1,7 @@
 import { computed, Ref, ref, ShallowRef, shallowRef } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
 import { useAsync } from "./use-async"
-import { createFunctionTracker, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
+import { createTracker, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
 import { prepareAsyncDataContext } from "./use-async-data.context";
 import { normalizeArguments } from "./use-async-data.enhance-first-argument";
 
@@ -96,7 +96,7 @@ export function useAsyncData(...args: any[]): any {
     }
   }
 
-  const tracker = createFunctionTracker()
+  const tracker = createTracker()
   function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
     const track = tracker(data.value)
     const context = getContext({ track })
