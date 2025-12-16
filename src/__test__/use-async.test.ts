@@ -264,6 +264,7 @@ describe('useAsync', () => {
       })
 
       test('should use default handler when handlerCreator throws an error', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const temp = { 
           fn: () => 1,
           handler: (source: number, fn: () => number) => {
@@ -280,6 +281,8 @@ describe('useAsync', () => {
         useAsync(temp.fn, { watchOptions: { 
           handlerCreator: temp.handlerCreator
         }, immediate: true })
+        expect(warnSpy).toBeCalledTimes(1)
+        warnSpy.mockRestore()
         expect(handlerCreatorSpy).toBeCalledTimes(1)
         expect(handlerCreatorSpy).toThrowError()
         expect(handlerSpy).toBeCalledTimes(0)
@@ -423,11 +426,14 @@ describe('useAsync', () => {
           } 
         }
         const spy = vi.spyOn(ref, 'fn')
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const { method, methodLoading } = useAsync(ref.fn, { 
           setup() {
             throw Error()
           }
         })
+        expect(warnSpy).toBeCalledTimes(1)
+        warnSpy.mockRestore()
         method()
         method()
         method()

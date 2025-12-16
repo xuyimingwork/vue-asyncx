@@ -1,5 +1,5 @@
 import { computed, ComputedRef, Ref, ref, watch, WatchCallback, WatchOptions, WatchSource } from "vue"
-import { createTracker, Simplify, StringDefaultWhenEmpty, Track,  } from "./utils"
+import { createTracker, message, Simplify, StringDefaultWhenEmpty, Track, warn,  } from "./utils"
 
 export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = Simplify<{
   [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn
@@ -27,7 +27,7 @@ export type UseAsyncOptions<Fn extends (...args: any) => any> = Simplify<{
 export function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>
 export function useAsync<Fn extends (...args: any) => any, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, Name>
 export function useAsync(...args: any[]): any {
-  if (!Array.isArray(args) || !args.length) throw TypeError('Expected at least 1 argument, but got 0.')
+  if (!Array.isArray(args) || !args.length) throw TypeError(message('Expected at least 1 argument, but got 0.'))
   const { name, fn, options }: { 
     name: string, 
     fn: (...args: any) => any,
@@ -35,8 +35,8 @@ export function useAsync(...args: any[]): any {
   } = typeof args[0] === 'function' 
     ? { name: 'method', fn: args[0], options: args[1] }
     : { name: args[0] || 'method', fn: args[1], options: args[2] }
-  if (typeof name !== 'string') throw TypeError(`Expected "name" to be a string, but received ${typeof name}.`)
-  if (typeof fn !== 'function') throw TypeError(`Expected "fn" to be a function, but received ${typeof fn}.`)
+  if (typeof name !== 'string') throw TypeError(message(`Expected "name" to be a string, but received ${typeof name}.`))
+  if (typeof fn !== 'function') throw TypeError(message(`Expected "fn" to be a function, but received ${typeof fn}.`))
 
   const loading = ref(false)
   const _args = ref<Parameters<typeof fn>>()
@@ -81,27 +81,22 @@ export function useAsync(...args: any[]): any {
     }
   }
 
-  const method = getFunction(_method, options?.setup)
+  const method = getFunction(
+    options?.setup, [_method], _method, 
+    'Run options.setup failed, fallback to default behavior.'
+  )
 
   if (options) {
-    const noop = () => {}
     const { handlerCreator, ...watchOptions } = Object.assign({}, 
       'immediate' in options ? { immediate: options.immediate } : {}, 
       options.watchOptions ?? {}
     )
-    const { watch: watchSource } = options
-    const getHandler = () => {
-      const defaultHandler = () => method()
-      if (typeof handlerCreator !== 'function') return defaultHandler
-      try {
-        const _handler = handlerCreator(method)
-        return typeof _handler === 'function' ? _handler : defaultHandler
-      } catch (e) {
-        return defaultHandler
-      }
-    }
-    const handler = getHandler()
-    watch(watchSource ?? noop, handler, watchOptions)
+    const { watch: watchSource = () => {} } = options
+    const handler = getFunction(
+      handlerCreator, [method], () => method(),
+      'Run options.watchOptions.handlerCreator failed, fallback to default behavior.'
+    )
+    watch(watchSource, handler, watchOptions)
   }
   
   return {
@@ -115,12 +110,13 @@ export function useAsync(...args: any[]): any {
 
 export { useAsync as useAsyncFunction }
 
-function getFunction<Fn extends (...args: any) => any = any>(fn: Fn, setup?: (fn: Fn) => (Fn | void)): Fn {
-  if (typeof setup !== 'function') return fn
+function getFunction(creator: any, args: any[], fallback: (...args: any) => any, error: string) {
+  if (typeof creator !== 'function') return fallback
   try {
-    const result = setup(fn)
-    return typeof result === 'function' ? result : fn
-  } catch {
-    return fn
+    const result = creator(...args)
+    return typeof result === 'function' ? result : fallback
+  } catch(e) {
+    warn(error, e)
+    return fallback
   }
 }
