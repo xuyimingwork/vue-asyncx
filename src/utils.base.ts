@@ -1,3 +1,6 @@
+export type StringDefaultWhenEmpty<S extends string, D extends string> = S extends '' ? D : S
+export type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
+
 export function upperFirst(string: string): string {
   if (!string) return ''
 
@@ -10,4 +13,14 @@ export function upperFirst(string: string): string {
 export function max(...args: number[]): number | undefined {
   if (!args.length) return undefined
   return args.reduce((max, v) => v > max ? v : max, args[0])
+}
+
+function _message(message: string): string {
+  return `[vue-asyncx]: ${message}`
+}
+
+export { _message as message }
+
+export function warn(message: string, ...rest: any[]) {
+  console.warn(_message(message), ...rest);
 }
