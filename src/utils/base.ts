@@ -24,3 +24,14 @@ export { _message as message }
 export function warn(message: string, ...rest: any[]) {
   console.warn(_message(message), ...rest);
 }
+
+export function getFunction(creator: any, args: any[], fallback: (...args: any) => any, error: string) {
+  if (typeof creator !== 'function') return fallback
+  try {
+    const result = creator(...args)
+    return typeof result === 'function' ? result : fallback
+  } catch(e) {
+    warn(error, e)
+    return fallback
+  }
+}
