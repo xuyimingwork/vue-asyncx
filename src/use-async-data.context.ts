@@ -6,7 +6,7 @@ type ContextGetter<D = any> = () => {
 }
 
 let currentContextGetter: ContextGetter = () => {
-  throw new Error(message('getAsyncDataContext 必须在 useAsyncData 的封装函数内同步调用'))
+  throw new Error(message('getAsyncDataContext must be called synchronously within useAsyncData function.'))
 }
 
 export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGetter<D>>) {
@@ -14,7 +14,7 @@ export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGett
   const getter = () => context
   currentContextGetter = getter
   function restoreAsyncDataContext() {
-    if (getter !== currentContextGetter) throw new Error(message('内部错误，嵌套 AsyncDataContext 必须顺序恢复'))
+    if (getter !== currentContextGetter) throw new Error(message('[Internal] Nested AsyncDataContext must be restored in order.'))
     currentContextGetter = prev
   }
 
