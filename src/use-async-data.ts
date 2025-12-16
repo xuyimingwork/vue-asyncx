@@ -106,10 +106,8 @@ export function useAsyncData(...args: any[]): any {
       const p = fn(...args)
       if (p instanceof Promise) {
         p.then(
-          // promise 正常结束
           v => finish(v, { scene: 'normal', track }), 
-          // promise 出现拒绝
-          e => finish(e, { scene: 'error', track })
+          () => finish(undefined, { scene: 'error', track })
         )
       } else {
         // 非 promise 正常结束
