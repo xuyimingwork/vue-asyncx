@@ -18,7 +18,7 @@ export type FirstArgumentEnhanced<T = any, D = any> = {
 export function unFirstArgumentEnhanced<Arg = any, Data = any>(arg: Arg, defaultValue?: Arg): Arg extends undefined 
   ? FirstArgumentEnhanced<Arg, Data> 
   : Required<FirstArgumentEnhanced<Arg, Data>> {
-  if (!isFirstArgumentEnhanced(arg)) throw Error(message('请配置 options.enhanceFirstArgument = true'))
+  if (!isFirstArgumentEnhanced(arg)) throw Error(message('Set options.enhanceFirstArgument = true or migrate to getAsyncDataContext().'))
   const enhanced: FirstArgumentEnhanced<Arg, Data> = arg
   /**
    * js 的参数默认值规则：当参数为 undefined 时，使用默认值。
