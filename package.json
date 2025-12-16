@@ -1,7 +1,7 @@
 {
   "name": "vue-asyncx",
   "version": "1.9.1",
-  "description": "",
+  "description": "优雅好用的 Vue3 异步函数/数据管理工具",
   "type": "module",
   "types": "dist/vue-asyncx.d.ts",
   "files": [
@@ -35,6 +35,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xuyimingwork/vue-asyncx.git"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
   },
   "devDependencies": {
     "@types/node": "^22.19.1",
