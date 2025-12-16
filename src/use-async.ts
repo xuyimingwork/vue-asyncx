@@ -1,5 +1,5 @@
 import { computed, ComputedRef, Ref, ref, watch, WatchCallback, WatchOptions, WatchSource } from "vue"
-import { createFunctionTracker, Simplify, StringDefaultWhenEmpty, Track,  } from "./utils"
+import { createTracker, Simplify, StringDefaultWhenEmpty, Track,  } from "./utils"
 
 export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = Simplify<{
   [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn
@@ -42,7 +42,7 @@ export function useAsync(...args: any[]): any {
   const _args = ref<Parameters<typeof fn>>()
   const error = ref()
 
-  const tracker = createFunctionTracker()
+  const tracker = createTracker()
 
   // 函数执行时立即调用，保证状态始终跟随最新的调用
   const before = (args: any[]) => {

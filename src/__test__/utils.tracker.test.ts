@@ -1,9 +1,9 @@
 // utils.tracker.test.ts
-import { createFunctionTracker } from '../utils.tracker'
+import { createTracker } from '../utils.tracker'
 import { describe, expect, it, vi, afterEach } from 'vitest'
 
 /*
-  Design contracts for `createFunctionTracker`:
+  Design contracts for `createTracker`:
   - Calls are assigned strictly increasing sequence numbers (sn).
   - A later call (higher sn) that finishes (fulfill/reject) wins the "latest" status.
   - `reject` can receive any value (not just Error instances).
@@ -15,7 +15,7 @@ import { describe, expect, it, vi, afterEach } from 'vitest'
   `afterEach` will restore real timers to avoid leaking fake timers between tests.
 */
 
-describe('createFunctionTracker', () => {
+describe('createTracker', () => {
   afterEach(() => vi.useRealTimers())
 
   // ============================================================================
@@ -23,7 +23,7 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('sequence numbering', () => {
     it('should assign strictly increasing sequence numbers', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       const t2 = tracker()
       const t3 = tracker()
@@ -33,7 +33,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should handle large number of calls without sequence collision', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const calls = Array.from({ length: 100 }, (_, i) => {
         const t = tracker()
         expect(t.sn).toBe(i + 1)
@@ -49,7 +49,7 @@ describe('createFunctionTracker', () => {
   describe('state transitions', () => {
     describe('valid transitions', () => {
       it('should allow pending → updating → fulfilled', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const t = tracker('initial')
         expect(t.inStatePending()).toBe(true)
         expect(t.value).toBe('initial')
@@ -62,7 +62,7 @@ describe('createFunctionTracker', () => {
       })
 
       it('should allow pending → rejected', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const t = tracker()
         t.reject(new Error('fail'))
         expect(t.inStateRejected()).toBe(true)
@@ -71,7 +71,7 @@ describe('createFunctionTracker', () => {
       })
 
       it('should allow pending → fulfilled (direct)', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const t = tracker()
         t.fulfill('done')
         expect(t.inStateFulfilled()).toBe(true)
@@ -79,7 +79,7 @@ describe('createFunctionTracker', () => {
       })
 
       it('should allow updating → updating (self-transition)', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const t = tracker()
         t.update('first')
         expect(t.value).toBe('first')
@@ -91,7 +91,7 @@ describe('createFunctionTracker', () => {
 
     describe('invalid transitions', () => {
       it('should reject transitions from fulfilled state', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const t = tracker()
         t.fulfill('done')
         // Attempt illegal transitions — should not change state/value
@@ -106,7 +106,7 @@ describe('createFunctionTracker', () => {
       })
 
       it('should reject transitions from rejected state', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const t = tracker()
         t.reject(new Error('error'))
         // Attempt illegal transitions — should not change state/value
@@ -125,7 +125,7 @@ describe('createFunctionTracker', () => {
 
     describe('idempotent operations', () => {
       it('should keep first value on multiple fulfill calls for same sn', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const t = tracker()
         t.update('u1')
         t.fulfill('v1')
@@ -141,7 +141,7 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('value handling', () => {
     it('should handle undefined initial value correctly', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       expect(t.value).toBeUndefined()
       t.update()
@@ -151,7 +151,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should handle null values correctly', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker(null)
       expect(t.value).toBeNull()
       t.update(null)
@@ -161,7 +161,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should preserve initial value through state transitions', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const initialData = { id: 1, name: 'test' }
       const t = tracker(initialData)
       expect(t.value).toBe(initialData)
@@ -173,7 +173,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should handle multiple progressive updates before finish', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.update('loading...')
       t.update('processing...')
@@ -186,7 +186,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should handle concurrent calls with shared initial value pattern', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const sharedData = { count: 0 }
       
       const t1 = tracker(sharedData)
@@ -207,7 +207,7 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('error handling', () => {
     it('should handle Error instances', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       const error = new Error('test error')
       t.reject(error)
@@ -217,7 +217,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should handle non-Error rejection values', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       t1.reject('string error')
       expect(t1.inStateRejected()).toBe(true)
@@ -235,7 +235,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should not allow update after reject', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.reject(new Error('err'))
       t.update('should not resurrect')
@@ -250,7 +250,7 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('latest ref tracking', () => {
     it('should only increase latest refs when newer calls complete', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       const t2 = tracker()
       t1.fulfill('first')
@@ -261,7 +261,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should not update latest ref when newer call has already updated it', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       // t2 updates first, setting updating.value to 2
@@ -275,7 +275,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should not update fulfilled ref when newer call has already fulfilled', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       t2.fulfill('newer')
@@ -287,7 +287,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should not update rejected ref when newer call has already rejected', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       t2.reject(new Error('newer error'))
@@ -305,7 +305,7 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('isLatestCall', () => {
     it('should return true only for the most recent call', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       expect(t1.isLatestCall()).toBe(true)
       const t2 = tracker()
@@ -318,7 +318,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false for older calls even after they finish', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       const t2 = tracker()
       t1.fulfill('first')
@@ -329,7 +329,7 @@ describe('createFunctionTracker', () => {
 
   describe('isLatestUpdate', () => {
     it('should return true when call is updating and is the latest update', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       const t2 = tracker()
       t1.update('old load')
@@ -339,7 +339,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false when not in updating state', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       expect(t.isLatestUpdate()).toBe(false) // pending state
       t.fulfill('done')
@@ -350,7 +350,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false when fulfilled.value >= sn', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       t2.fulfill('newer')
@@ -360,7 +360,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false when updating.value !== sn', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       t2.update('newer')
@@ -373,7 +373,7 @@ describe('createFunctionTracker', () => {
 
   describe('isLatestFulfill', () => {
     it('should return true when call is fulfilled and is the latest fulfill', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       const t2 = tracker()
       t1.fulfill('old result')
@@ -383,7 +383,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false when not in fulfilled state', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       expect(t.isLatestFulfill()).toBe(false) // pending state
       t.update('loading')
@@ -394,7 +394,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false when updating.value > sn', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       t2.update('newer')
@@ -404,7 +404,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false when fulfilled.value !== sn', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       t2.fulfill('newer')
@@ -417,7 +417,7 @@ describe('createFunctionTracker', () => {
 
   describe('isLatestFinish', () => {
     it('should return true when call is finished and is the latest finish', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       const t2 = tracker()
       t1.fulfill('old result')
@@ -427,7 +427,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should work for rejected calls', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       const t2 = tracker()
       t1.reject(new Error('old error'))
@@ -437,7 +437,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false when not in finished state', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       expect(t.isLatestFinish()).toBe(false) // pending state
       t.update('loading')
@@ -445,7 +445,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false when updating.value > sn', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       t2.update('newer')
@@ -455,7 +455,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false when finished.value !== sn', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       t2.reject(new Error('newer error'))
@@ -471,14 +471,14 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('staleness detection', () => {
     it('should return true for rejected calls', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.reject(new Error('error'))
       expect(t.isStaleValue()).toBe(true)
     })
 
     it('should return true if newer call has finished', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const slow = tracker() // sn=1
       const fast = tracker() // sn=2
       fast.fulfill('fast')
@@ -488,7 +488,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return true when newer call finished even if updating', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       t1.update('loading')
@@ -498,7 +498,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return true when updating.value > sn', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker() // sn=1
       const t2 = tracker() // sn=2
       t2.update('newer')
@@ -508,7 +508,7 @@ describe('createFunctionTracker', () => {
 
     describe('race conditions', () => {
       it('fulfill (sn=1) then reject (sn=2) → fulfill is stale', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const first = tracker() // sn=1
         const second = tracker() // sn=2
         first.fulfill('result')
@@ -520,7 +520,7 @@ describe('createFunctionTracker', () => {
       })
 
       it('reject (sn=1) then fulfill (sn=2) → reject is stale, fulfill is latest', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const first = tracker() // sn=1
         const second = tracker() // sn=2
         expect(second.isLatestFinish()).toBe(false)
@@ -533,7 +533,7 @@ describe('createFunctionTracker', () => {
       })
 
       it('finish race: later finish decides latest flags', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const a = tracker()
         const b = tracker()
         a.finish(false, 'a-ok')
@@ -545,7 +545,7 @@ describe('createFunctionTracker', () => {
 
     describe('multiple concurrent calls', () => {
       it('only the latest fulfilled is non-stale', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         vi.useFakeTimers()
         const calls = Array.from({ length: 5 }, (_, i) => {
           const t = tracker()
@@ -563,7 +563,7 @@ describe('createFunctionTracker', () => {
       })
 
       it('complex interleaving: only last fulfilled non-stale', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const calls = Array.from({ length: 7 }, () => tracker())
         // complete in custom order:
         const order = [2, 0, 6, 1, 5, 3, 4]
@@ -574,7 +574,7 @@ describe('createFunctionTracker', () => {
       })
 
       it('large concurrency: only latest fulfilled non-stale when last call fulfilled', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         const N = 50
         const calls = Array.from({ length: N }, () => tracker())
         // deterministic order (reverse then interleave)
@@ -599,7 +599,7 @@ describe('createFunctionTracker', () => {
       })
 
       it('older update after newer finish should be ignored (stale update)', () => {
-        const tracker = createFunctionTracker()
+        const tracker = createTracker()
         vi.useFakeTimers()
         const t1 = tracker() // sn=1
         const t2 = tracker() // sn=2
@@ -618,7 +618,7 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('finish method', () => {
     it('should delegate to fulfill when error is false', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.finish(false, 'success via finish')
       expect(t.inStateFulfilled()).toBe(true)
@@ -626,7 +626,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should delegate to reject when error is true', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.finish(true, new Error('error via finish'))
       expect(t.inStateRejected()).toBe(true)
@@ -634,7 +634,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should handle default error parameter (false)', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.finish() // default error=false, should fulfill
       expect(t.inStateFulfilled()).toBe(true)
@@ -642,7 +642,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should handle finish with error=true', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.finish(true, new Error('error'))
       expect(t.inStateRejected()).toBe(true)
@@ -650,7 +650,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should ignore subsequent finish calls after first terminal state', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.finish(false, 'first')
       t.finish(true, new Error('second'))
@@ -659,7 +659,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should ignore subsequent finish calls when first was a rejection', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.finish(true, new Error('first'))
       t.finish(false, 'second')
@@ -673,7 +673,7 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('inStateFinished', () => {
     it('should return true for fulfilled calls', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       expect(t.inStateFinished()).toBe(false)
       t.fulfill('done')
@@ -681,7 +681,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return true for rejected calls', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       expect(t.inStateFinished()).toBe(false)
       t.reject(new Error('error'))
@@ -689,7 +689,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should return false for pending and updating calls', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       expect(t1.inStateFinished()).toBe(false)
       const t2 = tracker()
@@ -700,7 +700,7 @@ describe('createFunctionTracker', () => {
 
   describe('allowToState methods', () => {
     it('allowToStateUpdating should return correct values', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       expect(t.allowToStateUpdating()).toBe(true)
       t.update('loading')
@@ -710,7 +710,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('allowToStateFulfilled should return correct values', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       expect(t.allowToStateFulfilled()).toBe(true)
       t.update('loading')
@@ -723,7 +723,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('allowToStateRejected should return correct values', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       expect(t.allowToStateRejected()).toBe(true)
       t.update('loading')
@@ -741,14 +741,14 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('tracker.has flags', () => {
     it('has.tracking becomes true after any track', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       expect(tracker.has.tracking.value).toBe(false)
       tracker() // Just creating a track should make tracking true
       expect(tracker.has.tracking.value).toBe(true)
     })
 
     it('has.updating becomes true after any update', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       expect(tracker.has.updating.value).toBe(false)
       const t = tracker()
       t.update('loading')
@@ -756,7 +756,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('has.updating remains true even if call ends in rejection after update', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.update('loading')
       expect(tracker.has.updating.value).toBe(true)
@@ -765,7 +765,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('has.updating stays false if no update ever called', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       expect(tracker.has.updating.value).toBe(false)
       const t1 = tracker()
       t1.fulfill('ok')
@@ -776,7 +776,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('tracking and has flags reflect call lifecycle', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       expect(tracker.has.tracking.value).toBe(false)
       expect(tracker.has.finished.value).toBe(false)
       const t = tracker()
@@ -789,7 +789,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('has flags should correctly track mixed states', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       expect(tracker.has.fulfilled.value).toBe(false)
       expect(tracker.has.rejected.value).toBe(false)
       const t1 = tracker()
@@ -809,7 +809,7 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('tracker.latest computed properties', () => {
     it('latest.fulfilled should be true only when last call was fulfilled', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       // No calls yet
       expect(tracker.latest.fulfilled.value).toBe(false)
       // First call fulfilled
@@ -825,7 +825,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('latest.finished should be true when no calls have been made', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       // No calls
       expect(tracker.latest.finished.value).toBe(true)
       // One pending call
@@ -834,7 +834,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('latest.finished should be true if the most recent call has finished', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       // No calls
       expect(tracker.latest.finished.value).toBe(true)
       // One pending call
@@ -859,7 +859,7 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('real-world usage patterns', () => {
     it('should support updateData pattern: update then check inStateUpdating', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t = tracker()
       t.update('progress')
       expect(t.inStateUpdating()).toBe(true)
@@ -871,7 +871,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should handle initial value pattern from use-async-data', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const currentData = { id: 1, name: 'current' }
       // Simulate tracker(data.value) pattern from use-async-data.ts:127
       const track = tracker(currentData)
@@ -881,7 +881,7 @@ describe('createFunctionTracker', () => {
     })
 
     it('should handle finish pattern with scene parameter', () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       const t1 = tracker()
       const t2 = tracker()
       // Simulate finish(scene === 'error', v) pattern from use-async-data.ts:91
@@ -897,7 +897,7 @@ describe('createFunctionTracker', () => {
   // ============================================================================
   describe('promise-based concurrency', () => {
     it('later promise wins', async () => {
-      const tracker = createFunctionTracker()
+      const tracker = createTracker()
       // Use fake timers for deterministic setTimeout behavior
       vi.useFakeTimers()
       const t1 = tracker()
