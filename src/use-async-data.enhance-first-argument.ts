@@ -53,15 +53,12 @@ function isFirstArgumentEnhanced(v: any): v is FirstArgumentEnhanced {
   return typeof v === 'object' && !!v && (FLAG_FIRST_ARGUMENT_ENHANCED in v)
 }
 
-export function createEnhancedArgumentsNormalizer({ enhanceFirstArgument }: { enhanceFirstArgument: boolean }) {
-  if (!enhanceFirstArgument) return (args: any[]) => args
-  return (args: any[], context: any) => {
-    const [_first, ...restArgs] = args
-    const first: FirstArgumentEnhanced = {
-      [FLAG_FIRST_ARGUMENT_ENHANCED]: true,
-      ...(args.length ? { firstArgument: _first } : {}), 
-      ...context
-    }
-    return [first, ...restArgs]
+export function normalizeEnhancedArguments(args: any[], context: any = {}) {
+  const [_first, ...restArgs] = args
+  const first: FirstArgumentEnhanced = {
+    [FLAG_FIRST_ARGUMENT_ENHANCED]: true,
+    ...(args.length ? { firstArgument: _first } : {}), 
+    ...context
   }
+  return [first, ...restArgs]
 }

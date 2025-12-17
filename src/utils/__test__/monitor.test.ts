@@ -1,0 +1,615 @@
+// utils.monitor.test.ts
+import { withFunctionMonitor } from '../monitor'
+import { describe, expect, it, vi, afterEach } from 'vitest'
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+describe('withFunctionMonitor', () => {
+  afterEach(() => vi.useRealTimers())
+
+  describe('Basic Functionality', () => {
+    it('should return run function and monitor', () => {
+      const fn = vi.fn(() => 1)
+      const { run, monitor } = withFunctionMonitor(fn)
+      
+      expect(run).toBeTypeOf('function')
+      expect(monitor).toBeTypeOf('object')
+      expect(monitor.on).toBeTypeOf('function')
+      expect(monitor.off).toBeTypeOf('function')
+      expect(monitor.emit).toBeTypeOf('function')
+    })
+
+    it('should execute function and return result', () => {
+      const fn = vi.fn((a: number, b: number) => a + b)
+      const { run } = withFunctionMonitor(fn)
+      
+      const result = run(1, 2)
+      expect(result).toBe(3)
+      expect(fn).toHaveBeenCalledWith(1, 2)
+      expect(fn).toHaveBeenCalledTimes(1)
+    })
+
+    it('should handle async functions', async () => {
+      const fn = vi.fn(async (a: number, b: number) => {
+        await wait(10)
+        return a + b
+      })
+      const { run } = withFunctionMonitor(fn)
+      
+      const result = await run(1, 2)
+      expect(result).toBe(3)
+      expect(fn).toHaveBeenCalledWith(1, 2)
+    })
+  })
+
+  describe('Event Emission', () => {
+    describe('before event', () => {
+      it('should emit before event with args and track', () => {
+        const fn = vi.fn((...args: any) => 1)
+        const { run, monitor } = withFunctionMonitor(fn)
+        const beforeHandler = vi.fn()
+        
+        monitor.on('before', beforeHandler)
+        run(1, 2, 3)
+        
+        expect(beforeHandler).toHaveBeenCalledTimes(1)
+        const event = beforeHandler.mock.calls[0][0]
+        expect(event.args).toEqual([1, 2, 3])
+        expect(event.track).toBeDefined()
+        expect(event.track.sn).toBe(1)
+      })
+
+      it('should emit before event before function execution', () => {
+        const executionOrder: string[] = []
+        const fn = () => {
+          executionOrder.push('fn')
+          return 1
+        }
+        const { run, monitor } = withFunctionMonitor(fn)
+        
+        monitor.on('before', () => {
+          executionOrder.push('before')
+        })
+        
+        run()
+        expect(executionOrder).toEqual(['before', 'fn'])
+      })
+    })
+
+    describe('fulfill event', () => {
+      it('should emit fulfill event for sync function', () => {
+        const fn = vi.fn(() => 'result')
+        const { run, monitor } = withFunctionMonitor(fn)
+        const fulfillHandler = vi.fn()
+        
+        monitor.on('fulfill', fulfillHandler)
+        run()
+        
+        expect(fulfillHandler).toHaveBeenCalledTimes(1)
+        const event = fulfillHandler.mock.calls[0][0]
+        expect(event.value).toBe('result')
+        expect(event.track).toBeDefined()
+      })
+
+      it('should emit fulfill event for async function', async () => {
+        vi.useFakeTimers()
+        const fn = vi.fn(async () => {
+          await wait(100)
+          return 'async-result'
+        })
+        const { run, monitor } = withFunctionMonitor(fn)
+        const fulfillHandler = vi.fn()
+        
+        monitor.on('fulfill', fulfillHandler)
+        const promise = run()
+        
+        expect(fulfillHandler).not.toHaveBeenCalled()
+        await vi.runAllTimersAsync()
+        await promise
+        
+        expect(fulfillHandler).toHaveBeenCalledTimes(1)
+        const event = fulfillHandler.mock.calls[0][0]
+        expect(event.value).toBe('async-result')
+      })
+    })
+
+    describe('reject event', () => {
+      it('should emit reject event for sync error', () => {
+        const error = new Error('sync error')
+        const fn = vi.fn(() => {
+          throw error
+        })
+        const { run, monitor } = withFunctionMonitor(fn)
+        const rejectHandler = vi.fn()
+        
+        monitor.on('reject', rejectHandler)
+        
+        expect(() => run()).toThrow(error)
+        expect(rejectHandler).toHaveBeenCalledTimes(1)
+        const event = rejectHandler.mock.calls[0][0]
+        expect(event.error).toBe(error)
+        expect(event.track).toBeDefined()
+      })
+
+      it('should emit reject event for async error', async () => {
+        vi.useFakeTimers()
+        const error = new Error('async error')
+        const fn = vi.fn(async () => {
+          await wait(100)
+          throw error
+        })
+        const { run, monitor } = withFunctionMonitor(fn)
+        const rejectHandler = vi.fn()
+        
+        monitor.on('reject', rejectHandler)
+        const promise = run()
+        
+        expect(rejectHandler).not.toHaveBeenCalled()
+        await vi.runAllTimersAsync()
+        await expect(promise).rejects.toBe(error)
+        
+        expect(rejectHandler).toHaveBeenCalledTimes(1)
+        const event = rejectHandler.mock.calls[0][0]
+        expect(event.error).toBe(error)
+      })
+    })
+
+    describe('after event', () => {
+      it('should emit after event after function call, before fulfill', () => {
+        const executionOrder: string[] = []
+        const fn = () => {
+          executionOrder.push('fn')
+          return 1
+        }
+        const { run, monitor } = withFunctionMonitor(fn)
+        
+        monitor.on('after', () => {
+          executionOrder.push('after')
+        })
+        monitor.on('fulfill', () => {
+          executionOrder.push('fulfill')
+        })
+        
+        run()
+        expect(executionOrder).toEqual(['fn', 'after', 'fulfill'])
+      })
+
+      it('should emit after event in catch block for sync errors', () => {
+        const executionOrder: string[] = []
+        const fn = () => {
+          executionOrder.push('fn')
+          throw new Error('error')
+        }
+        const { run, monitor } = withFunctionMonitor(fn)
+        
+        monitor.on('after', () => {
+          executionOrder.push('after')
+        })
+        monitor.on('reject', () => {
+          executionOrder.push('reject')
+        })
+        
+        expect(() => run()).toThrow()
+        expect(executionOrder).toEqual(['fn', 'after', 'reject'])
+      })
+
+      it('should emit after event for async functions before promise resolves', async () => {
+        vi.useFakeTimers()
+        const executionOrder: string[] = []
+        const fn = async () => {
+          executionOrder.push('fn')
+          await wait(100)
+          return 1
+        }
+        const { run, monitor } = withFunctionMonitor(fn)
+        
+        monitor.on('after', () => {
+          executionOrder.push('after')
+        })
+        monitor.on('fulfill', () => {
+          executionOrder.push('fulfill')
+        })
+        
+        const promise = run()
+        expect(executionOrder).toEqual(['fn', 'after'])
+        
+        await vi.runAllTimersAsync()
+        await promise
+        expect(executionOrder).toEqual(['fn', 'after', 'fulfill'])
+      })
+    })
+  })
+
+  describe('Event Handler Management', () => {
+    it('should support multiple handlers for same event', () => {
+      const fn = vi.fn(() => 1)
+      const { run, monitor } = withFunctionMonitor(fn)
+      const handler1 = vi.fn()
+      const handler2 = vi.fn()
+      
+      monitor.on('before', handler1)
+      monitor.on('before', handler2)
+      run()
+      
+      expect(handler1).toHaveBeenCalledTimes(1)
+      expect(handler2).toHaveBeenCalledTimes(1)
+    })
+
+    it('should remove handler with off', () => {
+      const fn = vi.fn(() => 1)
+      const { run, monitor } = withFunctionMonitor(fn)
+      const handler = vi.fn()
+      
+      monitor.on('before', handler)
+      run()
+      expect(handler).toHaveBeenCalledTimes(1)
+      
+      monitor.off('before', handler)
+      run()
+      expect(handler).toHaveBeenCalledTimes(1) // Still 1, not called again
+    })
+  })
+
+  describe('Interceptor', () => {
+    describe('enhance-arguments interceptor', () => {
+      it('should transform arguments when interceptor returns new args', () => {
+        const fn = vi.fn((a: number, b: number) => a + b)
+        const { run, monitor } = withFunctionMonitor(fn)
+        
+        monitor.use('enhance-arguments', ({ args }) => {
+          return [args[0] * 2, args[1] * 2]
+        })
+        
+        const result = run(1, 2)
+        expect(result).toBe(6) // (1*2) + (2*2) = 6
+        expect(fn).toHaveBeenCalledWith(2, 4)
+      })
+
+      it('should use original args when interceptor does not return', () => {
+        const fn = vi.fn((a: number) => a)
+        const { run, monitor } = withFunctionMonitor(fn)
+        
+        monitor.use('enhance-arguments', () => {
+          // Interceptor doesn't return anything
+        })
+        
+        const result = run(5)
+        expect(result).toBe(5)
+        expect(fn).toHaveBeenCalledWith(5)
+      })
+
+      it('should use latest interceptor for enhance-arguments', () => {
+        const fn = vi.fn((a: number) => a)
+        const { run, monitor } = withFunctionMonitor(fn)
+        
+        monitor.use('enhance-arguments', ({ args }) => [args[0] * 2])
+        monitor.use('enhance-arguments', ({ args }) => [args[0] * 3]) // Latest will be used
+        
+        const result = run(2)
+        expect(result).toBe(6) // 2 * 3, latest interceptor
+        expect(fn).toHaveBeenCalledWith(6)
+      })
+
+      it('should get enhance-arguments handler', () => {
+        const fn = vi.fn((a: number) => a)
+        const { monitor } = withFunctionMonitor(fn)
+        const handler = vi.fn(({ args }) => [args[0] * 2])
+        
+        expect(monitor.get('enhance-arguments')).toBeUndefined()
+        
+        monitor.use('enhance-arguments', handler)
+        
+        expect(monitor.get('enhance-arguments')).toBe(handler)
+      })
+
+      it('should set and get enhance-arguments interceptor explicitly', () => {
+        const fn = vi.fn((a: number) => a)
+        const { monitor } = withFunctionMonitor(fn)
+        const handler1 = vi.fn(({ args }) => args)
+        const handler2 = vi.fn(({ args }) => [args[0] * 2])
+        
+        // Test get before setting - covers branch 51 when undefined
+        expect(monitor.get('enhance-arguments')).toBeUndefined()
+        
+        // Test use - covers branch 47
+        const result1 = monitor.use('enhance-arguments', handler1)
+        expect(monitor.get('enhance-arguments')).toBe(handler1)
+        expect(result1).toBe(handler1)
+        
+        // Test overwrite
+        const result2 = monitor.use('enhance-arguments', handler2)
+        expect(monitor.get('enhance-arguments')).toBe(handler2)
+        expect(result2).toBe(handler2)
+      })
+
+      it('should handle enhance-arguments interceptor with undefined context', () => {
+        const fn = vi.fn((a: number) => a)
+        const { run, monitor } = withFunctionMonitor(fn)
+        
+        // Set interceptor that might receive undefined context
+        monitor.use('enhance-arguments', ({ args }) => {
+          // Simulate case where context might be undefined
+          return args
+        })
+        
+        const result = run(5)
+        expect(result).toBe(5)
+        expect(fn).toHaveBeenCalledWith(5)
+      })
+    })
+
+    describe('setup interceptor', () => {
+      it('should call setup interceptor and use returned initial value', () => {
+        const fn = vi.fn(() => 'new-value')
+        const initialValue = 'initial-value'
+        const { run, monitor } = withFunctionMonitor(fn)
+        let capturedValue: any
+        
+        monitor.use('setup', () => {
+          return initialValue
+        })
+        monitor.on('before', ({ track }) => {
+          capturedValue = track.value
+        })
+        run()
+        
+        expect(capturedValue).toBe(initialValue)
+      })
+
+      it('should work without setup interceptor', () => {
+        const fn = vi.fn(() => 1)
+        const { run, monitor } = withFunctionMonitor(fn)
+        let capturedValue: any
+        
+        monitor.on('before', ({ track }) => {
+          capturedValue = track.value
+        })
+        run()
+        
+        expect(capturedValue).toBeUndefined()
+      })
+
+      it('should use latest interceptor when multiple interceptors', () => {
+        const fn = vi.fn(() => 1)
+        const { run, monitor } = withFunctionMonitor(fn)
+        let capturedValue: any
+        
+        monitor.use('setup', () => 'first')
+        monitor.use('setup', () => 'second') // Latest will be used
+        monitor.on('before', ({ track }) => {
+          capturedValue = track.value
+        })
+        run()
+        
+        expect(capturedValue).toBe('second')
+      })
+
+      it('should get setup handler', () => {
+        const fn = vi.fn(() => 1)
+        const { monitor } = withFunctionMonitor(fn)
+        const handler = vi.fn(() => 'initial')
+        
+        expect(monitor.get('setup')).toBeUndefined()
+        
+        monitor.use('setup', handler)
+        
+        expect(monitor.get('setup')).toBe(handler)
+      })
+    })
+
+    describe('undefined interceptor', () => {
+      it('should not get undefined handler', () => {
+        const fn = vi.fn(() => 1)
+        const { monitor } = withFunctionMonitor(fn)
+        const handler = vi.fn(() => 'undefined')
+        expect(monitor.get('undefined' as any)).toBeUndefined()
+        monitor.use('undefined' as any, handler)
+        expect(monitor.get('undefined' as any)).toBeUndefined()
+      })
+    })
+  })
+
+  describe('Tracker Integration', () => {
+    it('should expose monitor.has.finished', () => {
+      const fn = vi.fn(() => 1)
+      const { run, monitor } = withFunctionMonitor(fn)
+      
+      expect(monitor.has).toBeDefined()
+      expect(monitor.has.finished).toBeDefined()
+      expect(monitor.has.finished.value).toBe(false)
+      
+      run()
+      expect(monitor.has.finished.value).toBe(true)
+    })
+
+    it('should track sequence numbers correctly', () => {
+      const fn = vi.fn(() => 1)
+      const { run, monitor } = withFunctionMonitor(fn)
+      const tracks: any[] = []
+      
+      monitor.on('before', ({ track }) => {
+        tracks.push(track.sn)
+      })
+      
+      run()
+      run()
+      run()
+      
+      expect(tracks).toEqual([1, 2, 3])
+    })
+  })
+
+  describe('Race Condition Handling', () => {
+    it('should only update state for latest call', async () => {
+      vi.useFakeTimers()
+      const fn = vi.fn(async (id: number) => {
+        await wait(id === 1 ? 200 : 50)
+        return id
+      })
+      const { run, monitor } = withFunctionMonitor(fn)
+      const fulfillHandler = vi.fn()
+      
+      monitor.on('fulfill', fulfillHandler)
+      
+      const p1 = run(1) // Slow call (sn=1)
+      const p2 = run(2) // Fast call (sn=2)
+      
+      await vi.runAllTimersAsync()
+      await Promise.all([p1, p2])
+      
+      // Both should emit fulfill
+      // Fast call (sn=2) finishes first, then slow call (sn=1)
+      expect(fulfillHandler).toHaveBeenCalledTimes(2)
+      
+      // Find tracks by sn
+      const track1 = fulfillHandler.mock.calls.find(call => call[0].track.sn === 1)?.[0].track
+      const track2 = fulfillHandler.mock.calls.find(call => call[0].track.sn === 2)?.[0].track
+      
+      // After both finish, sn=2 should be latest (pending.value === 2)
+      expect(track2?.isLatestCall()).toBe(true)
+      expect(track1?.isLatestCall()).toBe(false)
+    })
+  })
+
+  describe('State Hook Usage Pattern', () => {
+    it('should support useStateLoading pattern', async () => {
+      vi.useFakeTimers()
+      const fn = vi.fn(async () => {
+        await wait(100)
+        return 1
+      })
+      const { run, monitor } = withFunctionMonitor(fn)
+      const loading = { value: false }
+      
+      monitor.on('before', () => {
+        loading.value = true
+      })
+      monitor.on('fulfill', ({ track }) => {
+        if (track.isLatestCall()) {
+          loading.value = false
+        }
+      })
+      monitor.on('reject', ({ track }) => {
+        if (track.isLatestCall()) {
+          loading.value = false
+        }
+      })
+      
+      const promise = run()
+      expect(loading.value).toBe(true)
+      
+      await vi.runAllTimersAsync()
+      await promise
+      expect(loading.value).toBe(false)
+    })
+
+    it('should support useStateParameters pattern', () => {
+      const fn = vi.fn((a: number, b: number) => a + b)
+      const { run, monitor } = withFunctionMonitor(fn)
+      const parameters = { value: undefined as any }
+      
+      monitor.on('before', ({ args, track }) => {
+        parameters.value = args
+      })
+      monitor.on('fulfill', ({ track }) => {
+        if (track.isLatestCall()) {
+          parameters.value = undefined
+        }
+      })
+      
+      run(1, 2)
+      expect(parameters.value).toBeUndefined() // Cleared after sync fulfill
+    })
+
+    it('should support useStateError pattern', () => {
+      const error = new Error('test error')
+      const fn = vi.fn(() => {
+        throw error
+      })
+      const { run, monitor } = withFunctionMonitor(fn)
+      const errorState = { value: undefined as any }
+      
+      monitor.on('before', () => {
+        errorState.value = undefined
+      })
+      monitor.on('reject', ({ track, error }) => {
+        if (track.isLatestCall()) {
+          errorState.value = error
+        }
+      })
+      
+      expect(() => run()).toThrow()
+      expect(errorState.value).toBe(error)
+    })
+  })
+
+  describe('useAsyncData Usage Pattern', () => {
+    it('should support context management pattern', () => {
+      const fn = vi.fn(() => 1)
+      const { run, monitor } = withFunctionMonitor(fn)
+      const contextStack: string[] = []
+      
+      monitor.on('before', () => {
+        contextStack.push('prepare')
+      })
+      monitor.on('after', () => {
+        contextStack.push('restore')
+      })
+      
+      run()
+      expect(contextStack).toEqual(['prepare', 'restore'])
+    })
+
+    it('should support data update pattern', async () => {
+      vi.useFakeTimers()
+      const fn = vi.fn(async () => {
+        await wait(100)
+        return 'new-data'
+      })
+      const { run, monitor } = withFunctionMonitor(fn)
+      const data = { value: 'initial-data' }
+      const dataTrack = { value: undefined as any }
+      
+      monitor.use('setup', () => {
+        return data.value
+      })
+      monitor.on('fulfill', ({ track, value }) => {
+        if (track.inStateRejected()) return
+        if (track.inStateFulfilled() && !track.isLatestFulfill()) return
+        data.value = value
+        dataTrack.value = track
+      })
+      
+      run()
+      await vi.runAllTimersAsync()
+      
+      expect(data.value).toBe('new-data')
+      expect(dataTrack.value).toBeDefined()
+      expect(dataTrack.value.isLatestFulfill()).toBe(true)
+    })
+
+    it('should support dataExpired pattern', () => {
+      const fn = vi.fn(() => 1)
+      const { run, monitor } = withFunctionMonitor(fn)
+      
+      // Simulate dataExpired computation
+      const dataExpired = { value: false }
+      const dataTrack = { value: undefined as any }
+      
+      // Update dataTrack on fulfill
+      monitor.on('fulfill', ({ track }) => {
+        dataTrack.value = track
+      })
+      
+      run()
+      
+      // Check expired: if no dataTrack, use monitor.has.finished
+      const expired = !dataTrack.value 
+        ? monitor.has.finished.value 
+        : dataTrack.value.isStaleValue()
+      
+      expect(expired).toBe(false) // Data is fresh after first call
+    })
+  })
+})
+

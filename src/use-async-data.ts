@@ -1,10 +1,9 @@
-import { computed, Ref, ref, ShallowRef, shallowRef } from "vue"
+import { Ref, ShallowRef, watch } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "./use-async.types"
-import { useAsync } from "./use-async"
-import { createTracker, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
-import { prepareAsyncDataContext } from "./use-async-data.context";
-import { createEnhancedArgumentsNormalizer } from "./use-async-data.enhance-first-argument";
+import { Simplify, StringDefaultWhenEmpty, upperFirst, getFunction, withFunctionMonitor } from "./utils";
 import { parseArguments } from "./shared/arguments";
+import { useStateLoading, useStateParameters, useStateError, useStateData } from "./shared/state";
+import { normalizeWatchOptions } from "./use-async.utils";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -57,74 +56,37 @@ export function useAsyncData(...args: any[]): any {
   const { name, fn, options } = parseArguments(args, { name: 'data' })
 
   const { enhanceFirstArgument, initialData, shallow, ...useAsyncOptions } = options as UseAsyncDataOptions<typeof fn, boolean> || {}
-  const data = shallow 
-    ? shallowRef<ReturnType<typeof fn>>(initialData) 
-    : ref<ReturnType<typeof fn>>(initialData)
-  const dataTrack = shallowRef<Track>()
 
-  // 数据更新
-  function update(v: any, { track }: { track: Track }) {
-    // 结果错误时不更新 data（error 已在 useAsync 设置）
-    if (track.inStateRejected()) return
-    if (track.inStateUpdating() && !track.isLatestUpdate()) return
-    if (track.inStateFulfilled() && !track.isLatestFulfill()) return
-    data.value = v
-    dataTrack.value = track
-  }
+  // Create monitor for the original function
+  const { run, monitor } = withFunctionMonitor(fn)
 
-  // 封装结束场景下的数据更新
-  function finish(v: any, { scene, track }: { scene: 'normal' | 'error', track: Track }) {
-    track.finish(scene === 'error', v)
-    update(v, { track })
-  }
-
-  function getContext({ track }: { track: Track }) {
-    return {
-      getData: () => track.value,
-      updateData: (v: any) => {
-        if (!track.allowToStateUpdating()) return
-        track.update(v)
-        update(v, { track })
-        return v
-      }
-    }
-  }
-
-  const normalizeArguments = createEnhancedArgumentsNormalizer({ enhanceFirstArgument })
-
-  const tracker = createTracker()
-
-  function method(...args: Parameters<typeof fn>): ReturnType<typeof fn> {
-    const track = tracker(data.value)
-    const context = getContext({ track })
-    args = normalizeArguments(args, context)
-    const restoreAsyncDataContext = prepareAsyncDataContext(context)
-    try {
-      const p = fn(...args)
-      if (p instanceof Promise) {
-        p.then(
-          v => finish(v, { scene: 'normal', track }), 
-          () => finish(undefined, { scene: 'error', track })
-        )
-      } else {
-        finish(p, { scene: 'normal', track })
-      }
-      return p
-    } catch(e) {
-      // 调用报错
-      finish(e, { scene: 'error', track })
-      throw e
-    } finally {
-      restoreAsyncDataContext()
-    }
-  }
-  const result = useAsync(`query${upperFirst(name)}`, method, useAsyncOptions)
-  const dataExpired = computed(() => {
-    if (!dataTrack.value) return tracker.has.finished.value
-    return dataTrack.value.isStaleValue()
+  // Use state composables
+  const loading = useStateLoading(monitor)
+  const { parameters, parameterFirst } = useStateParameters(monitor)
+  const error = useStateError(monitor)
+  const { data, dataExpired } = useStateData<ReturnType<typeof fn>>(monitor, {
+    initialData,
+    shallow,
+    enhanceFirstArgument
   })
+
+  // Wrap run with options.setup
+  const method = getFunction(
+    useAsyncOptions?.setup, [run], run,
+    'Run options.setup failed, fallback to default behavior.'
+  )
+
+  const watchConfig = normalizeWatchOptions(method, useAsyncOptions)
+  if (watchConfig) watch(watchConfig.source, watchConfig.handler, watchConfig.options)
+
+  const queryName = `query${upperFirst(name)}`
+
   return {
-    ...result,
+    [queryName]: method,
+    [`${queryName}Loading`]: loading,
+    [`${queryName}Arguments`]: parameters,
+    [`${queryName}ArgumentFirst`]: parameterFirst,
+    [`${queryName}Error`]: error,
     [name]: data,
     [`${name}Expired`]: dataExpired
   }
