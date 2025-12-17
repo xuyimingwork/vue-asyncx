@@ -1,6 +1,6 @@
 import { computed, ref, watch } from "vue"
 import { createTracker, getFunction, Track,  } from "./utils"
-import { parseArguments } from "./shared"
+import { parseArguments } from "./shared/arguments"
 import type { UseAsyncOptions, UseAsyncResult } from './use-async.types'
 import { normalizeWatchOptions } from "./use-async.utils"
 export function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>

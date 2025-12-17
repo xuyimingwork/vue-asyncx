@@ -4,7 +4,7 @@ import { useAsync } from "./use-async"
 import { createTracker, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
 import { prepareAsyncDataContext } from "./use-async-data.context";
 import { createEnhancedArgumentsNormalizer } from "./use-async-data.enhance-first-argument";
-import { parseArguments } from "./shared";
+import { parseArguments } from "./shared/arguments";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,

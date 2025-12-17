@@ -1,4 +1,4 @@
-import { message } from "./utils"
+import { message } from "../utils"
 
 export function parseArguments(args: any[], fallback: { name: string }) {
   if (!Array.isArray(args) || !args.length) throw TypeError(message('Expected at least 1 argument, but got 0.'))
