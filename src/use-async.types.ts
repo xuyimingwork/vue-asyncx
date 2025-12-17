@@ -13,7 +13,7 @@ export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string
   [K in `${StringDefaultWhenEmpty<Name, 'method'>}Error`]: Ref<any>
 }>
 
-interface UseAsyncWatchOptions<Fn extends (...args: any) => any> extends WatchOptions {
+export interface UseAsyncWatchOptions<Fn extends (...args: any) => any> extends WatchOptions {
   handlerCreator?: (fn: Fn) => WatchCallback
 }
 
