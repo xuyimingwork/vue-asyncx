@@ -156,7 +156,8 @@ export function useStateData<Data = any>(
   monitor.use('setup', () => data.value)
 
   // Set up enhance-arguments interceptor to use prepared context for argument enhancement
-  if (enhanceFirstArgument) monitor.use('enhance-arguments', ({ args, track }) => normalizeEnhancedArguments(args, contexts.get(track)))
+  // since enhance-arguments happened after ’before‘ event, always with context
+  if (enhanceFirstArgument) monitor.use('enhance-arguments', ({ args, track }) => normalizeEnhancedArguments(args, contexts.get(track)!))
 
   // Compute dataExpired based on dataTrack and monitor state
   const dataExpired = computed(() => {
