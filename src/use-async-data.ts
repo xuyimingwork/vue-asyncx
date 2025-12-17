@@ -1,9 +1,9 @@
-import { Ref, ShallowRef, watch } from "vue"
+import { Ref, ShallowRef } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "./use-async.types"
-import { Simplify, StringDefaultWhenEmpty, upperFirst, getFunction, withFunctionMonitor } from "./utils";
+import { Simplify, StringDefaultWhenEmpty, upperFirst } from "./utils";
 import { parseArguments } from "./shared/arguments";
-import { useStateLoading, useStateParameters, useStateError, useStateData } from "./shared/state";
-import { normalizeWatchOptions } from "./use-async.utils";
+import { useStateData } from "./shared/state";
+import { useAsyncBase } from "./use-async-base";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -53,31 +53,11 @@ export function useAsyncData<
   Shallow extends boolean = false
 >(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, DataName, Shallow>
 export function useAsyncData(...args: any[]): any {
-  const { name, fn, options } = parseArguments(args, { name: 'data' })
-
-  const { enhanceFirstArgument, initialData, shallow, ...useAsyncOptions } = options as UseAsyncDataOptions<typeof fn, boolean> || {}
-
-  // Create monitor for the original function
-  const { run, monitor } = withFunctionMonitor(fn)
-
-  // Use state composables
-  const loading = useStateLoading(monitor)
-  const { parameters, parameterFirst } = useStateParameters(monitor)
-  const error = useStateError(monitor)
-  const { data, dataExpired } = useStateData<ReturnType<typeof fn>>(monitor, {
-    initialData,
-    shallow,
-    enhanceFirstArgument
-  })
-
-  // Wrap run with options.setup
-  const method = getFunction(
-    useAsyncOptions?.setup, [run], run,
-    'Run options.setup failed, fallback to default behavior.'
-  )
-
-  const watchConfig = normalizeWatchOptions(method, useAsyncOptions)
-  if (watchConfig) watch(watchConfig.source, watchConfig.handler, watchConfig.options)
+  const { name = 'data', fn, options } = parseArguments(args)
+  const {
+    method, loading, parameters, parameterFirst, error,
+    data, dataExpired
+  } = useAsyncBase(fn, options, (monitor) => useStateData<ReturnType<typeof fn>>(monitor, options))
 
   const queryName = `query${upperFirst(name)}`
 
