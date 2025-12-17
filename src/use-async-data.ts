@@ -1,5 +1,5 @@
 import { computed, Ref, ref, ShallowRef, shallowRef } from "vue"
-import type { UseAsyncOptions, UseAsyncResult } from "./use-async"
+import type { UseAsyncOptions, UseAsyncResult } from "./use-async.types"
 import { useAsync } from "./use-async"
 import { createTracker, Simplify, StringDefaultWhenEmpty, Track, upperFirst } from "./utils";
 import { prepareAsyncDataContext } from "./use-async-data.context";

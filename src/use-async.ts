@@ -1,30 +1,8 @@
-import { computed, ComputedRef, Ref, ref, watch, WatchCallback, WatchOptions, WatchSource } from "vue"
-import { createTracker, getFunction, Simplify, StringDefaultWhenEmpty, Track,  } from "./utils"
+import { computed, ref, watch } from "vue"
+import { createTracker, getFunction, Track,  } from "./utils"
 import { parseArguments } from "./shared"
-
-export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = Simplify<{
-  [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn
-} & {
-  [K in `${StringDefaultWhenEmpty<Name, 'method'>}Loading`]: Ref<boolean>
-} & {
-  [K in `${StringDefaultWhenEmpty<Name, 'method'>}Arguments`]: ComputedRef<Parameters<Fn>>
-} & {
-  [K in `${StringDefaultWhenEmpty<Name, 'method'>}ArgumentFirst`]: ComputedRef<Parameters<Fn>['0']>
-} & {
-  [K in `${StringDefaultWhenEmpty<Name, 'method'>}Error`]: Ref<any>
-}>
-
-export interface UseAsyncWatchOptions<Fn extends (...args: any) => any> extends WatchOptions {
-  handlerCreator?: (fn: Fn) => WatchCallback
-}
-
-export type UseAsyncOptions<Fn extends (...args: any) => any> = Simplify<{
-  watch?: WatchSource
-  watchOptions?: UseAsyncWatchOptions<Fn>
-  immediate?: boolean 
-  setup?: (fn: Fn) => ((...args: any) => any) | void
-}>
-
+import type { UseAsyncOptions, UseAsyncResult } from './use-async.types'
+import { normalizeWatchOptions } from "./use-async.utils"
 export function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>
 export function useAsync<Fn extends (...args: any) => any, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, Name>
 export function useAsync(...args: any[]): any {
@@ -78,19 +56,9 @@ export function useAsync(...args: any[]): any {
     'Run options.setup failed, fallback to default behavior.'
   )
 
-  if (options) {
-    const { handlerCreator, ...watchOptions } = Object.assign({}, 
-      'immediate' in options ? { immediate: options.immediate } : {}, 
-      options.watchOptions ?? {}
-    )
-    const { watch: watchSource = () => {} } = options
-    const handler = getFunction(
-      handlerCreator, [method], () => method(),
-      'Run options.watchOptions.handlerCreator failed, fallback to default behavior.'
-    )
-    watch(watchSource, handler, watchOptions)
-  }
-  
+  const watchConfig = normalizeWatchOptions(method, options)
+  if (watchConfig) watch(watchConfig.source, watchConfig.handler, watchConfig.options)
+
   return {
     [name]: method,
     [`${name}Loading`]: loading,
