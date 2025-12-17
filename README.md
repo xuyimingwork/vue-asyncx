@@ -24,7 +24,7 @@ pnpm i vue-asyncx
 
 ```ts
 import { getUserApi } from './api'
-import { useAsyncData } from '../dist/vue-asyncx'
+import { useAsyncData } from 'vue-asyncx'
 
 const { 
   user, 
@@ -41,7 +41,7 @@ queryUser('Mike')
 
 ```ts
 import { submitApi } from './api'
-import { useAsync } from '../dist/vue-asyncx'
+import { useAsync } from 'vue-asyncx'
 
 const { 
   submit, 
@@ -92,7 +92,7 @@ const {
 
 ```ts
 import { getUserApi } from './api'
-import { useAsyncData } from '../dist/vue-asyncx'
+import { useAsyncData } from 'vue-asyncx'
 
 const props = defineProps<{
   userId: string;
