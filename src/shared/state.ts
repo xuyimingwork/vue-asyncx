@@ -2,8 +2,8 @@ import { computed, ref, shallowRef } from 'vue'
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import type { FunctionMonitorWithTracker } from '../utils/monitor'
 import type { Track } from '../utils/tracker'
-import { prepareAsyncDataContext } from '../use-async-data.context'
-import { normalizeEnhancedArguments } from '../use-async-data.enhance-first-argument'
+import { prepareAsyncDataContext } from '../use-async-data/context'
+import { normalizeEnhancedArguments } from '../use-async-data/enhance-first-argument'
 
 /**
  * Creates a reactive loading state that tracks function execution.

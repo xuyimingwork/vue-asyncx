@@ -1,8 +1,8 @@
 import type { ComputedRef, Ref } from "vue";
 import { watch } from 'vue'
-import { normalizeWatchOptions } from "./use-async.utils";
-import { FunctionMonitorWithTracker, getFunction, withFunctionMonitor } from "./utils";
-import { useStateError, useStateLoading, useStateParameters } from "./shared/state";
+import { normalizeWatchOptions } from "../use-async/utils";
+import { FunctionMonitorWithTracker, getFunction, withFunctionMonitor } from "../utils";
+import { useStateError, useStateLoading, useStateParameters } from "../shared/state";
 
 export function useAsyncBase<
   Fn extends (...args: any) => any,

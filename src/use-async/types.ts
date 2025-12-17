@@ -1,5 +1,5 @@
 import { ComputedRef, Ref, WatchCallback, WatchOptions, WatchSource } from 'vue'
-import type { Simplify, StringDefaultWhenEmpty } from './utils/index'
+import type { Simplify, StringDefaultWhenEmpty } from '../utils/index'
 
 export type UseAsyncResult<Fn extends (...args: any) => any, Name extends string> = Simplify<{
   [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn

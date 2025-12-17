@@ -1,9 +1,9 @@
 import { Ref, ShallowRef } from "vue"
-import type { UseAsyncOptions, UseAsyncResult } from "./use-async.types"
-import { Simplify, StringDefaultWhenEmpty, upperFirst } from "./utils";
-import { parseArguments } from "./shared/arguments";
-import { useStateData } from "./shared/state";
-import { useAsyncBase } from "./use-async-base";
+import type { UseAsyncOptions, UseAsyncResult } from "../use-async/types"
+import { Simplify, StringDefaultWhenEmpty, upperFirst } from "../utils";
+import { parseArguments } from "../shared/arguments";
+import { useStateData } from "../shared/state";
+import { useAsyncBase } from "../use-async-base/use-async-base";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -72,5 +72,5 @@ export function useAsyncData(...args: any[]): any {
   }
 }
 
-export { unFirstArgumentEnhanced } from './use-async-data.enhance-first-argument'
-export { getAsyncDataContext } from './use-async-data.context'
+export { unFirstArgumentEnhanced } from './enhance-first-argument'
+export { getAsyncDataContext } from './context'

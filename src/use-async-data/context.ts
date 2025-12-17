@@ -1,4 +1,4 @@
-import { message } from "./utils"
+import { message } from "../utils"
 
 type ContextGetter<D = any> = () => { 
   getData: () => D,
