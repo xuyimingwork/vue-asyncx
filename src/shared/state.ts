@@ -1,4 +1,5 @@
-import { computed, ComputedRef, Ref, ref, ShallowRef, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
+import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import type { FunctionMonitorWithTracker } from '../utils/monitor'
 import type { Track } from '../utils/tracker'
 import { prepareAsyncDataContext } from '../use-async-data.context'
