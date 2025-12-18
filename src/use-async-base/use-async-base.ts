@@ -1,8 +1,7 @@
 import type { ComputedRef, Ref } from "vue";
-import { watch } from 'vue'
-import { normalizeWatchOptions } from "../use-async/utils";
-import { FunctionMonitorWithTracker, getFunction, withFunctionMonitor } from "../utils";
+import { FunctionMonitorWithTracker, withFunctionMonitor } from "../utils";
 import { useStateError, useStateLoading, useStateParameters } from "../shared/state";
+import { useSetup, useWatch } from "../shared/function";
 
 export function useAsyncBase<
   Fn extends (...args: any) => any,
@@ -19,26 +18,25 @@ export function useAsyncBase<
   error: Ref<any>
 } & ReturnType<StateFn> {
   const { run, monitor } = withFunctionMonitor(fn)
+
+  // state
   const loading = useStateLoading(monitor)
   const { parameters, parameterFirst } = useStateParameters<Fn>(monitor)
   const error = useStateError(monitor)
   const patchedState =  patchState ? patchState(monitor) : {}
 
-  // Wrap run with options.setup
-  const method = getFunction(
-    options?.setup, [run], run, 
-    'Run options.setup failed, fallback to default behavior.'
-  )
+  // setup: function transform/trigger
+  const method = useSetup(run, options)
 
-  const watchConfig = normalizeWatchOptions(method, options)
-  if (watchConfig) watch(watchConfig.source, watchConfig.handler, watchConfig.options)
+  // trigger
+  useWatch(method, options)
 
   return {
     method, 
     loading, 
+    error,
     parameters, 
     parameterFirst, 
-    error,
     ...patchedState
   }
 }

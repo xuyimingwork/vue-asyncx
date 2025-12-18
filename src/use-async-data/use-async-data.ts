@@ -1,7 +1,7 @@
 import { Ref, ShallowRef } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "../use-async/types"
 import { Simplify, StringDefaultWhenEmpty, upperFirst } from "../utils";
-import { parseArguments } from "../shared/arguments";
+import { parseArguments } from "../shared/function";
 import { useStateData } from "../shared/state";
 import { useAsyncBase } from "../use-async-base/use-async-base";
 
