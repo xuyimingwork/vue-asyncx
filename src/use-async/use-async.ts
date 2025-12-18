@@ -1,6 +1,8 @@
-import { parseArguments } from "../shared/arguments"
+import { parseArguments } from "../shared/function"
 import type { UseAsyncOptions, UseAsyncResult } from './types'
 import { useAsyncBase } from "../use-async-base/use-async-base"
+
+
 
 export function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>
 export function useAsync<Fn extends (...args: any) => any, Name extends string = string>(name: Name, fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, Name>
