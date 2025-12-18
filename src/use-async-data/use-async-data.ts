@@ -3,7 +3,8 @@ import type { UseAsyncOptions, UseAsyncResult } from "../use-async/types"
 import { Simplify, StringDefaultWhenEmpty, upperFirst } from "../utils";
 import { parseArguments } from "../shared/function";
 import { useStateData } from "../shared/state";
-import { useAsyncBase } from "../use-async-base/use-async-base";
+import { _useAsync } from "../use-async/use-async";
+import { StateCreatorParams } from "../shared/core";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -54,22 +55,40 @@ export function useAsyncData<
 >(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, DataName, Shallow>
 export function useAsyncData(...args: any[]): any {
   const { name = 'data', fn, options } = parseArguments(args)
-  const {
-    method, loading, parameters, parameterFirst, error,
-    data, dataExpired
-  } = useAsyncBase(fn, options, (monitor) => useStateData<ReturnType<typeof fn>>(monitor, options))
+  return _useAsyncData({ name, fn, options })
+}
 
-  const queryName = `query${upperFirst(name)}`
-
-  return {
-    [queryName]: method,
-    [`${queryName}Loading`]: loading,
-    [`${queryName}Arguments`]: parameters,
-    [`${queryName}ArgumentFirst`]: parameterFirst,
-    [`${queryName}Error`]: error,
-    [name]: data,
-    [`${name}Expired`]: dataExpired
-  }
+function _useAsyncData<
+  Name extends string,
+  Fn extends (...args: any) => any,
+  Shallow extends boolean = false
+>({
+  name, fn, options
+}: {
+  name: Name, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>
+}) {
+  type _Name = StringDefaultWhenEmpty<Name, 'data'>
+  const queryName = `query${upperFirst(name as _Name) }` as const
+  return _useAsync({ 
+    name: queryName, fn, options,
+    stateCreators: [
+      ({ monitor }: StateCreatorParams): {
+        [K in _Name]: Shallow extends true 
+          ? ShallowRef<Awaited<ReturnType<Fn>>> 
+          : Ref<Awaited<ReturnType<Fn>>> 
+      } & {
+        [K in `${_Name}Expired`]: Ref<boolean>
+      } => {
+        const {
+          data, dataExpired
+        } = useStateData(monitor, options)
+        return {
+          [name]: data,
+          [`${name}Expired`]: dataExpired
+        } as any
+      }
+    ]
+  })
 }
 
 export { unFirstArgumentEnhanced } from './enhance-first-argument'
