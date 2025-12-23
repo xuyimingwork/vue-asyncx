@@ -11,3 +11,21 @@ const { list } = useAsyncData('list', () => {
 
 本质是完整更新与部分更新的需求错位：useAsyncData('', patchUpdate)
 如何设计 API，满足异步部分更新场景？
+
+```ts
+useAsyncAssembler(
+  name: string, 
+  // **部分**数据的获取方法
+  fn: (...args: any) => any, 
+  options: {
+    // 从**部分**数据组装出整体数据
+    assemble: () => any
+  }
+
+): {
+  // 整体数据
+  [`${name}`]: any
+  // 暴露给外部用于获取部分数据
+  [`gather${name}`]:  (...args: any) => any, 
+}
+```
