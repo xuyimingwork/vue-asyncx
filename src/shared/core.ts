@@ -1,4 +1,4 @@
-import { FunctionMonitorWithTracker, Simplify, withFunctionMonitor } from "../utils";
+import { FunctionMonitorWithTracker, withFunctionMonitor } from "../utils";
 import { MergeReturnTypes, runFunctions } from "../utils/base";
 import { useSetup } from "./function";
 
