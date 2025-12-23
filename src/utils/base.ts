@@ -3,24 +3,25 @@ export type UpperFirst<S extends string> =
   S extends `${infer F}${infer R}`
     ? `${Uppercase<F>}${R}`
     : S;
-export type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
+export type Simplify<T> = {[K in keyof T]: T[K]} & {};
 export type Fn = (...args: any[]) => any;
-export type Merge<A, B> = Omit<A, keyof B> & B;
-export type ObjectShape<T> =
-  T extends object
-    ? (T extends Function ? {} : T)
-    : {};
+export type Merge<A, B> = A extends any ? Simplify<Omit<A, keyof B> & B> : never;
+export type ObjectShape<T> = 0 extends (1 & T) ? {} : // ObjectShape<any> => {}
+  T extends Function ? {} : // ObjectShape<() => void> => {}
+  T extends readonly any[] ? {} : // ObjectShape<any[]> => {}
+  T extends object ? T : {} // ObjectShape<null> => {} / ObjectShape<undefined> => {} ...
 export type MergeReturnTypes<
   Fns extends readonly Fn[],
   Acc = {}
-> = Simplify<Fns extends readonly [infer F, ...infer Rest]
-  ? F extends Fn
-    ? MergeReturnTypes<
-          Rest extends readonly Fn[] ? Rest : [],
-          Merge<Acc, ObjectShape<ReturnType<F>>>
-        >
-      : Acc
-  : Acc>;
+> = Fns extends readonly [
+    infer F extends Fn, 
+    ...infer Rest extends readonly Fn[]
+  ]
+  ? MergeReturnTypes<
+      Rest,
+      Merge<Acc, ObjectShape<ReturnType<F>>>
+    >
+  : Acc;
 
 export function upperFirst<Name extends string>(string: Name): UpperFirst<Name> {
   if (!string) return '' as any
@@ -57,8 +58,10 @@ export function getFunction(creator: any, args: any[], fallback: (...args: any) 
   }
 }
 
-export function runFunctions<const Fns extends readonly (() => any)[]>(fns: Fns): MergeReturnTypes<Fns> {
+export function runFunctions<const Fns extends readonly Fn[]>(fns: Fns): MergeReturnTypes<Fns> {
   return fns.reduce((acc, fn) => {
-    return { ...acc, ...fn() }
+    const result = fn();
+    if (typeof result !== 'object' || !result) return acc
+    return { ...acc, ...result };
   }, {})
 }
