@@ -6,23 +6,21 @@ export default defineConfig({
   build: {
     target: 'es6',
     lib: {
-      // Could also be a dictionary or array of multiple entry points
       entry: resolve(__dirname, 'src/main.ts'),
       name: 'VueAsyncx',
-      // the proper extensions will be added
       fileName: 'vue-asyncx',
     },
-    rollupOptions: {
+    rolldownOptions: {
       external: ['vue'],
       output: {
         globals: {
-          vue: 'Vue',
-        },
-      },
+          vue: "Vue"
+        }
+      }
     },
   },
   plugins: [dts({ 
     rollupTypes: true,
-    exclude: ['demo']
+    exclude: ['demo', 'docs']
   })],
-})
+}) as any

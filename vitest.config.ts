@@ -8,7 +8,7 @@ export default mergeConfig(
     test: {
       typecheck: {
         enabled: true,
-        exclude: ['demo/**']
+        include: ['src/**']
       },
       environment: 'jsdom',
       exclude: [...configDefaults.exclude, 'e2e/**'],
@@ -19,4 +19,4 @@ export default mergeConfig(
       }
     }
   })
-)
+) as any
