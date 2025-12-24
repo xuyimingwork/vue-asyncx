@@ -4,14 +4,14 @@ import { useSetup } from "./function";
 
 export type StateCreator = (params: { monitor: FunctionMonitorWithTracker }) => any
 export type StateCreatorParams = Parameters<StateCreator>[0]
-export type BoostCreator<Fn> = (params: { method: Fn, monitor: FunctionMonitorWithTracker }) => any
+export type BoostCreator<Fn> = (params: { method: Fn }) => any
 
 export type CorePlugin<Fn> = { 
   state?: StateCreator, 
   boost?: BoostCreator<Fn>
 }
 
-type ExtractFns<
+export type ExtractFns<
   Plugins extends readonly CorePlugin<any>[], 
   Key extends keyof CorePlugin<any>
 > = Plugins extends readonly [infer P, ...infer Rest]
@@ -21,6 +21,14 @@ type ExtractFns<
       : ExtractFns<Rest extends readonly CorePlugin<any>[] ? Rest : [], Key>
     : []
   : [];
+
+export type UseCoreReturnType<
+  Fn extends (...args: any) => any,
+  CorePlugins extends readonly CorePlugin<Fn>[]
+> = MergeReturnTypes<readonly [
+  ...ExtractFns<CorePlugins, 'state'>, 
+  ...ExtractFns<CorePlugins, 'boost'>
+]>;
 
 export function useCore<
   Fn extends (...args: any) => any,
@@ -34,10 +42,7 @@ export function useCore<
   fn: Fn,
   options?: Options,
   plugins: CorePlugins,
-}): MergeReturnTypes<readonly [
-  ...ExtractFns<CorePlugins, 'state'>, 
-  ...ExtractFns<CorePlugins, 'boost'>
-]> {
+}): UseCoreReturnType<Fn, CorePlugins> {
   const { run, monitor } = withFunctionMonitor(fn)
   const stateCreators = plugins.map(plugin => plugin.state).filter(creator => !!creator)
   const states = runFunctions(stateCreators.map((creator) => () => creator({
@@ -46,7 +51,7 @@ export function useCore<
   const method = useSetup(run, options)
   const boostCreators = plugins.map(plugin => plugin.boost).filter(creator => !!creator)
   const boosts = runFunctions(boostCreators.map((creator) => () => creator({
-    method, monitor
+    method
   })))
   return { 
     ...states, 
