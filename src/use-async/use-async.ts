@@ -1,6 +1,6 @@
 import { parseArguments, useWatch } from "../shared/function"
 import type { UseAsyncOptions, UseAsyncResult } from './types'
-import { BoostCreator, StateCreator, useCore } from "../shared/core"
+import { CorePlugin, useCore } from "../shared/core"
 import { useStateError, useStateLoading, useStateParameters } from "../shared/state"
 import type { Ref, ComputedRef } from "vue"
 import { StringDefaultWhenEmpty } from "../utils"
@@ -16,55 +16,51 @@ export { useAsync as useAsyncFunction }
 export function _useAsync<
   Name extends string,
   Fn extends (...args: any) => any, 
-  const StateCreators extends readonly StateCreator[] = [],
-  const BoostCreators extends readonly BoostCreator<Fn>[] = []
+  const CorePlugins extends readonly CorePlugin<Fn>[],
 >({ 
   name, fn, options,
-  stateCreators = [] as unknown as StateCreators,
-  boostCreators = [] as unknown as BoostCreators,
+  plugins = [] as unknown as CorePlugins,
 }: { 
   name: Name, fn: Fn, options?: any,
-  stateCreators?: StateCreators, 
-  boostCreators?: BoostCreators
+  plugins?: CorePlugins
 }) {
   type _Name = StringDefaultWhenEmpty<Name, 'method'>
   return useCore({ 
     fn, 
     options,
-    stateCreators: [
-      ({ monitor }): {
-        [K in `${_Name}Loading`]: Ref<boolean>
-      } => ({
-        [`${name}Loading`]: useStateLoading(monitor)
-      } as any),
-      ({ monitor }): {
-        [K in `${_Name}Error`]: Ref<boolean>
-      } => ({
-        [`${name}Error`]: useStateError(monitor)
-      } as any),
-      ({ monitor }): {
-        [K in `${_Name}Arguments`]: ComputedRef<Parameters<Fn>>
-      } & {
-        [K in `${_Name}ArgumentFirst`]: ComputedRef<Parameters<Fn>['0']>
-      } => {
-        const { parameters, parameterFirst } = useStateParameters<Fn>(monitor)
-        return {
-          [`${name}Arguments`]: parameters,
-          [`${name}ArgumentFirst`]: parameterFirst,
-        } as any
+    plugins: [
+      { 
+        state({ monitor }): {
+          [K in `${_Name}Loading`]: Ref<boolean>
+        } & {
+          [K in `${_Name}Error`]: Ref<boolean>
+        } & {
+          [K in `${_Name}Arguments`]: ComputedRef<Parameters<Fn>>
+        } & {
+          [K in `${_Name}ArgumentFirst`]: ComputedRef<Parameters<Fn>['0']>
+        } {
+          const { parameters, parameterFirst } = useStateParameters<Fn>(monitor)
+          return {
+            [`${name}Loading`]: useStateLoading(monitor),
+            [`${name}Error`]: useStateError(monitor),
+            [`${name}Arguments`]: parameters,
+            [`${name}ArgumentFirst`]: parameterFirst,
+          } as any
+        },
+        boost({ method }): {
+          [K in _Name]: Fn
+        } {
+          return {
+            [name]: method
+          } as any
+        }
       },
-      ...stateCreators,
-    ] as const,
-    boostCreators: [
-      ({ method }): {
-        [K in _Name]: Fn
-      } => ({
-        [name]: method
-      } as any),
-      ...boostCreators,
-      ({ method }) => {
-        useWatch(method, options)
+      ...plugins,
+      {
+        boost({ method }) {
+          useWatch(method, options)
+        }
       }
-    ] as const
+    ] as const,
   })
 }

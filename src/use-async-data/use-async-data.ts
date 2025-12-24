@@ -4,7 +4,6 @@ import { Simplify, StringDefaultWhenEmpty, upperFirst } from "../utils";
 import { parseArguments } from "../shared/function";
 import { useStateData } from "../shared/state";
 import { _useAsync } from "../use-async/use-async";
-import { StateCreatorParams } from "../shared/core";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -71,21 +70,23 @@ function _useAsyncData<
   const queryName = `query${upperFirst(name as _Name) }` as const
   return _useAsync({ 
     name: queryName, fn, options,
-    stateCreators: [
-      ({ monitor }: StateCreatorParams): {
-        [K in _Name]: Shallow extends true 
-          ? ShallowRef<Awaited<ReturnType<Fn>>> 
-          : Ref<Awaited<ReturnType<Fn>>> 
-      } & {
-        [K in `${_Name}Expired`]: Ref<boolean>
-      } => {
-        const {
-          data, dataExpired
-        } = useStateData(monitor, options)
-        return {
-          [name]: data,
-          [`${name}Expired`]: dataExpired
-        } as any
+    plugins: [
+      {
+        state({ monitor }): {
+          [K in _Name]: Shallow extends true 
+            ? ShallowRef<Awaited<ReturnType<Fn>>> 
+            : Ref<Awaited<ReturnType<Fn>>> 
+        } & {
+          [K in `${_Name}Expired`]: Ref<boolean>
+        } {
+          const {
+            data, dataExpired
+          } = useStateData(monitor, options)
+          return {
+            [name]: data,
+            [`${name}Expired`]: dataExpired
+          } as any
+        }
       }
     ]
   })
