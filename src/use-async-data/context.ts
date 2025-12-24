@@ -9,7 +9,7 @@ let currentContextGetter: ContextGetter = () => {
   throw new Error(message('getAsyncDataContext must be called synchronously within useAsyncData function.'))
 }
 
-export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGetter<D>>) {
+export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGetter<D>>): () => void {
   const prev = currentContextGetter
   const getter = () => context
   currentContextGetter = getter
@@ -55,6 +55,6 @@ export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGett
  *   return fetch(`/api/data/${id}`)
  * })
  */
-export function getAsyncDataContext() {
+export function getAsyncDataContext(): ReturnType<ContextGetter> {
   return currentContextGetter()
 }

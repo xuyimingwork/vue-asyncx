@@ -53,12 +53,15 @@ function isFirstArgumentEnhanced(v: any): v is FirstArgumentEnhanced {
   return typeof v === 'object' && !!v && (FLAG_FIRST_ARGUMENT_ENHANCED in v)
 }
 
-export function normalizeEnhancedArguments(args: any[], context: any = {}) {
+export function normalizeEnhancedArguments<Args extends any[]>(args: Args, context: any = {}): Args extends [infer First, ...infer Rest]
+  ? [FirstArgumentEnhanced<First>, ...Rest] :
+  []
+ {
   const [_first, ...restArgs] = args
   const first: FirstArgumentEnhanced = {
     [FLAG_FIRST_ARGUMENT_ENHANCED]: true,
     ...(args.length ? { firstArgument: _first } : {}), 
     ...context
   }
-  return [first, ...restArgs]
+  return [first, ...restArgs] as any
 }
