@@ -2,7 +2,7 @@ import { watch } from "vue"
 import { normalizeWatchOptions } from "../use-async/utils"
 import { getFunction, message } from "../utils"
 
-export function parseArguments(args: any[]) {
+export function parseArguments(args: any[]): { name?: string, fn: (...args: any) => any, options: any } {
   if (!Array.isArray(args) || !args.length) throw TypeError(message('Expected at least 1 argument, but got 0.'))
   const { name, fn, options } = typeof args[0] === 'function'
     ? { fn: args[0], options: args[1] }

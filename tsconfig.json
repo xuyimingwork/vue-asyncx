@@ -3,6 +3,9 @@
     "target": "es6",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "isolatedDeclarations": true
   }
 }

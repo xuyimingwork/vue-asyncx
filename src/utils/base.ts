@@ -43,18 +43,23 @@ function _message(message: string): string {
 
 export { _message as message }
 
-export function warn(message: string, ...rest: any[]) {
+export function warn(message: string, ...rest: any[]): void {
   console.warn(_message(message), ...rest);
 }
 
-export function getFunction(creator: any, args: any[], fallback: (...args: any) => any, error: string) {
-  if (typeof creator !== 'function') return fallback
+export function getFunction<C, F extends (...args: any[]) => any>(creator: C, args: any[], fallback: F, error: string): 
+  C extends (...args: any[]) => infer R 
+    ? (R extends (...args: any[]) => any 
+      ? R 
+      : F) 
+    : F {
+  if (typeof creator !== 'function') return fallback as any
   try {
     const result = creator(...args)
-    return typeof result === 'function' ? result : fallback
+    return typeof result === 'function' ? result : fallback as any
   } catch(e) {
     warn(error, e)
-    return fallback
+    return fallback as any
   }
 }
 
