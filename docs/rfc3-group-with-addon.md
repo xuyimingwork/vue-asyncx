@@ -1,3 +1,46 @@
+update in 25-12-24
+
+现在的 useAsync / useAsyncData 模型，在“并行、同源、同语义操作”这个维度上是不完备的。
+
+场景：比如一个列表页有10个项，每个项都有一个 confirm 按钮，这些 confirm 按钮触发的是同一个 confirm 操作，只是入参不同。 但同时，如果同时触发多个 confirm 按钮，需要有多个 loading 等的状态。
+
+Single Source × Single Execution Stream 
+
+vs
+
+Single Source × Multiple Concurrent Executions
+
+| 维度 | 详情页 | 列表 confirm   |
+| -- | --- | ------------ |
+| fn | 1   | 1            |
+| 语义 | 1   | 1            |
+| 调用 | 串行  | 并行           |
+| 状态 | 全局  | **按 key 分裂** |
+
+排除方案：
+
+- 通过 options 添加能力 => options 爆炸
+- 让用户拆组件 / 拆 hook => 使用上不直爽，破坏了 fn 一致的现实模型
+
+确定方案
+
+- 通过能力模块化（Addon / Extension），将能力通过插件形式提供到 useAsync / useAsyncData
+
+理想状态
+
+- useAsync 暴露 addons 能力；
+- useAsyncData 通过基于 useAsync addons 实现 data 功能，用户侧的其它 addon 可再次传入进行增强
+- 移除现有内部实现中的 _useAsync 方法（useAsyncData 直接基于 useAsync 公共 API 实现）
+
+现实差距
+
+- 目前的插件体系过于灵活，不可以直接对外暴露
+- 可基于现有插件体系，设计受限的对外插件体系
+
+任务：设计对外的 addon api，考虑返回参数与现有 name 系统的结合方式。
+
+-----------------------------------
+
 Here is a summary of our design evolution for **vue-asyncx**, moving from a simple list-page requirement to a robust, plugin-based architecture.
 
 ### 1. The Core Problem
