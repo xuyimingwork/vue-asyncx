@@ -2,7 +2,7 @@ import { parseArguments, useWatch } from "../shared/function"
 import type { UseAsyncOptions, UseAsyncResult } from './types'
 import { CorePlugin, useCore, type UseCoreReturnType } from "../shared/core"
 import { useStateError, useStateLoading, useStateParameters } from "../shared/state"
-import { type Ref, type ComputedRef, ref } from "vue"
+import { type Ref, type ComputedRef } from "vue"
 import { StringDefaultWhenEmpty } from "../utils"
 
 export function useAsync<Fn extends (...args: any) => any>(fn: Fn, options?: UseAsyncOptions<Fn>): UseAsyncResult<Fn, 'method'>
