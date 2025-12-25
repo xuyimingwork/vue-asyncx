@@ -10,10 +10,10 @@ type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
   : never;
 
 // 3. The Create Function
-function create<TFn, TPlugins extends any[]>(config: {
+function create<TFn, TResults extends any[]>(config: {
   fn: TFn;
-  plugins: { [K in keyof TPlugins]: MyPlugin<TFn, TPlugins[K]> };
-}): UnionToIntersection<TPlugins[number]> {
+  plugins: { [K in keyof TResults]: MyPlugin<TFn, TResults[K]> };
+}): UnionToIntersection<TResults[number]> {
   const { fn, plugins } = config;
   
   // Implementation logic to merge plugin results
@@ -26,6 +26,7 @@ function create<TFn, TPlugins extends any[]>(config: {
 const withRefresh = <T>({ fn }: { fn: T }) => ({ 
   refresh: fn as T
 });
+// use definePlugin without type
 // type AnyPlugin = <TFn>(args: { fn: TFn }) => any;
 // function definePlugin<P extends AnyPlugin>(plugin: P): P {
 //   return plugin;
@@ -53,14 +54,9 @@ const res1 = create({
 const fn2 = (): boolean => true
 const res2 = create({ 
   fn: fn2, 
-  plugins: [withRefresh, withAbc] 
+  plugins: [withRefresh, withAbc]
 });
 
 console.log(res1.refresh()); // returns 1 (number)
 console.log(res2.refresh()); // returns true (boolean)
 
-// can we introduce a definePlugin function
-// make withRefresh to const withRefresh = definePlugin(({ fn }) => ({ refresh: fn }))
-// reduce type define in withRefresh
-// and keep the rest & function the same
-// notice in current situation, withRefresh's type T will be auto assign type of fn pass to create
