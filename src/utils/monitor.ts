@@ -92,7 +92,7 @@ export function withFunctionMonitor<Fn extends (...args: any) => any>(
 
   const run = ((...args: Parameters<Fn>): ReturnType<Fn> => {
     // Call setup interceptor to get initial value
-    const track = tracker(runInterceptor(monitor.get('setup')))
+    const track = tracker.track(runInterceptor(monitor.get('setup')))
 
     // Emit before event
     monitor.emit('before', { args, track })
