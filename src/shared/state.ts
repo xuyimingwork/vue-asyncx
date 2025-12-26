@@ -5,6 +5,10 @@ import type { Track } from '../utils/tracker'
 import { prepareAsyncDataContext } from '../use-async-data/context'
 import { normalizeEnhancedArguments } from '../use-async-data/enhance-first-argument'
 
+// Symbol keys for storing data on track
+const CONTEXT_KEY = Symbol('context')
+const RESTORE_KEY = Symbol('restore')
+
 /**
  * Creates a reactive loading state that tracks function execution.
  * Sets to true when function is called, false when it completes (if latest call).
@@ -118,9 +122,9 @@ export function useStateData<Data = any>(
     update(value, track)
   })
 
-  // Context management
-  function getContext(track: Track) {
-    return {
+  // Prepare context on before event
+  monitor.on('before', ({ track }) => {
+    track.setData(CONTEXT_KEY, {
       getData: () => track.value,
       updateData: (v: any) => {
         if (!track.allowToStateUpdating()) return
@@ -128,37 +132,30 @@ export function useStateData<Data = any>(
         update(v, track)
         return v
       }
-    }
-  }
-
-  // Store context and restore functions per call using WeakMaps keyed by track
-  const contexts = new WeakMap<Track, ReturnType<typeof getContext>>()
-  const restoreFunctions = new WeakMap<Track, () => void>()
-
-  // Prepare context on before event
-  monitor.on('before', ({ track }) => {
-    const context = getContext(track)
-    const restoreAsyncDataContext = prepareAsyncDataContext(context)
-    contexts.set(track, context)
-    restoreFunctions.set(track, restoreAsyncDataContext)
+    })
+    const restore = prepareAsyncDataContext(track.getData(CONTEXT_KEY)!)
+    track.setData(RESTORE_KEY, restore)
   })
 
   // Restore context on after event (right after function call, before finish)
   monitor.on('after', ({ track }) => {
-    const restore = restoreFunctions.get(track)
-    if (restore) {
-      restore()
-      restoreFunctions.delete(track)
-      contexts.delete(track)
-    }
+    const restore = track.getData(RESTORE_KEY)
+    restore()
+    track.setData(RESTORE_KEY)
   })
 
   // Use monitor's setup interceptor to initialize track with data.value
   monitor.use('setup', () => data.value)
-
   // Set up enhance-arguments interceptor to use prepared context for argument enhancement
-  // since enhance-arguments happened after ’before‘ event, always with context
-  if (enhanceFirstArgument) monitor.use('enhance-arguments', ({ args, track }) => normalizeEnhancedArguments(args, contexts.get(track)!))
+  // since enhance-arguments happened after 'before' event, always with context
+  if (enhanceFirstArgument) {
+    monitor.use('enhance-arguments', ({ args, track }) => {
+      const enhancedArguments = normalizeEnhancedArguments(args, track.getData(CONTEXT_KEY)!)
+      // context can be deleted after use since it's only needed here
+      track.setData(CONTEXT_KEY)
+      return enhancedArguments
+    })
+  }
 
   // Compute dataExpired based on dataTrack and monitor state
   const dataExpired = computed(() => {
