@@ -252,6 +252,32 @@ describe('createTracker', () => {
       expect(t.getData(KEY1)).toBeUndefined()
       expect(t.getData(KEY2)).toBe('value2')
     })
+
+    it('should get and delete data with takeData', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      const KEY1 = Symbol('key1')
+      const KEY2 = Symbol('key2')
+      
+      t.setData(KEY1, 'value1')
+      t.setData(KEY2, 'value2')
+      
+      expect(t.takeData(KEY1)).toBe('value1')
+      expect(t.getData(KEY1)).toBeUndefined() // should be deleted
+      expect(t.getData(KEY2)).toBe('value2') // should still exist
+      
+      expect(t.takeData(KEY2)).toBe('value2')
+      expect(t.getData(KEY2)).toBeUndefined() // should be deleted
+    })
+
+    it('should return undefined when taking non-existent data', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      const KEY = Symbol('key')
+      
+      expect(t.takeData(KEY)).toBeUndefined()
+      expect(t.getData(KEY)).toBeUndefined()
+    })
   })
 
   // ============================================================================

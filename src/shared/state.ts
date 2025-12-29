@@ -128,35 +128,29 @@ export function useStateData<Data = any>(
   monitor.on('before', ({ track }) => {
     // Set initial value (replaces setup interceptor)
     track.setData(VALUE_KEY, data.value)
-    
     track.setData(CONTEXT_KEY, {
       getData: () => track.getData(VALUE_KEY),
       updateData: (v: any) => {
         if (!track.canUpdate()) return
-        track.setData(VALUE_KEY, v)
         track.update()
+        track.setData(VALUE_KEY, v)
         update(v, track)
         return v
       }
     })
-    const restore = prepareAsyncDataContext(track.getData(CONTEXT_KEY)!)
-    track.setData(RESTORE_KEY, restore)
+    track.setData(RESTORE_KEY, prepareAsyncDataContext(track.getData(CONTEXT_KEY)!))
   })
 
   // Restore context on after event (right after function call, before finish)
   monitor.on('after', ({ track }) => {
-    const restore = track.getData(RESTORE_KEY)
-    restore()
-    track.setData(RESTORE_KEY)
+    track.takeData(RESTORE_KEY)()
   })
   // Set up enhance-arguments interceptor to use prepared context for argument enhancement
   // since enhance-arguments happened after 'before' event, always with context
   if (enhanceFirstArgument) {
     monitor.use('enhance-arguments', ({ args, track }) => {
-      const enhancedArguments = normalizeEnhancedArguments(args, track.getData(CONTEXT_KEY)!)
       // context can be deleted after use since it's only needed here
-      track.setData(CONTEXT_KEY)
-      return enhancedArguments
+      return normalizeEnhancedArguments(args, track.takeData(CONTEXT_KEY)!)
     })
   }
 
