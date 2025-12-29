@@ -12,9 +12,7 @@ type EventHandler<T extends keyof FunctionMonitorEventMap> = (
 ) => void
 
 export interface FunctionMonitor {
-  use(event: 'setup', handler: () => any | void): void
   use(event: 'enhance-arguments', handler: (data: { args: any[], track: Track }) => any[] | void): void
-  get(event: 'setup'): (() => any | void) | undefined
   get(event: 'enhance-arguments'): ((data: { args: any[], track: Track }) => any[] | void) | undefined
   on<T extends keyof FunctionMonitorEventMap>(
     event: T,
@@ -38,16 +36,13 @@ export interface FunctionMonitorWithTracker extends FunctionMonitor {
 
 export function createFunctionMonitor(): FunctionMonitor {
   const handlers = new Map<keyof FunctionMonitorEventMap, Set<EventHandler<any>>>()
-  let setupInterceptor: (() => any | void) | undefined
   let enhanceArgumentsInterceptor: ((data: { args: any[], track: Track }) => any[] | void) | undefined
 
   const monitor: FunctionMonitor = {
-    use(event: 'setup' | 'enhance-arguments', handler: any): void {
-      if (event === 'setup') return setupInterceptor = handler
+    use(event: 'enhance-arguments', handler: any): void {
       if (event === 'enhance-arguments') return enhanceArgumentsInterceptor = handler
     },
-    get(event: 'setup' | 'enhance-arguments'): any {
-      if (event === 'setup') return setupInterceptor
+    get(event: 'enhance-arguments'): any {
       if (event === 'enhance-arguments') return enhanceArgumentsInterceptor
     },
     on<T extends keyof FunctionMonitorEventMap>(event: T, handler: EventHandler<T>) {
@@ -91,8 +86,7 @@ export function withFunctionMonitor<Fn extends (...args: any) => any>(
   }
 
   const run = ((...args: Parameters<Fn>): ReturnType<Fn> => {
-    // Call setup interceptor to get initial value
-    const track = tracker.track(runInterceptor(monitor.get('setup')))
+    const track = tracker.track()
 
     // Emit before event
     monitor.emit('before', { args, track })
@@ -116,24 +110,24 @@ export function withFunctionMonitor<Fn extends (...args: any) => any>(
       if (result instanceof Promise) {
         result.then(
           (value) => {
-            track.finish(false, value)
+            track.fulfill()
             monitor.emit('fulfill', { track, value })
           },
           (error) => {
-            track.finish(true, error)
+            track.reject()
             monitor.emit('reject', { track, error })
           }
         )
       } else {
-        track.finish(false, result)
+        track.fulfill()
         monitor.emit('fulfill', { track, value: result })
       }
       
       return result
     } catch (e) {
-      // Emit after event in catch block, before finish
+      // Emit after event in catch block, before reject
       monitor.emit('after', { track })
-      track.finish(true, e)
+      track.reject()
       monitor.emit('reject', { track, error: e })
       throw e
     }

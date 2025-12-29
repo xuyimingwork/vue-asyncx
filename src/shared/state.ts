@@ -2,12 +2,9 @@ import { computed, ref, shallowRef } from 'vue'
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import type { FunctionMonitorWithTracker } from '../utils/monitor'
 import type { Track } from '../utils/tracker'
+import { STATE } from '../utils/tracker'
 import { prepareAsyncDataContext } from '../use-async-data/context'
 import { normalizeEnhancedArguments } from '../use-async-data/enhance-first-argument'
-
-// Symbol keys for storing data on track
-const CONTEXT_KEY = Symbol('context')
-const RESTORE_KEY = Symbol('restore')
 
 /**
  * Creates a reactive loading state that tracks function execution.
@@ -103,6 +100,10 @@ export function useStateData<Data = any>(
   data: Ref<Data> | ShallowRef<Data>
   dataExpired: Ref<boolean>
 } {
+  const VALUE_KEY = Symbol('value')
+  const CONTEXT_KEY = Symbol('context')
+  const RESTORE_KEY = Symbol('restore')
+
   const { initialData, shallow = false, enhanceFirstArgument = false } = options || {}
   const data = (shallow 
     ? shallowRef<Data>(initialData) 
@@ -111,24 +112,29 @@ export function useStateData<Data = any>(
 
   // 数据更新逻辑
   function update(v: any, track: Track) {
-    if (track.inStateUpdating() && !track.isLatestUpdate()) return
-    if (track.inStateFulfilled() && !track.isLatestFulfill()) return
+    if (track.inState(STATE.UPDATING) && !track.isLatestUpdate()) return
+    if (track.inState(STATE.FULFILLED) && !track.isLatestFulfill()) return
     data.value = v as Data
     dataTrack.value = track
   }
 
   // Handle data updates via monitor events
   monitor.on('fulfill', ({ track, value }) => {
+    track.setData(VALUE_KEY, value)
     update(value, track)
   })
 
   // Prepare context on before event
   monitor.on('before', ({ track }) => {
+    // Set initial value (replaces setup interceptor)
+    track.setData(VALUE_KEY, data.value)
+    
     track.setData(CONTEXT_KEY, {
-      getData: () => track.value,
+      getData: () => track.getData(VALUE_KEY),
       updateData: (v: any) => {
-        if (!track.allowToStateUpdating()) return
-        track.update(v)
+        if (!track.canUpdate()) return
+        track.setData(VALUE_KEY, v)
+        track.update()
         update(v, track)
         return v
       }
@@ -143,9 +149,6 @@ export function useStateData<Data = any>(
     restore()
     track.setData(RESTORE_KEY)
   })
-
-  // Use monitor's setup interceptor to initialize track with data.value
-  monitor.use('setup', () => data.value)
   // Set up enhance-arguments interceptor to use prepared context for argument enhancement
   // since enhance-arguments happened after 'before' event, always with context
   if (enhanceFirstArgument) {
