@@ -349,6 +349,34 @@ describe('useAsyncData', () => {
       expect(dataExpired.value).toBe(false);
     });
 
+    test('should data expired when call update in middle then throw error', async () => {
+      vi.useFakeTimers()
+      const error = new Error('error')
+      const { queryProgress, progress, progressExpired, queryProgressError } = useAsyncData('progress', async function (update: number): Promise<number> {
+        const { updateData } = getAsyncDataContext()
+        await wait(100)
+        updateData(update) // 中间更新数据
+        await wait(100)
+        throw error // 然后抛出错误
+      }, { initialData: 0 })
+
+      const p = queryProgress(50)
+      
+      // 等待中间更新
+      await vi.advanceTimersByTimeAsync(100)
+      expect(progress.value).toBe(50)
+      expect(progressExpired.value).toBe(false) // 更新时还未报错，数据未过期
+      
+      // 等待错误抛出
+      await vi.advanceTimersByTimeAsync(100)
+      await expect(p).rejects.toThrow(error)
+      
+      // 数据应该被标记为过期，因为请求本身被拒绝了
+      expect(progress.value).toBe(50) // 数据保持为中间更新的值
+      expect(progressExpired.value).toBe(true) // 因为请求被拒绝，数据过期
+      expect(queryProgressError.value).toBe(error)
+    })
+
     test('should data expired when sync later call throws error', () => {
       const error = new Error('error')
       const { one, oneExpired, queryOne, queryOneError } = useAsyncData('one', (result: number, error?: Error) => { 
