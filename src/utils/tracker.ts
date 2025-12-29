@@ -14,6 +14,7 @@ export type Track = {
   isStaleValue: () => boolean
   setData: (key: symbol, value?: any) => void
   getData: <V = any>(key: symbol) => V | undefined
+  takeData: <V = any>(key: symbol) => V | undefined
 }
 
 export type Tracker = {
@@ -116,6 +117,13 @@ function createTrack(
     /** Get data associated with this track using a symbol key. */
     getData: <V = any>(key: symbol) => {
       return data.get(key) as V | undefined
+    },
+    /** Get and remove data associated with this track using a symbol key. */
+    takeData: <V = any>(key: symbol) => {
+      if (!data.has(key)) return undefined
+      const value = data.get(key) as V | undefined
+      data.delete(key)
+      return value
     }
   }
   
