@@ -3,7 +3,7 @@ import { max } from "./base";
 
 export type Track = {
   readonly sn: number
-  inState: (state: typeof STATE[keyof typeof STATE]) => boolean
+  inState: (state: State) => boolean
   canUpdate: () => boolean
   update: () => void
   fulfill: () => void
@@ -11,7 +11,7 @@ export type Track = {
   isLatestCall: () => boolean
   isLatestUpdate: () => boolean
   isLatestFulfill: () => boolean
-  isStaleValue: () => boolean
+  hasLaterReject: () => boolean
   setData: (key: symbol, value?: any) => void
   getData: <V = any>(key: symbol) => V | undefined
   takeData: <V = any>(key: symbol) => V | undefined
@@ -32,6 +32,10 @@ export const STATE = {
   FINISHED: 4  // 查询专用，不参与状态转换
 } as const;
 
+type State = typeof STATE[keyof typeof STATE]
+type StateReal = Exclude<State, typeof STATE.FINISHED>
+type StateTo = Exclude<StateReal, typeof STATE.PENDING>
+
 const STATE_TRANSITIONS = {
   [STATE.PENDING]: [STATE.UPDATING, STATE.FULFILLED, STATE.REJECTED],
   [STATE.UPDATING]: [STATE.UPDATING, STATE.FULFILLED, STATE.REJECTED],
@@ -40,16 +44,16 @@ const STATE_TRANSITIONS = {
 }
 
 function allowTransition(
-  from: typeof STATE.PENDING | typeof STATE.UPDATING | typeof STATE.FULFILLED | typeof STATE.REJECTED,
-  to: typeof STATE.PENDING | typeof STATE.UPDATING | typeof STATE.FULFILLED | typeof STATE.REJECTED
+  from: StateReal,
+  to: StateTo
 ): boolean {
   return STATE_TRANSITIONS[from].indexOf(to as any) > -1
 }
 
 type InnerTracker = {
   sn: () => number
-  get: (state: typeof STATE.PENDING | typeof STATE.UPDATING | typeof STATE.FULFILLED | typeof STATE.REJECTED | typeof STATE.FINISHED) => number
-  set: (state: typeof STATE.UPDATING | typeof STATE.FULFILLED | typeof STATE.REJECTED, sn: number) => boolean
+  get: (state: StateReal) => number
+  set: (state: StateTo, sn: number) => boolean
 }
 
 /**
@@ -60,12 +64,12 @@ function createTrack(
   tracker: InnerTracker
 ): Track {
   const sn = tracker.sn()
-  let state: typeof STATE.PENDING | typeof STATE.UPDATING | typeof STATE.FULFILLED | typeof STATE.REJECTED = STATE.PENDING
+  let state: StateReal = STATE.PENDING
   const data = new Map<symbol, any>()
   
   const self: Track = {
     get sn() { return sn },
-    inState: (target: typeof STATE[keyof typeof STATE]) => {
+    inState: (target: State) => {
       if (target === STATE.FINISHED) return state === STATE.FULFILLED || state === STATE.REJECTED
       return state === target
     },
@@ -102,12 +106,9 @@ function createTrack(
       if (!self.inState(STATE.FULFILLED)) return false
       return tracker.get(STATE.UPDATING) <= sn && tracker.get(STATE.FULFILLED) === sn
     },
-    /** Whether this value is stale due to newer update/finish or rejection. */
-    isStaleValue() {
-      // 如果调用本省处于拒绝状态，value 一定是不新鲜的
-      if (self.inState(STATE.REJECTED)) return true
-      // 如果有更新的值或结果，则当前值是不新鲜的
-      return tracker.get(STATE.UPDATING) > sn || tracker.get(STATE.FINISHED) > sn
+    /** Whether there is a newer rejection after this call. */
+    hasLaterReject() {
+      return tracker.get(STATE.REJECTED) > sn
     },
     /** Store data associated with this track using a symbol key. */
     setData: (key: symbol, value?: any) => {
@@ -150,16 +151,16 @@ export function createTracker(): Tracker {
      */
     track: () => createTrack({
       sn: () => ++pending.value,
-      get: (state: typeof STATE.PENDING | typeof STATE.UPDATING | typeof STATE.FULFILLED | typeof STATE.FINISHED) => {
+      get: (state: StateReal) => {
         if (state === STATE.PENDING) return pending.value
         if (state === STATE.UPDATING) return updating.value
         if (state === STATE.FULFILLED) return fulfilled.value
         /* v8 ignore else -- @preserve */
-        if (state === STATE.FINISHED) return finished.value
+        if (state === STATE.REJECTED)  return rejected.value
         /* v8 ignore next -- @preserve */
         return 0
       },
-      set: (state: typeof STATE.UPDATING | typeof STATE.FULFILLED | typeof STATE.REJECTED, sn: number) => {
+      set: (state: StateTo, sn: number) => {
         if (state === STATE.UPDATING) return record(sn, updating)
         if (state === STATE.FULFILLED) return record(sn, fulfilled)
         /* v8 ignore else -- @preserve */

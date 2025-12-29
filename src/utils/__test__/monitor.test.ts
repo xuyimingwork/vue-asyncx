@@ -544,7 +544,7 @@ describe('withFunctionMonitor', () => {
       // Check expired: if no dataTrack, use monitor.has.finished
       const expired = !dataTrack.value 
         ? monitor.has.finished.value 
-        : dataTrack.value.isStaleValue()
+        : (dataTrack.value.inState(STATE.REJECTED) || dataTrack.value.hasLaterReject())
       
       expect(expired).toBe(false) // Data is fresh after first call
     })
