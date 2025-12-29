@@ -156,8 +156,14 @@ export function useStateData<Data = any>(
 
   // Compute dataExpired based on dataTrack and monitor state
   const dataExpired = computed(() => {
+    // 无数据状态，检查是否有报错信息
     if (!dataTrack.value) return monitor.has.finished.value
-    return dataTrack.value.isStaleValue()
+    // 如果当前数据的调用最终结果是报错，当前数据过期（当前过期数据由调用的 update 产生）
+    if (dataTrack.value.inState(STATE.REJECTED)) return true
+    // 否则，当前数据的过期由之后的调用产生
+    // 检查在当前调用之后是否有调用发生了报错
+    // 无需检查之后调用的 update 和 fulfil 情况，因为上述二者都会更新 dataTrack.value
+    return dataTrack.value.hasLaterReject()
   })
 
   return {
