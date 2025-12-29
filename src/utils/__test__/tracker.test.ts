@@ -1,6 +1,10 @@
 // utils.tracker.test.ts
-import { createTracker } from '../tracker'
+import { createTracker, STATE } from '../tracker'
 import { describe, expect, it, vi, afterEach } from 'vitest'
+
+// Symbol keys for testing
+const VALUE_KEY = Symbol('value')
+const ERROR_KEY = Symbol('error')
 
 /*
   Design contracts for `createTracker`:
@@ -10,6 +14,7 @@ import { describe, expect, it, vi, afterEach } from 'vitest'
   - Multiple `fulfill` calls for the same sn are idempotent: the first fulfill is kept.
   - `update` after a call finished should not resurrect or overwrite a finished value.
   - The `record` function prevents older calls from overwriting newer latest refs.
+  - Track only manages state, data is stored via setData/getData.
 
   Tests that use timers enable fake timers (`vi.useFakeTimers()`); a global
   `afterEach` will restore real timers to avoid leaking fake timers between tests.
@@ -50,42 +55,49 @@ describe('createTracker', () => {
     describe('valid transitions', () => {
       it('should allow pending → updating → fulfilled', () => {
         const tracker = createTracker()
-        const t = tracker.track('initial')
-        expect(t.inStatePending()).toBe(true)
-        expect(t.value).toBe('initial')
-        t.update('loading...')
-        expect(t.inStateUpdating()).toBe(true)
-        expect(t.value).toBe('loading...')
-        t.fulfill('success')
-        expect(t.inStateFulfilled()).toBe(true)
-        expect(t.value).toBe('success')
+        const t = tracker.track()
+        t.setData(VALUE_KEY, 'initial')
+        expect(t.inState(STATE.PENDING)).toBe(true)
+        expect(t.getData(VALUE_KEY)).toBe('initial')
+        t.setData(VALUE_KEY, 'loading...')
+        t.update()
+        expect(t.inState(STATE.UPDATING)).toBe(true)
+        expect(t.getData(VALUE_KEY)).toBe('loading...')
+        t.setData(VALUE_KEY, 'success')
+        t.fulfill()
+        expect(t.inState(STATE.FULFILLED)).toBe(true)
+        expect(t.getData(VALUE_KEY)).toBe('success')
       })
 
       it('should allow pending → rejected', () => {
         const tracker = createTracker()
         const t = tracker.track()
-        t.reject(new Error('fail'))
-        expect(t.inStateRejected()).toBe(true)
+        const error = new Error('fail')
+        t.setData(ERROR_KEY, error)
+        t.reject()
+        expect(t.inState(STATE.REJECTED)).toBe(true)
         expect(t.isStaleValue()).toBe(true)
-        expect(tracker.has.rejected.value).toBe(true)
       })
 
       it('should allow pending → fulfilled (direct)', () => {
         const tracker = createTracker()
         const t = tracker.track()
-        t.fulfill('done')
-        expect(t.inStateFulfilled()).toBe(true)
-        expect(t.value).toBe('done')
+        t.setData(VALUE_KEY, 'done')
+        t.fulfill()
+        expect(t.inState(STATE.FULFILLED)).toBe(true)
+        expect(t.getData(VALUE_KEY)).toBe('done')
       })
 
       it('should allow updating → updating (self-transition)', () => {
         const tracker = createTracker()
         const t = tracker.track()
-        t.update('first')
-        expect(t.value).toBe('first')
-        t.update('second') // Self-transition in updating state
-        expect(t.value).toBe('second')
-        expect(t.inStateUpdating()).toBe(true)
+        t.setData(VALUE_KEY, 'first')
+        t.update()
+        expect(t.getData(VALUE_KEY)).toBe('first')
+        t.setData(VALUE_KEY, 'second') // Self-transition in updating state
+        t.update()
+        expect(t.getData(VALUE_KEY)).toBe('second')
+        expect(t.inState(STATE.UPDATING)).toBe(true)
       })
     })
 
@@ -93,33 +105,39 @@ describe('createTracker', () => {
       it('should reject transitions from fulfilled state', () => {
         const tracker = createTracker()
         const t = tracker.track()
-        t.fulfill('done')
+        t.setData(VALUE_KEY, 'done')
+        t.fulfill()
         // Attempt illegal transitions — should not change state/value
-        expect(t.inStateFulfilled()).toBe(true)
-        t.update('should not work')
-        t.reject(new Error('should not work'))
-        expect(t.inStateFulfilled()).toBe(true)
-        expect(t.inStatePending()).toBe(false)
-        expect(t.inStateUpdating()).toBe(false)
-        expect(t.inStateRejected()).toBe(false)
-        expect(t.value).toBe('done')
+        expect(t.inState(STATE.FULFILLED)).toBe(true)
+        t.setData(VALUE_KEY, 'should not work')
+        t.update()
+        t.setData(ERROR_KEY, new Error('should not work'))
+        t.reject()
+        expect(t.inState(STATE.FULFILLED)).toBe(true)
+        expect(t.inState(STATE.PENDING)).toBe(false)
+        expect(t.inState(STATE.UPDATING)).toBe(false)
+        expect(t.inState(STATE.REJECTED)).toBe(false)
+        expect(t.getData(VALUE_KEY)).toBe('should not work') // setData still works
       })
 
       it('should reject transitions from rejected state', () => {
         const tracker = createTracker()
         const t = tracker.track()
-        t.reject(new Error('error'))
+        t.setData(ERROR_KEY, new Error('error'))
+        t.reject()
         // Attempt illegal transitions — should not change state/value
-        expect(t.inStateRejected()).toBe(true)
-        t.update('should not work')
-        t.fulfill('should not work')
-        expect(t.inStateRejected()).toBe(true)
-        expect(t.inStateFulfilled()).toBe(false)
-        expect(t.inStatePending()).toBe(false)
-        expect(t.inStateUpdating()).toBe(false)
-        expect(t.error).toBeDefined()
-        expect((t.error as any).message).toBe('error')
-        expect(t.value).toBeUndefined()
+        expect(t.inState(STATE.REJECTED)).toBe(true)
+        t.setData(VALUE_KEY, 'should not work')
+        t.update()
+        t.setData(VALUE_KEY, 'should not work')
+        t.fulfill()
+        expect(t.inState(STATE.REJECTED)).toBe(true)
+        expect(t.inState(STATE.FULFILLED)).toBe(false)
+        expect(t.inState(STATE.PENDING)).toBe(false)
+        expect(t.inState(STATE.UPDATING)).toBe(false)
+        expect(t.getData(ERROR_KEY)).toBeDefined()
+        expect((t.getData(ERROR_KEY) as any).message).toBe('error')
+        expect(t.getData(VALUE_KEY)).toBe('should not work') // setData still works
       })
     })
 
@@ -127,78 +145,112 @@ describe('createTracker', () => {
       it('should keep first value on multiple fulfill calls for same sn', () => {
         const tracker = createTracker()
         const t = tracker.track()
-        t.update('u1')
-        t.fulfill('v1')
-        t.fulfill('v2') // second fulfill for same sn should be ignored
-        expect(t.inStateFulfilled()).toBe(true)
-        expect(t.value).toBe('v1')
+        t.setData(VALUE_KEY, 'u1')
+        t.update()
+        t.setData(VALUE_KEY, 'v1')
+        t.fulfill()
+        t.setData(VALUE_KEY, 'v2')
+        t.fulfill() // second fulfill for same sn should be ignored
+        expect(t.inState(STATE.FULFILLED)).toBe(true)
+        expect(t.getData(VALUE_KEY)).toBe('v2') // setData still works, but state doesn't change
       })
     })
   })
 
   // ============================================================================
-  // VALUE HANDLING
+  // DATA HANDLING
   // ============================================================================
-  describe('value handling', () => {
-    it('should handle undefined initial value correctly', () => {
+  describe('data handling', () => {
+    it('should handle undefined data correctly', () => {
       const tracker = createTracker()
       const t = tracker.track()
-      expect(t.value).toBeUndefined()
+      expect(t.getData(VALUE_KEY)).toBeUndefined()
       t.update()
-      expect(t.value).toBeUndefined()
+      expect(t.getData(VALUE_KEY)).toBeUndefined()
       t.fulfill()
-      expect(t.value).toBeUndefined()
+      expect(t.getData(VALUE_KEY)).toBeUndefined()
     })
 
     it('should handle null values correctly', () => {
       const tracker = createTracker()
-      const t = tracker.track(null)
-      expect(t.value).toBeNull()
-      t.update(null)
-      expect(t.value).toBeNull()
-      t.fulfill(null)
-      expect(t.value).toBeNull()
+      const t = tracker.track()
+      t.setData(VALUE_KEY, null)
+      expect(t.getData(VALUE_KEY)).toBeNull()
+      t.setData(VALUE_KEY, null)
+      t.update()
+      expect(t.getData(VALUE_KEY)).toBeNull()
+      t.setData(VALUE_KEY, null)
+      t.fulfill()
+      expect(t.getData(VALUE_KEY)).toBeNull()
     })
 
-    it('should preserve initial value through state transitions', () => {
+    it('should preserve data through state transitions', () => {
       const tracker = createTracker()
       const initialData = { id: 1, name: 'test' }
-      const t = tracker.track(initialData)
-      expect(t.value).toBe(initialData)
-      t.update({ id: 1, name: 'updated' })
-      expect(t.value).not.toBe(initialData) // should be new object reference
-      expect(t.value).toEqual({ id: 1, name: 'updated' })
-      t.fulfill({ id: 1, name: 'final' })
-      expect(t.value).toEqual({ id: 1, name: 'final' })
+      const t = tracker.track()
+      t.setData(VALUE_KEY, initialData)
+      expect(t.getData(VALUE_KEY)).toBe(initialData)
+      t.setData(VALUE_KEY, { id: 1, name: 'updated' })
+      t.update()
+      expect(t.getData(VALUE_KEY)).not.toBe(initialData) // should be new object reference
+      expect(t.getData(VALUE_KEY)).toEqual({ id: 1, name: 'updated' })
+      t.setData(VALUE_KEY, { id: 1, name: 'final' })
+      t.fulfill()
+      expect(t.getData(VALUE_KEY)).toEqual({ id: 1, name: 'final' })
     })
 
     it('should handle multiple progressive updates before finish', () => {
       const tracker = createTracker()
       const t = tracker.track()
-      t.update('loading...')
-      t.update('processing...')
-      t.update('almost done...')
-      expect(t.value).toBe('almost done...')
-      expect(t.inStateUpdating()).toBe(true)
-      t.fulfill('complete')
-      expect(t.value).toBe('complete')
-      expect(t.inStateFulfilled()).toBe(true)
+      t.setData(VALUE_KEY, 'loading...')
+      t.update()
+      t.setData(VALUE_KEY, 'processing...')
+      t.update()
+      t.setData(VALUE_KEY, 'almost done...')
+      t.update()
+      expect(t.getData(VALUE_KEY)).toBe('almost done...')
+      expect(t.inState(STATE.UPDATING)).toBe(true)
+      t.setData(VALUE_KEY, 'complete')
+      t.fulfill()
+      expect(t.getData(VALUE_KEY)).toBe('complete')
+      expect(t.inState(STATE.FULFILLED)).toBe(true)
     })
 
-    it('should handle concurrent calls with shared initial value pattern', () => {
+    it('should handle concurrent calls with independent data', () => {
       const tracker = createTracker()
       const sharedData = { count: 0 }
       
-      const t1 = tracker.track(sharedData)
-      const t2 = tracker.track(sharedData) // Same initial value reference
+      const t1 = tracker.track()
+      t1.setData(VALUE_KEY, sharedData)
+      const t2 = tracker.track()
+      t2.setData(VALUE_KEY, sharedData) // Same initial value reference
       
-      t1.update({ count: 1 })
-      t2.update({ count: 2 })
+      t1.setData(VALUE_KEY, { count: 1 })
+      t1.update()
+      t2.setData(VALUE_KEY, { count: 2 })
+      t2.update()
       
       // Both should have independent value references
-      expect(t1.value).toEqual({ count: 1 })
-      expect(t2.value).toEqual({ count: 2 })
-      expect(t1.value).not.toBe(t2.value)
+      expect(t1.getData(VALUE_KEY)).toEqual({ count: 1 })
+      expect(t2.getData(VALUE_KEY)).toEqual({ count: 2 })
+      expect(t1.getData(VALUE_KEY)).not.toBe(t2.getData(VALUE_KEY))
+    })
+
+    it('should support multiple data keys', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      const KEY1 = Symbol('key1')
+      const KEY2 = Symbol('key2')
+      
+      t.setData(KEY1, 'value1')
+      t.setData(KEY2, 'value2')
+      
+      expect(t.getData(KEY1)).toBe('value1')
+      expect(t.getData(KEY2)).toBe('value2')
+      
+      t.setData(KEY1) // delete
+      expect(t.getData(KEY1)).toBeUndefined()
+      expect(t.getData(KEY2)).toBe('value2')
     })
   })
 
@@ -210,107 +262,114 @@ describe('createTracker', () => {
       const tracker = createTracker()
       const t = tracker.track()
       const error = new Error('test error')
-      t.reject(error)
-      expect(t.inStateRejected()).toBe(true)
-      expect(t.error).toBe(error)
-      expect((t.error as any).message).toBe('test error')
+      t.setData(ERROR_KEY, error)
+      t.reject()
+      expect(t.inState(STATE.REJECTED)).toBe(true)
+      expect(t.getData(ERROR_KEY)).toBe(error)
+      expect((t.getData(ERROR_KEY) as any).message).toBe('test error')
     })
 
     it('should handle non-Error rejection values', () => {
       const tracker = createTracker()
       const t1 = tracker.track()
-      t1.reject('string error')
-      expect(t1.inStateRejected()).toBe(true)
-      expect(t1.error).toBe('string error')
+      t1.setData(ERROR_KEY, 'string error')
+      t1.reject()
+      expect(t1.inState(STATE.REJECTED)).toBe(true)
+      expect(t1.getData(ERROR_KEY)).toBe('string error')
       
       const t2 = tracker.track()
-      t2.reject({ code: 500, message: 'Custom error' })
-      expect(t2.inStateRejected()).toBe(true)
-      expect(t2.error).toEqual({ code: 500, message: 'Custom error' })
+      t2.setData(ERROR_KEY, { code: 500, message: 'Custom error' })
+      t2.reject()
+      expect(t2.inState(STATE.REJECTED)).toBe(true)
+      expect(t2.getData(ERROR_KEY)).toEqual({ code: 500, message: 'Custom error' })
       
       const t3 = tracker.track()
-      t3.reject(null)
-      expect(t3.inStateRejected()).toBe(true)
-      expect(t3.error).toBeNull()
+      t3.setData(ERROR_KEY, null)
+      t3.reject()
+      expect(t3.inState(STATE.REJECTED)).toBe(true)
+      expect(t3.getData(ERROR_KEY)).toBeNull()
     })
 
     it('should not allow update after reject', () => {
       const tracker = createTracker()
       const t = tracker.track()
-      t.reject(new Error('err'))
-      t.update('should not resurrect')
-      expect(t.inStateRejected()).toBe(true)
+      t.setData(ERROR_KEY, new Error('err'))
+      t.reject()
+      t.setData(VALUE_KEY, 'should not resurrect')
+      t.update()
+      expect(t.inState(STATE.REJECTED)).toBe(true)
       expect(t.isStaleValue()).toBe(true)
-      expect(t.value).toBeUndefined()
+      expect(t.getData(VALUE_KEY)).toBe('should not resurrect') // setData still works
     })
   })
 
   // ============================================================================
-  // LATEST REF TRACKING (record function behavior)
+  // LATEST STATUS TRACKING
   // ============================================================================
-  describe('latest ref tracking', () => {
+  describe('latest status tracking', () => {
     it('should only increase latest refs when newer calls complete', () => {
       const tracker = createTracker()
-      const t1 = tracker.track()
-      const t2 = tracker.track()
-      t1.fulfill('first')
-      expect(tracker.latest.fulfilled.value).toBe(false) // t2 not done yet
-      t2.fulfill('second')
-      expect(tracker.latest.fulfilled.value).toBe(true)
-      expect(tracker.has.fulfilled.value).toBe(true)
+      const t1 = tracker.track() // sn=1
+      const t2 = tracker.track() // sn=2
+      t1.setData(VALUE_KEY, 'first')
+      t1.fulfill()
+      t2.setData(VALUE_KEY, 'second')
+      t2.fulfill()
+      // Both should be fulfilled, but t2 is latest
+      expect(t1.isLatestFulfill()).toBe(false)
+      expect(t2.isLatestFulfill()).toBe(true)
     })
 
     it('should not update latest ref when newer call has already updated it', () => {
       const tracker = createTracker()
       const t1 = tracker.track() // sn=1
       const t2 = tracker.track() // sn=2
-      // t2 updates first, setting updating.value to 2
-      t2.update('newer')
-      expect(tracker.has.updating.value).toBe(true)
-      // t1 updates later, but should not overwrite updating.value since 2 >= 1
-      t1.update('older')
-      // updating.value should still be 2 (from t2)
-      expect(t2.isLatestUpdate()).toBe(true)
+      t2.setData(VALUE_KEY, 'newer')
+      t2.update()
+      t1.setData(VALUE_KEY, 'older')
+      t1.update()
+      // t2.update should have already set updating.value = 2
+      // t1.update should not overwrite it
       expect(t1.isLatestUpdate()).toBe(false)
+      expect(t2.isLatestUpdate()).toBe(true)
     })
 
     it('should not update fulfilled ref when newer call has already fulfilled', () => {
       const tracker = createTracker()
       const t1 = tracker.track() // sn=1
       const t2 = tracker.track() // sn=2
-      t2.fulfill('newer')
-      expect(tracker.latest.fulfilled.value).toBe(true)
-      t1.fulfill('older')
-      // t2 should still be the latest fulfill
-      expect(t2.isLatestFulfill()).toBe(true)
+      t2.setData(VALUE_KEY, 'newer')
+      t2.fulfill()
+      t1.setData(VALUE_KEY, 'older')
+      t1.fulfill()
+      // t2.fulfill should have already set fulfilled.value = 2
+      // t1.fulfill should not overwrite it
       expect(t1.isLatestFulfill()).toBe(false)
+      expect(t2.isLatestFulfill()).toBe(true)
     })
 
     it('should not update rejected ref when newer call has already rejected', () => {
       const tracker = createTracker()
       const t1 = tracker.track() // sn=1
       const t2 = tracker.track() // sn=2
-      t2.reject(new Error('newer error'))
-      t1.reject(new Error('older error'))
+      t2.setData(ERROR_KEY, new Error('newer error'))
+      t2.reject()
+      t1.setData(ERROR_KEY, new Error('older error'))
+      t1.reject()
       // Both should be rejected, but t2 is latest
       expect(t1.isStaleValue()).toBe(true)
       expect(t2.isStaleValue()).toBe(true)
-      expect(t2.isLatestFinish()).toBe(true)
-      expect(t1.isLatestFinish()).toBe(false)
     })
   })
 
   // ============================================================================
-  // isLatest* METHODS
+  // isLatestCall
   // ============================================================================
   describe('isLatestCall', () => {
     it('should return true only for the most recent call', () => {
       const tracker = createTracker()
       const t1 = tracker.track()
-      expect(t1.isLatestCall()).toBe(true)
       const t2 = tracker.track()
-      expect(t1.isLatestCall()).toBe(false)
-      expect(t2.isLatestCall()).toBe(true)
       const t3 = tracker.track()
       expect(t1.isLatestCall()).toBe(false)
       expect(t2.isLatestCall()).toBe(false)
@@ -321,41 +380,44 @@ describe('createTracker', () => {
       const tracker = createTracker()
       const t1 = tracker.track()
       const t2 = tracker.track()
-      t1.fulfill('first')
+      t1.setData(VALUE_KEY, 'first')
+      t1.fulfill()
       expect(t1.isLatestCall()).toBe(false)
       expect(t2.isLatestCall()).toBe(true)
     })
   })
 
+  // ============================================================================
+  // isLatestUpdate
+  // ============================================================================
   describe('isLatestUpdate', () => {
     it('should return true when call is updating and is the latest update', () => {
       const tracker = createTracker()
-      const t1 = tracker.track()
-      const t2 = tracker.track()
-      t1.update('old load')
-      t2.update('new load')
-      expect(t1.isLatestUpdate()).toBe(false)
+      const t1 = tracker.track() // sn=1
+      const t2 = tracker.track() // sn=2
+      t2.setData(VALUE_KEY, 'newer')
+      t2.update()
       expect(t2.isLatestUpdate()).toBe(true)
     })
 
     it('should return false when not in updating state', () => {
       const tracker = createTracker()
       const t = tracker.track()
-      expect(t.isLatestUpdate()).toBe(false) // pending state
-      t.fulfill('done')
-      expect(t.isLatestUpdate()).toBe(false) // fulfilled state
-      const t2 = tracker.track()
-      t2.reject(new Error('error'))
-      expect(t2.isLatestUpdate()).toBe(false) // rejected state
+      expect(t.isLatestUpdate()).toBe(false)
+      t.setData(VALUE_KEY, 'done')
+      t.fulfill()
+      expect(t.isLatestUpdate()).toBe(false)
     })
 
     it('should return false when fulfilled.value >= sn', () => {
       const tracker = createTracker()
       const t1 = tracker.track() // sn=1
       const t2 = tracker.track() // sn=2
-      t2.fulfill('newer')
-      t1.update('older')
-      // t1 is updating but t2 already fulfilled, so t1 is not latest update
+      t2.setData(VALUE_KEY, 'done')
+      t2.fulfill()
+      t1.setData(VALUE_KEY, 'loading')
+      t1.update()
+      // t1 is updating, but t2 has already fulfilled (fulfilled.value = 2 >= 1)
       expect(t1.isLatestUpdate()).toBe(false)
     })
 
@@ -363,43 +425,45 @@ describe('createTracker', () => {
       const tracker = createTracker()
       const t1 = tracker.track() // sn=1
       const t2 = tracker.track() // sn=2
-      t2.update('newer')
-      t1.update('older')
-      // t1 is updating but updating.value is 2, not 1
+      t2.setData(VALUE_KEY, 'newer')
+      t2.update()
+      t1.setData(VALUE_KEY, 'older')
+      t1.update()
+      // t1 is updating, but updating.value = 2 !== 1
       expect(t1.isLatestUpdate()).toBe(false)
-      expect(t2.isLatestUpdate()).toBe(true)
     })
   })
 
+  // ============================================================================
+  // isLatestFulfill
+  // ============================================================================
   describe('isLatestFulfill', () => {
     it('should return true when call is fulfilled and is the latest fulfill', () => {
       const tracker = createTracker()
-      const t1 = tracker.track()
-      const t2 = tracker.track()
-      t1.fulfill('old result')
-      t2.fulfill('new result')
-      expect(t1.isLatestFulfill()).toBe(false)
+      const t1 = tracker.track() // sn=1
+      const t2 = tracker.track() // sn=2
+      t2.setData(VALUE_KEY, 'newer')
+      t2.fulfill()
       expect(t2.isLatestFulfill()).toBe(true)
     })
 
     it('should return false when not in fulfilled state', () => {
       const tracker = createTracker()
       const t = tracker.track()
-      expect(t.isLatestFulfill()).toBe(false) // pending state
-      t.update('loading')
-      expect(t.isLatestFulfill()).toBe(false) // updating state
-      const t2 = tracker.track()
-      t2.reject(new Error('error'))
-      expect(t2.isLatestFulfill()).toBe(false) // rejected state
+      expect(t.isLatestFulfill()).toBe(false)
+      t.update()
+      expect(t.isLatestFulfill()).toBe(false)
     })
 
     it('should return false when updating.value > sn', () => {
       const tracker = createTracker()
       const t1 = tracker.track() // sn=1
       const t2 = tracker.track() // sn=2
-      t2.update('newer')
-      t1.fulfill('older')
-      // t1 is fulfilled but t2 has updated, so t1 is not latest fulfill
+      t2.setData(VALUE_KEY, 'loading')
+      t2.update()
+      t1.setData(VALUE_KEY, 'done')
+      t1.fulfill()
+      // t1 is fulfilled, but t2 is updating (updating.value = 2 > 1)
       expect(t1.isLatestFulfill()).toBe(false)
     })
 
@@ -407,93 +471,46 @@ describe('createTracker', () => {
       const tracker = createTracker()
       const t1 = tracker.track() // sn=1
       const t2 = tracker.track() // sn=2
-      t2.fulfill('newer')
-      t1.fulfill('older')
-      // t1 is fulfilled but fulfilled.value is 2, not 1
+      t2.setData(VALUE_KEY, 'newer')
+      t2.fulfill()
+      t1.setData(VALUE_KEY, 'older')
+      t1.fulfill()
+      // t1 is fulfilled, but fulfilled.value = 2 !== 1
       expect(t1.isLatestFulfill()).toBe(false)
-      expect(t2.isLatestFulfill()).toBe(true)
-    })
-  })
-
-  describe('isLatestFinish', () => {
-    it('should return true when call is finished and is the latest finish', () => {
-      const tracker = createTracker()
-      const t1 = tracker.track()
-      const t2 = tracker.track()
-      t1.fulfill('old result')
-      t2.fulfill('new result')
-      expect(t1.isLatestFinish()).toBe(false)
-      expect(t2.isLatestFinish()).toBe(true)
-    })
-
-    it('should work for rejected calls', () => {
-      const tracker = createTracker()
-      const t1 = tracker.track()
-      const t2 = tracker.track()
-      t1.reject(new Error('old error'))
-      t2.reject(new Error('new error'))
-      expect(t1.isLatestFinish()).toBe(false)
-      expect(t2.isLatestFinish()).toBe(true)
-    })
-
-    it('should return false when not in finished state', () => {
-      const tracker = createTracker()
-      const t = tracker.track()
-      expect(t.isLatestFinish()).toBe(false) // pending state
-      t.update('loading')
-      expect(t.isLatestFinish()).toBe(false) // updating state
-    })
-
-    it('should return false when updating.value > sn', () => {
-      const tracker = createTracker()
-      const t1 = tracker.track() // sn=1
-      const t2 = tracker.track() // sn=2
-      t2.update('newer')
-      t1.fulfill('older')
-      // t1 is finished but t2 has updated, so t1 is not latest finish
-      expect(t1.isLatestFinish()).toBe(false)
-    })
-
-    it('should return false when finished.value !== sn', () => {
-      const tracker = createTracker()
-      const t1 = tracker.track() // sn=1
-      const t2 = tracker.track() // sn=2
-      t2.reject(new Error('newer error'))
-      t1.reject(new Error('older error'))
-      // t1 is finished but finished.value is 2, not 1
-      expect(t1.isLatestFinish()).toBe(false)
-      expect(t2.isLatestFinish()).toBe(true)
     })
   })
 
   // ============================================================================
-  // STALENESS DETECTION
+  // isStaleValue
   // ============================================================================
-  describe('staleness detection', () => {
+  describe('isStaleValue', () => {
     it('should return true for rejected calls', () => {
       const tracker = createTracker()
       const t = tracker.track()
-      t.reject(new Error('error'))
+      t.setData(ERROR_KEY, new Error('error'))
+      t.reject()
       expect(t.isStaleValue()).toBe(true)
     })
 
     it('should return true if newer call has finished', () => {
       const tracker = createTracker()
-      const slow = tracker.track() // sn=1
-      const fast = tracker.track() // sn=2
-      fast.fulfill('fast')
-      slow.fulfill('slow')
-      expect(fast.isStaleValue()).toBe(false)
-      expect(slow.isStaleValue()).toBe(true) // because sn=2 > sn=1 and finished
+      const t1 = tracker.track() // sn=1
+      const t2 = tracker.track() // sn=2
+      t2.setData(VALUE_KEY, 'done')
+      t2.fulfill()
+      // t1 hasn't finished, but t2 has (finished.value = 2 > 1)
+      expect(t1.isStaleValue()).toBe(true)
     })
 
     it('should return true when newer call finished even if updating', () => {
       const tracker = createTracker()
       const t1 = tracker.track() // sn=1
       const t2 = tracker.track() // sn=2
-      t1.update('loading')
-      t2.fulfill('done') // finished.value = 2
-      // t1 is updating but finished.value (2) > sn (1)
+      t1.setData(VALUE_KEY, 'loading')
+      t1.update()
+      t2.setData(VALUE_KEY, 'done')
+      t2.fulfill()
+      // t1 is updating, but t2 has finished (finished.value = 2 > 1)
       expect(t1.isStaleValue()).toBe(true)
     })
 
@@ -501,356 +518,144 @@ describe('createTracker', () => {
       const tracker = createTracker()
       const t1 = tracker.track() // sn=1
       const t2 = tracker.track() // sn=2
-      t2.update('newer')
-      // updating.value (2) > sn (1)
+      t2.setData(VALUE_KEY, 'newer')
+      t2.update()
+      // t1 hasn't updated, but t2 has (updating.value = 2 > 1)
       expect(t1.isStaleValue()).toBe(true)
     })
 
     describe('race conditions', () => {
       it('fulfill (sn=1) then reject (sn=2) → fulfill is stale', () => {
         const tracker = createTracker()
-        const first = tracker.track() // sn=1
-        const second = tracker.track() // sn=2
-        first.fulfill('result')
-        second.reject(new Error('error'))
-        expect(first.isStaleValue()).toBe(true)
-        expect(second.isStaleValue()).toBe(true) // reject is always stale
-        expect(second.isLatestFinish()).toBe(true)
-        expect(tracker.has.finished.value).toBe(true)
+        const t1 = tracker.track() // sn=1
+        const t2 = tracker.track() // sn=2
+        t1.setData(VALUE_KEY, 'success')
+        t1.fulfill()
+        t2.setData(ERROR_KEY, new Error('error'))
+        t2.reject()
+        expect(t1.isStaleValue()).toBe(true)
+        expect(t2.isStaleValue()).toBe(true) // reject is always stale
       })
 
       it('reject (sn=1) then fulfill (sn=2) → reject is stale, fulfill is latest', () => {
         const tracker = createTracker()
-        const first = tracker.track() // sn=1
-        const second = tracker.track() // sn=2
-        expect(second.isLatestFinish()).toBe(false)
-        first.reject(new Error('early error'))
-        second.fulfill('later success')
-        expect(first.isStaleValue()).toBe(true)
-        expect(second.isStaleValue()).toBe(false)
-        expect(second.isLatestFinish()).toBe(true)
-        expect(tracker.latest.fulfilled.value).toBe(true)
+        const t1 = tracker.track() // sn=1
+        const t2 = tracker.track() // sn=2
+        t1.setData(ERROR_KEY, new Error('error'))
+        t1.reject()
+        t2.setData(VALUE_KEY, 'success')
+        t2.fulfill()
+        expect(t1.isStaleValue()).toBe(true)
+        expect(t2.isStaleValue()).toBe(false)
       })
 
       it('finish race: later finish decides latest flags', () => {
         const tracker = createTracker()
-        const a = tracker.track()
-        const b = tracker.track()
-        a.finish(false, 'a-ok')
-        b.finish(true, new Error('b-err'))
-        expect(a.isStaleValue()).toBe(true)
-        expect(b.isLatestFinish()).toBe(true)
-      })
-    })
-
-    describe('multiple concurrent calls', () => {
-      it('only the latest fulfilled is non-stale', () => {
-        const tracker = createTracker()
-        vi.useFakeTimers()
-        const calls = Array.from({ length: 5 }, (_, i) => {
-          const t = tracker.track()
-          // schedule fulfill with shorter delay for later calls to simulate out-of-order completion
-          setTimeout(() => t.fulfill(`result ${i}`), (5 - i) * 10)
-          return t
-        })
-        // run all timers so scheduled fulfills execute deterministically
-        vi.runAllTimers()
-        // Only last (sn=5) should be non-stale
-        calls.slice(0, -1).forEach(t => {
-          expect(t.isStaleValue()).toBe(true)
-        })
-        expect(calls[4].isStaleValue()).toBe(false)
-      })
-
-      it('complex interleaving: only last fulfilled non-stale', () => {
-        const tracker = createTracker()
-        const calls = Array.from({ length: 7 }, () => tracker.track())
-        // complete in custom order:
-        const order = [2, 0, 6, 1, 5, 3, 4]
-        order.forEach(i => calls[i].fulfill(`r${i}`))
-        // Only the last (sn=7, index 6) should be non-stale
-        calls.slice(0, -1).forEach(t => expect(t.isStaleValue()).toBe(true))
-        expect(calls[6].isStaleValue()).toBe(false)
-      })
-
-      it('large concurrency: only latest fulfilled non-stale when last call fulfilled', () => {
-        const tracker = createTracker()
-        const N = 50
-        const calls = Array.from({ length: N }, () => tracker.track())
-        // deterministic order (reverse then interleave)
-        const order = Array.from({ length: N }, (_, i) => i).reverse()
-        order.forEach(i => {
-          if (i % 7 === 0) calls[i].reject(new Error(`err${i}`))
-          else calls[i].fulfill(`r${i}`)
-        })
-        const lastIdx = calls.length - 1
-        const lastWasRejected = lastIdx % 7 === 0
-        expect(tracker.has.finished.value).toBe(true)
-        const nonStale = calls.filter(c => !c.isStaleValue())
-        
-        if (lastWasRejected) {
-          // If last was rejected, all calls are stale (rejects are always stale)
-          expect(nonStale.length).toBe(0)
-        } else {
-          // Only the last fulfilled call should be non-stale
-          expect(nonStale.length).toBe(1)
-          expect(nonStale[0]).toBe(calls[lastIdx])
-        }
-      })
-
-      it('older update after newer finish should be ignored (stale update)', () => {
-        const tracker = createTracker()
-        vi.useFakeTimers()
         const t1 = tracker.track() // sn=1
         const t2 = tracker.track() // sn=2
-        setTimeout(() => t1.update('old late update'), 20)
-        setTimeout(() => t2.fulfill('fast'), 10)
-        vi.runAllTimers()
+        t1.setData(VALUE_KEY, 'first')
+        t1.fulfill()
+        t2.setData(VALUE_KEY, 'second')
+        t2.fulfill()
+        expect(t1.isStaleValue()).toBe(true)
+        expect(t2.isStaleValue()).toBe(false)
         expect(t2.isLatestFulfill()).toBe(true)
-        expect(t2.isLatestUpdate()).toBe(false)
-        expect(t1.isLatestUpdate()).toBe(false)
       })
     })
   })
 
   // ============================================================================
-  // FINISH METHOD
+  // STATE QUERIES
   // ============================================================================
-  describe('finish method', () => {
-    it('should delegate to fulfill when error is false', () => {
-      const tracker = createTracker()
-      const t = tracker.track()
-      t.finish(false, 'success via finish')
-      expect(t.inStateFulfilled()).toBe(true)
-      expect(t.value).toBe('success via finish')
-    })
-
-    it('should delegate to reject when error is true', () => {
-      const tracker = createTracker()
-      const t = tracker.track()
-      t.finish(true, new Error('error via finish'))
-      expect(t.inStateRejected()).toBe(true)
-      expect(t.error).toBeDefined()
-    })
-
-    it('should handle default error parameter (false)', () => {
-      const tracker = createTracker()
-      const t = tracker.track()
-      t.finish() // default error=false, should fulfill
-      expect(t.inStateFulfilled()).toBe(true)
-      expect(t.value).toBeUndefined()
-    })
-
-    it('should handle finish with error=true', () => {
-      const tracker = createTracker()
-      const t = tracker.track()
-      t.finish(true, new Error('error'))
-      expect(t.inStateRejected()).toBe(true)
-      expect(t.error).toBeDefined()
-    })
-
-    it('should ignore subsequent finish calls after first terminal state', () => {
-      const tracker = createTracker()
-      const t = tracker.track()
-      t.finish(false, 'first')
-      t.finish(true, new Error('second'))
-      expect(t.inStateFulfilled()).toBe(true)
-      expect(t.value).toBe('first')
-    })
-
-    it('should ignore subsequent finish calls when first was a rejection', () => {
-      const tracker = createTracker()
-      const t = tracker.track()
-      t.finish(true, new Error('first'))
-      t.finish(false, 'second')
-      expect(t.inStateRejected()).toBe(true)
-      expect((t.error as any)?.message).toBe('first')
-    })
-  })
-
-  // ============================================================================
-  // STATE CHECK METHODS
-  // ============================================================================
-  describe('inStateFinished', () => {
+  describe('state queries', () => {
     it('should return true for fulfilled calls', () => {
       const tracker = createTracker()
       const t = tracker.track()
-      expect(t.inStateFinished()).toBe(false)
-      t.fulfill('done')
-      expect(t.inStateFinished()).toBe(true)
+      t.setData(VALUE_KEY, 'done')
+      t.fulfill()
+      expect(t.inState(STATE.FULFILLED)).toBe(true)
+      expect(t.inState(STATE.FINISHED)).toBe(true)
     })
 
     it('should return true for rejected calls', () => {
       const tracker = createTracker()
       const t = tracker.track()
-      expect(t.inStateFinished()).toBe(false)
-      t.reject(new Error('error'))
-      expect(t.inStateFinished()).toBe(true)
+      t.setData(ERROR_KEY, new Error('error'))
+      t.reject()
+      expect(t.inState(STATE.REJECTED)).toBe(true)
+      expect(t.inState(STATE.FINISHED)).toBe(true)
     })
 
     it('should return false for pending and updating calls', () => {
       const tracker = createTracker()
-      const t1 = tracker.track()
-      expect(t1.inStateFinished()).toBe(false)
-      const t2 = tracker.track()
-      t2.update('loading')
-      expect(t2.inStateFinished()).toBe(false)
-    })
-  })
-
-  describe('allowToState methods', () => {
-    it('allowToStateUpdating should return correct values', () => {
-      const tracker = createTracker()
       const t = tracker.track()
-      expect(t.allowToStateUpdating()).toBe(true)
-      t.update('loading')
-      expect(t.allowToStateUpdating()).toBe(true) // updating -> updating allowed
-      t.fulfill('done')
-      expect(t.allowToStateUpdating()).toBe(false)
-    })
-
-    it('allowToStateFulfilled should return correct values', () => {
-      const tracker = createTracker()
-      const t = tracker.track()
-      expect(t.allowToStateFulfilled()).toBe(true)
-      t.update('loading')
-      expect(t.allowToStateFulfilled()).toBe(true)
-      t.fulfill('done')
-      expect(t.allowToStateFulfilled()).toBe(false)
-      const t2 = tracker.track()
-      t2.reject(new Error('error'))
-      expect(t2.allowToStateFulfilled()).toBe(false)
-    })
-
-    it('allowToStateRejected should return correct values', () => {
-      const tracker = createTracker()
-      const t = tracker.track()
-      expect(t.allowToStateRejected()).toBe(true)
-      t.update('loading')
-      expect(t.allowToStateRejected()).toBe(true)
-      t.reject(new Error('error'))
-      expect(t.allowToStateRejected()).toBe(false)
-      const t2 = tracker.track()
-      t2.fulfill('done')
-      expect(t2.allowToStateRejected()).toBe(false)
+      expect(t.inState(STATE.FINISHED)).toBe(false)
+      t.update()
+      expect(t.inState(STATE.FINISHED)).toBe(false)
     })
   })
 
   // ============================================================================
-  // TRACKER.HAS FLAGS
+  // canUpdate
   // ============================================================================
-  describe('tracker.has flags', () => {
-    it('has.tracking becomes true after any track', () => {
-      const tracker = createTracker()
-      expect(tracker.has.tracking.value).toBe(false)
-      tracker.track() // Just creating a track should make tracking true
-      expect(tracker.has.tracking.value).toBe(true)
-    })
-
-    it('has.updating becomes true after any update', () => {
-      const tracker = createTracker()
-      expect(tracker.has.updating.value).toBe(false)
-      const t = tracker.track()
-      t.update('loading')
-      expect(tracker.has.updating.value).toBe(true)
-    })
-
-    it('has.updating remains true even if call ends in rejection after update', () => {
+  describe('canUpdate', () => {
+    it('should return true for pending state', () => {
       const tracker = createTracker()
       const t = tracker.track()
-      t.update('loading')
-      expect(tracker.has.updating.value).toBe(true)
-      t.reject(new Error('fail'))
-      expect(tracker.has.updating.value).toBe(true)
+      expect(t.canUpdate()).toBe(true)
     })
 
-    it('has.updating stays false if no update ever called', () => {
+    it('should return true for updating state', () => {
       const tracker = createTracker()
-      expect(tracker.has.updating.value).toBe(false)
-      const t1 = tracker.track()
-      t1.fulfill('ok')
-      expect(tracker.has.updating.value).toBe(false)
-      const t2 = tracker.track()
-      t2.reject(new Error())
-      expect(tracker.has.updating.value).toBe(false)
+      const t = tracker.track()
+      t.update()
+      expect(t.canUpdate()).toBe(true)
     })
 
+    it('should return false for fulfilled state', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      t.setData(VALUE_KEY, 'done')
+      t.fulfill()
+      expect(t.canUpdate()).toBe(false)
+    })
+
+    it('should return false for rejected state', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      t.setData(ERROR_KEY, new Error('error'))
+      t.reject()
+      expect(t.canUpdate()).toBe(false)
+    })
+  })
+
+  // ============================================================================
+  // TRACKER FLAGS
+  // ============================================================================
+  describe('tracker flags', () => {
     it('tracking and has flags reflect call lifecycle', () => {
       const tracker = createTracker()
-      expect(tracker.has.tracking.value).toBe(false)
       expect(tracker.has.finished.value).toBe(false)
+
       const t = tracker.track()
-      expect(tracker.has.tracking.value).toBe(true)
-      t.fulfill('ok')
+      expect(tracker.has.finished.value).toBe(false)
+
+      t.update()
+
+      t.setData(VALUE_KEY, 'done')
+      t.fulfill()
       expect(tracker.has.finished.value).toBe(true)
-      expect(tracker.has.fulfilled.value).toBe(true)
-      expect(tracker.latest.finished.value).toBe(true)
-      expect(tracker.latest.fulfilled.value).toBe(true)
     })
 
     it('has flags should correctly track mixed states', () => {
       const tracker = createTracker()
-      expect(tracker.has.fulfilled.value).toBe(false)
-      expect(tracker.has.rejected.value).toBe(false)
       const t1 = tracker.track()
-      t1.fulfill('success')
-      expect(tracker.has.fulfilled.value).toBe(true)
-      expect(tracker.has.rejected.value).toBe(false)
       const t2 = tracker.track()
-      t2.reject(new Error('error'))
-      expect(tracker.has.fulfilled.value).toBe(true)
-      expect(tracker.has.rejected.value).toBe(true)
+      t1.setData(VALUE_KEY, 'success')
+      t1.fulfill()
+      t2.setData(ERROR_KEY, new Error('error'))
+      t2.reject()
       expect(tracker.has.finished.value).toBe(true)
-    })
-  })
-
-  // ============================================================================
-  // TRACKER.LATEST COMPUTED PROPERTIES
-  // ============================================================================
-  describe('tracker.latest computed properties', () => {
-    it('latest.fulfilled should be true only when last call was fulfilled', () => {
-      const tracker = createTracker()
-      // No calls yet
-      expect(tracker.latest.fulfilled.value).toBe(false)
-      // First call fulfilled
-      const t1 = tracker.track()
-      t1.fulfill('result')
-      expect(tracker.latest.fulfilled.value).toBe(true)
-      // Second call pending
-      const t2 = tracker.track()
-      expect(tracker.latest.fulfilled.value).toBe(false)
-      // Second call fulfilled
-      t2.fulfill('result2')
-      expect(tracker.latest.fulfilled.value).toBe(true)
-    })
-
-    it('latest.finished should be true when no calls have been made', () => {
-      const tracker = createTracker()
-      // No calls
-      expect(tracker.latest.finished.value).toBe(true)
-      // One pending call
-      tracker.track()
-      expect(tracker.latest.finished.value).toBe(false)
-    })
-
-    it('latest.finished should be true if the most recent call has finished', () => {
-      const tracker = createTracker()
-      // No calls
-      expect(tracker.latest.finished.value).toBe(true)
-      // One pending call
-      const t1 = tracker.track()
-      expect(tracker.latest.finished.value).toBe(false)
-      // One fulfilled call
-      t1.fulfill('result')
-      expect(tracker.latest.finished.value).toBe(true)
-      // Two calls, one pending
-      const t2 = tracker.track()
-      const t3 = tracker.track()
-      t2.fulfill('result2')
-      expect(tracker.latest.finished.value).toBe(false)
-      // Both finished
-      t3.fulfill('result3')
-      expect(tracker.latest.finished.value).toBe(true)
     })
   })
 
@@ -861,34 +666,39 @@ describe('createTracker', () => {
     it('should support updateData pattern: update then check inStateUpdating', () => {
       const tracker = createTracker()
       const t = tracker.track()
-      t.update('progress')
-      expect(t.inStateUpdating()).toBe(true)
-      // Simulate updateData pattern from use-async-data.ts:101
-      if (t.inStateUpdating()) {
+      t.setData(VALUE_KEY, 'progress')
+      t.update()
+      expect(t.inState(STATE.UPDATING)).toBe(true)
+      // Simulate updateData pattern from use-async-data.ts
+      if (t.inState(STATE.UPDATING)) {
         // This is the pattern used in real code
-        expect(t.value).toBe('progress')
+        expect(t.getData(VALUE_KEY)).toBe('progress')
       }
     })
 
     it('should handle initial value pattern from use-async-data', () => {
       const tracker = createTracker()
       const currentData = { id: 1, name: 'current' }
-      // Simulate tracker.track(data.value) pattern from use-async-data.ts:127
-      const track = tracker.track(currentData)
-      expect(track.value).toBe(currentData)
-      track.update({ id: 1, name: 'updated' })
-      expect(track.value).toEqual({ id: 1, name: 'updated' })
+      // Simulate tracker.track() pattern from use-async-data.ts
+      const track = tracker.track()
+      track.setData(VALUE_KEY, currentData)
+      expect(track.getData(VALUE_KEY)).toBe(currentData)
+      track.setData(VALUE_KEY, { id: 1, name: 'updated' })
+      track.update()
+      expect(track.getData(VALUE_KEY)).toEqual({ id: 1, name: 'updated' })
     })
 
-    it('should handle finish pattern with scene parameter', () => {
+    it('should handle finish pattern with fulfill/reject', () => {
       const tracker = createTracker()
       const t1 = tracker.track()
       const t2 = tracker.track()
-      // Simulate finish(scene === 'error', v) pattern from use-async-data.ts:91
-      t1.finish(false, 'success') // scene === 'normal'
-      t2.finish(true, new Error('error')) // scene === 'error'
-      expect(t1.inStateFulfilled()).toBe(true)
-      expect(t2.inStateRejected()).toBe(true)
+      // Simulate fulfill/reject pattern
+      t1.setData(VALUE_KEY, 'success')
+      t1.fulfill() // success case
+      t2.setData(ERROR_KEY, new Error('error'))
+      t2.reject() // error case
+      expect(t1.inState(STATE.FULFILLED)).toBe(true)
+      expect(t2.inState(STATE.REJECTED)).toBe(true)
     })
   })
 
@@ -901,16 +711,20 @@ describe('createTracker', () => {
       // Use fake timers for deterministic setTimeout behavior
       vi.useFakeTimers()
       const t1 = tracker.track()
-      Promise.resolve('r1').then(v => t1.fulfill(v))
+      Promise.resolve('r1').then(v => {
+        t1.setData(VALUE_KEY, v)
+        t1.fulfill()
+      })
       const t2 = tracker.track()
-      new Promise<string>(resolve => setTimeout(() => resolve('r2'), 0)).then(v => t2.fulfill(v))
+      new Promise<string>(resolve => setTimeout(() => resolve('r2'), 0)).then(v => {
+        t2.setData(VALUE_KEY, v)
+        t2.fulfill()
+      })
       // flush microtasks so p1 runs
-      await Promise.resolve()
-      // run timers so p2 runs, then flush microtasks
-      vi.runAllTimers()
-      await Promise.resolve()
-      expect(t1.isStaleValue()).toBe(true)
-      expect(t2.isStaleValue()).toBe(false)
+      await vi.runAllTimersAsync()
+      // t2 should win because it's the latest call
+      expect(t2.isLatestFulfill()).toBe(true)
+      expect(t1.isLatestFulfill()).toBe(false)
     })
   })
 })

@@ -1,5 +1,6 @@
 // utils.monitor.test.ts
 import { withFunctionMonitor } from '../monitor'
+import { STATE } from '../tracker'
 import { describe, expect, it, vi, afterEach } from 'vitest'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -337,73 +338,13 @@ describe('withFunctionMonitor', () => {
         expect(fn).toHaveBeenCalledWith(5)
       })
     })
-
-    describe('setup interceptor', () => {
-      it('should call setup interceptor and use returned initial value', () => {
-        const fn = vi.fn(() => 'new-value')
-        const initialValue = 'initial-value'
-        const { run, monitor } = withFunctionMonitor(fn)
-        let capturedValue: any
-        
-        monitor.use('setup', () => {
-          return initialValue
-        })
-        monitor.on('before', ({ track }) => {
-          capturedValue = track.value
-        })
-        run()
-        
-        expect(capturedValue).toBe(initialValue)
-      })
-
-      it('should work without setup interceptor', () => {
-        const fn = vi.fn(() => 1)
-        const { run, monitor } = withFunctionMonitor(fn)
-        let capturedValue: any
-        
-        monitor.on('before', ({ track }) => {
-          capturedValue = track.value
-        })
-        run()
-        
-        expect(capturedValue).toBeUndefined()
-      })
-
-      it('should use latest interceptor when multiple interceptors', () => {
-        const fn = vi.fn(() => 1)
-        const { run, monitor } = withFunctionMonitor(fn)
-        let capturedValue: any
-        
-        monitor.use('setup', () => 'first')
-        monitor.use('setup', () => 'second') // Latest will be used
-        monitor.on('before', ({ track }) => {
-          capturedValue = track.value
-        })
-        run()
-        
-        expect(capturedValue).toBe('second')
-      })
-
-      it('should get setup handler', () => {
-        const fn = vi.fn(() => 1)
-        const { monitor } = withFunctionMonitor(fn)
-        const handler = vi.fn(() => 'initial')
-        
-        expect(monitor.get('setup')).toBeUndefined()
-        
-        monitor.use('setup', handler)
-        
-        expect(monitor.get('setup')).toBe(handler)
-      })
-    })
-
     describe('undefined interceptor', () => {
       it('should not get undefined handler', () => {
         const fn = vi.fn(() => 1)
         const { monitor } = withFunctionMonitor(fn)
         const handler = vi.fn(() => 'undefined')
         expect(monitor.get('undefined' as any)).toBeUndefined()
-        monitor.use('undefined' as any, handler)
+        monitor.use('undefined' as any, handler as any)
         expect(monitor.get('undefined' as any)).toBeUndefined()
       })
     })
@@ -570,12 +511,9 @@ describe('withFunctionMonitor', () => {
       const data = { value: 'initial-data' }
       const dataTrack = { value: undefined as any }
       
-      monitor.use('setup', () => {
-        return data.value
-      })
       monitor.on('fulfill', ({ track, value }) => {
-        if (track.inStateRejected()) return
-        if (track.inStateFulfilled() && !track.isLatestFulfill()) return
+        if (track.inState(STATE.REJECTED)) return
+        if (track.inState(STATE.FULFILLED) && !track.isLatestFulfill()) return
         data.value = value
         dataTrack.value = track
       })
