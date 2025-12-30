@@ -44,6 +44,42 @@ describe('withFunctionMonitor', () => {
   })
 
   describe('Event Emission', () => {
+    describe('init event', () => {
+      it('should emit init event with args and track', () => {
+        const fn = vi.fn((...args: any) => 1)
+        const { run, monitor } = withFunctionMonitor(fn)
+        const initHandler = vi.fn()
+        
+        monitor.on('init', initHandler)
+        run(1, 2, 3)
+        
+        expect(initHandler).toHaveBeenCalledTimes(1)
+        const event = initHandler.mock.calls[0][0]
+        expect(event.args).toEqual([1, 2, 3])
+        expect(event.track).toBeDefined()
+        expect(event.track.sn).toBe(1)
+      })
+
+      it('should emit init event before before event and function execution', () => {
+        const executionOrder: string[] = []
+        const fn = () => {
+          executionOrder.push('fn')
+          return 1
+        }
+        const { run, monitor } = withFunctionMonitor(fn)
+        
+        monitor.on('init', () => {
+          executionOrder.push('init')
+        })
+        monitor.on('before', () => {
+          executionOrder.push('before')
+        })
+        
+        run()
+        expect(executionOrder).toEqual(['init', 'before', 'fn'])
+      })
+    })
+
     describe('before event', () => {
       it('should emit before event with args and track', () => {
         const fn = vi.fn((...args: any) => 1)
@@ -490,7 +526,7 @@ describe('withFunctionMonitor', () => {
       const { run, monitor } = withFunctionMonitor(fn)
       const contextStack: string[] = []
       
-      monitor.on('before', () => {
+      monitor.on('init', () => {
         contextStack.push('prepare')
       })
       monitor.on('after', () => {
