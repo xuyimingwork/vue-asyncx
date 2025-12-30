@@ -2,8 +2,8 @@ import { describe, expect, test } from "vitest"
 import { getAsyncDataContext, prepareAsyncDataContext } from "../use-async-data/context"
 
 describe('context single', () => {
-  test('should throw error when not prepare', () => {
-    expect(() => getAsyncDataContext()).toThrowError()
+  test('should return null when not prepare', () => {
+    expect(getAsyncDataContext()).toBeNull()
   })
   test('should set context after prepare', () => {
     const context = { getData: () => 1, updateData: (v) => {} }
@@ -11,12 +11,12 @@ describe('context single', () => {
     expect(getAsyncDataContext()).toBe(context)
     restore()
   })
-  test('should throw error after restore', () => {
+  test('should return null after restore', () => {
     const context = { getData: () => 1, updateData: (v) => {} }
     const restore = prepareAsyncDataContext(context)
     expect(getAsyncDataContext()).toBe(context)
     restore()
-    expect(() => getAsyncDataContext()).toThrowError()
+    expect(getAsyncDataContext()).toBeNull()
   })
 })
 
@@ -41,7 +41,7 @@ describe('context multiple', () => {
     restore2()
     expect(getAsyncDataContext()).toBe(context1)
     restore1()
-    expect(() => getAsyncDataContext()).toThrowError()
+    expect(getAsyncDataContext()).toBeNull()
   })
 
   test('should throw error when not restore in order', () => {
@@ -55,7 +55,7 @@ describe('context multiple', () => {
     expect(() => restore2()).not.toThrowError()
     expect(getAsyncDataContext()).toBe(context1)
     expect(() => restore1()).not.toThrowError()
-    expect(() => getAsyncDataContext()).toThrowError()
+    expect(getAsyncDataContext()).toBeNull()
   })
 
   test('should maintain context isolation when nested', () => {
@@ -68,10 +68,10 @@ describe('context multiple', () => {
     expect(getAsyncDataContext().getData()).toBe('context2')
     
     restore2()
-    expect(getAsyncDataContext().getData()).toBe('context1')
+    expect(getAsyncDataContext()!.getData()).toBe('context1')
     
     restore1()
-    expect(() => getAsyncDataContext()).toThrowError()
+    expect(getAsyncDataContext()).toBeNull()
   })
 
   test('should throw when restore is called twice', () => {
@@ -90,13 +90,13 @@ describe('context multiple', () => {
     const c3 = { getData: () => 'c3', updateData: (v: string) => {} }
     const r3 = prepareAsyncDataContext(c3)
 
-    expect(getAsyncDataContext().getData()).toBe('c3')
+    expect(getAsyncDataContext()!.getData()).toBe('c3')
     r3()
-    expect(getAsyncDataContext().getData()).toBe('c2')
+    expect(getAsyncDataContext()!.getData()).toBe('c2')
     r2()
-    expect(getAsyncDataContext().getData()).toBe('c1')
+    expect(getAsyncDataContext()!.getData()).toBe('c1')
     r1()
-    expect(() => getAsyncDataContext()).toThrowError()
+    expect(getAsyncDataContext()).toBeNull()
   })
 })
 
@@ -108,7 +108,7 @@ describe('context getData and updateData behavior', () => {
       updateData: (v: typeof initialData) => {}
     }
     const restore = prepareAsyncDataContext(context)
-    expect(getAsyncDataContext().getData()).toBe(initialData)
+    expect(getAsyncDataContext()!.getData()).toBe(initialData)
     restore()
   })
 
@@ -134,7 +134,7 @@ describe('context getData and updateData behavior', () => {
       updateData: (v: any) => {}
     }
     const restore = prepareAsyncDataContext(context)
-    expect(getAsyncDataContext().getData()).toBeUndefined()
+    expect(getAsyncDataContext()!.getData()).toBeUndefined()
     restore()
   })
 
@@ -144,7 +144,7 @@ describe('context getData and updateData behavior', () => {
       updateData: (v: any) => {}
     }
     const restore = prepareAsyncDataContext(context)
-    expect(getAsyncDataContext().getData()).toBeNull()
+    expect(getAsyncDataContext()!.getData()).toBeNull()
     restore()
   })
 

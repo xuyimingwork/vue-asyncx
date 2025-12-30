@@ -445,17 +445,17 @@ describe('useAsyncData', () => {
       expect(one.value).toBe(1)
     })
 
-    test('should throw error when call getAsyncDataContext in async part', async () => {
+    test('should return null when call getAsyncDataContext in async part', async () => {
       const { queryOne } = useAsyncData('one', async function (result: number) {
         await wait(0)
-        expect(() => getAsyncDataContext()).toThrowError()
+        expect(getAsyncDataContext()).toBeNull()
         return result
       })
       await expect(queryOne(1)).resolves.toBe(1)
     })
 
-    test('should throw error when call getAsyncDataContext outside of useAsyncData', async () => {
-      expect(() => getAsyncDataContext()).toThrowError()
+    test('should return null when call getAsyncDataContext outside of useAsyncData', async () => {
+      expect(getAsyncDataContext()).toBeNull()
     })
 
     test('should call getData/updateData during execution', async () => {

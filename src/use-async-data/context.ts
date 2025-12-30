@@ -5,9 +5,7 @@ type ContextGetter<D = any> = () => {
   updateData: (v: D) => void
 }
 
-let currentContextGetter: ContextGetter = () => {
-  throw new Error(message('getAsyncDataContext must be called synchronously within useAsyncData function.'))
-}
+let currentContextGetter: ContextGetter | (() => null) = () => null
 
 export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGetter<D>>): () => void {
   const prev = currentContextGetter
@@ -24,10 +22,12 @@ export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGett
 /**
  * 获取当前 `useAsyncData` 函数的上下文对象。
  * 
- * 该函数必须在 `useAsyncData` 函数内部**同步**调用，否则会抛出错误。
+ * 该函数返回当前执行上下文中的异步数据上下文。只有在 `useAsyncData` 函数执行期间（同步部分）才会返回有效的上下文对象，
+ * 在其他情况下（如外部调用、异步回调中）会返回 `null`。
+ * 
  * 上下文对象包含 `getData` 和 `updateData` 方法，用于在异步函数执行中访问和更新数据（竟态安全）。
  * 
- * @returns 包含 `getData` 和 `updateData` 方法的上下文对象
+ * @returns 包含 `getData` 和 `updateData` 方法的上下文对象，如果当前不在 `useAsyncData` 执行上下文中则返回 `null`
  * 
  * @example
  * // 正确用法：在 useAsyncData 内部同步调用
@@ -43,18 +43,18 @@ export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGett
  * })
  * 
  * @example
- * // 错误用法：在 useAsyncData 外部调用
- * const { getData, updateData } = getAsyncDataContext() // 会抛出错误
+ * // 在 useAsyncData 外部调用会返回 null
+ * const context = getAsyncDataContext() // context === null
  * 
  * @example
- * // 错误用法：在异步回调中调用
+ * // 在异步回调中调用也会返回 null
  * const { queryData } = useAsyncData((id) => {
  *   setTimeout(() => {
- *     const { getData, updateData } = getAsyncDataContext() // 会抛出错误
+ *     const context = getAsyncDataContext() // context === null
  *   }, 1000)
  *   return fetch(`/api/data/${id}`)
  * })
  */
-export function getAsyncDataContext(): ReturnType<ContextGetter> {
+export function getAsyncDataContext(): ReturnType<ContextGetter> | null {
   return currentContextGetter()
 }

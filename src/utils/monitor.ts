@@ -1,10 +1,11 @@
 import { createTracker, Track, Tracker } from "./tracker"
 
 export type FunctionMonitorEventMap = {
+  'init': { args: any[], track: Track }
   'before': { args: any[], track: Track }
+  'after': { track: Track }
   'fulfill': { track: Track, value: any }
   'reject': { track: Track, error: any }
-  'after': { track: Track }
 }
 
 type EventHandler<T extends keyof FunctionMonitorEventMap> = (
@@ -12,6 +13,10 @@ type EventHandler<T extends keyof FunctionMonitorEventMap> = (
 ) => void
 
 export interface FunctionMonitor {
+  /**
+   * this is only for compat use, transform is transparent for any event listener
+   * order: init before enhance-arguments after fulfill/reject
+   */
   use(event: 'enhance-arguments', handler: (data: { args: any[], track: Track }) => any[] | void): void
   get(event: 'enhance-arguments'): ((data: { args: any[], track: Track }) => any[] | void) | undefined
   on<T extends keyof FunctionMonitorEventMap>(
@@ -22,6 +27,7 @@ export interface FunctionMonitor {
     event: T,
     handler: EventHandler<T>
   ): void
+  emit(event: 'init', data: FunctionMonitorEventMap['init']): void
   emit(event: 'before', data: FunctionMonitorEventMap['before']): void
   emit(event: 'fulfill', data: FunctionMonitorEventMap['fulfill']): void
   emit(event: 'reject', data: FunctionMonitorEventMap['reject']): void
@@ -88,11 +94,14 @@ export function withFunctionMonitor<Fn extends (...args: any) => any>(
   const run = ((...args: Parameters<Fn>): ReturnType<Fn> => {
     const track = tracker.track()
 
-    // Emit before event
+    // Emit init event for initialization/preparation logic
+    monitor.emit('init', { args, track })
+
+    // Emit before event for pre-execution observation logic
     monitor.emit('before', { args, track })
 
+    // should be transparent for plugin
     // Call enhance-arguments interceptor to transform args
-    // const enhanceArgumentsInterceptor = 
     const transformedArgs: Parameters<Fn> = runInterceptor(
       monitor.get('enhance-arguments') && (() => {
         const result = monitor.get('enhance-arguments')({ args, track })

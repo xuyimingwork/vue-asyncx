@@ -124,8 +124,8 @@ export function useStateData<Data = any>(
     update(value, track)
   })
 
-  // Prepare context on before event
-  monitor.on('before', ({ track }) => {
+  // Prepare context on init event (initialization/preparation phase)
+  monitor.on('init', ({ track }) => {
     // Set initial value (replaces setup interceptor)
     track.setData(VALUE_KEY, data.value)
     track.setData(CONTEXT_KEY, {
@@ -138,6 +138,10 @@ export function useStateData<Data = any>(
         return v
       }
     })
+  })
+  
+  monitor.on('before', ({ track }) => {
+    // init fn implicit execution context
     track.setData(RESTORE_KEY, prepareAsyncDataContext(track.getData(CONTEXT_KEY)!))
   })
 
@@ -145,8 +149,9 @@ export function useStateData<Data = any>(
   monitor.on('after', ({ track }) => {
     track.takeData(RESTORE_KEY)()
   })
+
   // Set up enhance-arguments interceptor to use prepared context for argument enhancement
-  // since enhance-arguments happened after 'before' event, always with context
+  // since enhance-arguments happened after 'init' event, always with context
   if (enhanceFirstArgument) {
     monitor.use('enhance-arguments', ({ args, track }) => {
       // context can be deleted after use since it's only needed here
