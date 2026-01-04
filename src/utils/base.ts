@@ -6,6 +6,12 @@ export type UpperFirst<S extends string> =
 export type Simplify<T> = {[K in keyof T]: T[K]} & {};
 export type Fn = (...args: any[]) => any;
 export type Merge<A, B> = A extends any ? Simplify<Omit<A, keyof B> & B> : never;
+export type MergeTypes<Array extends readonly any[], Acc = {}> = Array extends readonly [infer Item, ...infer Rest]
+  ? MergeTypes<
+      Rest,
+      Merge<Acc, ObjectShape<Item>>
+    >
+  : Acc;
 export type ObjectShape<T> = 0 extends (1 & T) ? {} : // ObjectShape<any> => {}
   T extends Function ? {} : // ObjectShape<() => void> => {}
   T extends readonly any[] ? {} : // ObjectShape<any[]> => {}
@@ -22,6 +28,11 @@ export type MergeReturnTypes<
       Merge<Acc, ObjectShape<ReturnType<F>>>
     >
   : Acc;
+export type IsUnion<T, U = T> = T extends U 
+  ? [U] extends [T] 
+    ? false 
+    : true 
+  : never;
 
 export function upperFirst<Name extends string>(string: Name): UpperFirst<Name> {
   if (!string) return '' as any

@@ -17,9 +17,9 @@ export interface UseAsyncWatchOptions<Fn extends (...args: any) => any> extends 
   handlerCreator?: (fn: Fn) => WatchCallback
 }
 
-export type UseAsyncOptions<Fn extends (...args: any) => any> = Simplify<{
+export type UseAsyncOptions<Fn extends (...args: any) => any> = {
   watch?: WatchSource | WatchSource[]
   watchOptions?: UseAsyncWatchOptions<Fn>
   immediate?: boolean 
   setup?: (fn: Fn) => ((...args: any) => any) | void
-}>
+}
