@@ -1,5 +1,5 @@
-import type { FunctionMonitorWithTracker } from "../core/monitor";
-import { AddonTypes } from "./types";
+import type { FunctionMonitorWithTracker } from "@/core/monitor";
+import { AddonTypes } from "@/addons/types";
 
 export function withAddonFunction(): <T extends AddonTypes>(params: { 
   monitor: FunctionMonitorWithTracker,

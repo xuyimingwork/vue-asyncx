@@ -1,8 +1,8 @@
 import { computed, ref, shallowRef } from "vue"
 import type { Ref, ShallowRef } from "vue"
-import type { FunctionMonitorWithTracker } from "../../core/monitor"
-import type { Track } from "../../core/tracker"
-import { STATE } from "../../core/tracker"
+import type { FunctionMonitorWithTracker } from "@/core/monitor"
+import type { Track } from "@/core/tracker"
+import { STATE } from "@/core/tracker"
 import { prepareAsyncDataContext } from "./context"
 import { normalizeEnhancedArguments } from "./enhance"
 

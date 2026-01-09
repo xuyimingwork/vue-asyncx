@@ -1,5 +1,5 @@
-import { Addons, GetAddonResultsDuplicateKeys, MergeAddonResults } from "../addons/types"
-import { BaseFunction } from "../utils/types"
+import { Addons, GetAddonResultsDuplicateKeys, MergeAddonResults } from "@/addons/types"
+import { BaseFunction } from "@/utils/types"
 
 /**
  * 核心接口，用于组织和执行带有插件（Addons）的函数。

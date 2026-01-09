@@ -1,5 +1,5 @@
 import { computed, ComputedRef, Ref, ref } from "vue"
-import { max } from "../utils/base";
+import { max } from "@/utils/base";
 
 export type Track = {
   readonly sn: number

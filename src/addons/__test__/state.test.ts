@@ -1,9 +1,9 @@
 // addons.state.test.ts
-import { withFunctionMonitor } from '../../core/monitor'
-import { useStateLoading } from '../loading'
-import { useStateParameters } from '../arguments'
-import { useStateError } from '../error'
-import { useStateData } from '../data/state'
+import { withFunctionMonitor } from '@/core/monitor'
+import { useStateLoading } from '@/addons/loading'
+import { useStateParameters } from '@/addons/arguments'
+import { useStateError } from '@/addons/error'
+import { useStateData } from '@/addons/data/state'
 import { describe, expect, it, vi, afterEach } from 'vitest'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))

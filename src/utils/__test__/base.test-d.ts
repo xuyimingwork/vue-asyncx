@@ -1,5 +1,5 @@
 import { describe, expectTypeOf, test } from 'vitest'
-import type { ObjectShape } from '../types';
+import type { ObjectShape } from '@/utils/types';
 
 describe('ObjectShape types', () => {
   test('should return {} when any', () => {
