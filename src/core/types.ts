@@ -42,3 +42,4 @@ export interface SetupFunctionPipeline {
       : { addons: `Error: Duplicate key [${GetAddonResultsDuplicateKeys<AddonResults>}]` }
   )): MergeAddonResults<AddonResults>
 }
+

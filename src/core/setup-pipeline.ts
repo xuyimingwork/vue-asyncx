@@ -1,5 +1,5 @@
-import { useSetup } from "../shared/function";
-import { withFunctionMonitor } from "../utils/monitor";
+import { useSetup } from "./use-setup";
+import { withFunctionMonitor } from "./monitor";
 import { message } from "../utils/base";
 import { SetupFunctionPipeline } from "./types";
 
@@ -37,3 +37,4 @@ function mergeAddonResults(base: any, patch: any): any {
 function getDuplicateKeys(obj1: object, obj2: object): string[] {
   return Object.keys(obj2).filter(key => key in obj1)
 }
+
