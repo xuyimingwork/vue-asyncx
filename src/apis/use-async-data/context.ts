@@ -1,4 +1,4 @@
-import { message } from "../utils/base"
+import { message } from "../../utils/base"
 
 type ContextGetter<D = any> = () => { 
   getData: () => D,
@@ -58,3 +58,4 @@ export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGett
 export function getAsyncDataContext(): ReturnType<ContextGetter> | null {
   return currentContextGetter()
 }
+

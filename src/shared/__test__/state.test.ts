@@ -1,6 +1,9 @@
 // utils.state.test.ts
-import { withFunctionMonitor } from '../../utils/monitor'
-import { useStateLoading, useStateParameters, useStateError, useStateData } from '../state'
+import { withFunctionMonitor } from '../../core/monitor'
+import { useStateLoading } from '../../addons/loading'
+import { useStateParameters } from '../../addons/arguments'
+import { useStateError } from '../../addons/error'
+import { useStateData } from '../../addons/data'
 import { describe, expect, it, vi, afterEach } from 'vitest'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))

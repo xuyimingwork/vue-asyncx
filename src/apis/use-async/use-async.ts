@@ -1,11 +1,11 @@
-import { parseArguments } from "../shared/function"
-import { setupFunctionPipeline } from "../pipeline/setup-function-pipeline"
-import { withAddonLoading } from "../addons/loading"
-import { withAddonArguments } from "../addons/arguments"
-import { withAddonError } from "../addons/error"
-import { withAddonFunction } from "../addons/function"
-import { withAddonWatch } from "../addons/watch"
-import { toNamedAddons } from "../addons/utils"
+import { parseArguments } from "../../core/parse-arguments"
+import { setupFunctionPipeline } from "../../core/setup-pipeline"
+import { withAddonLoading } from "../../addons/loading"
+import { withAddonArguments } from "../../addons/arguments"
+import { withAddonError } from "../../addons/error"
+import { withAddonFunction } from "../../addons/function"
+import { withAddonWatch } from "../../addons/watch"
+import { toNamedAddons } from "../../addons/utils"
 import type { UseAsync } from './types'
 
 export const useAsync: UseAsync = (...args) => {
