@@ -1,6 +1,7 @@
 import { Ref, ShallowRef } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "../use-async/types"
-import { Simplify, StringDefaultWhenEmpty, upperFirst } from "../utils";
+import { Simplify, upperFirst } from "../utils";
+import type { NonEmptyString } from "../utils/types/utils";
 import { parseArguments } from "../shared/function";
 import { useAsync } from "../use-async/use-async";
 import { withAddonData } from "../addons/data";
@@ -19,9 +20,9 @@ export type UseAsyncDataResult<
   Fn extends (...args: any) => any,
   DataName extends string,
   Shallow extends boolean = false
-> = Simplify<UseAsyncResult<Fn, `query${Capitalize<(StringDefaultWhenEmpty<DataName, 'data'>)>}`> 
+> = Simplify<UseAsyncResult<Fn, `query${Capitalize<(NonEmptyString<DataName, 'data'>)>}`> 
   & { 
-  [K in (StringDefaultWhenEmpty<DataName, 'data'>)]: Shallow extends true 
+  [K in (NonEmptyString<DataName, 'data'>)]: Shallow extends true 
     ? ShallowRef<Awaited<ReturnType<Fn>>> 
     : Ref<Awaited<ReturnType<Fn>>> 
 } & {
@@ -39,7 +40,7 @@ export type UseAsyncDataResult<
    * case2: p1 ok，p2 error，p3 pending，data 来自 p1，error 为 undefined，expired 为 true
    * case3: p1 ok, p2 error，p3 update，data 来自 p3，error 为 undefined，expired 为 false
    */
-  [K in `${StringDefaultWhenEmpty<DataName, 'data'>}Expired`]: Ref<boolean>
+  [K in `${NonEmptyString<DataName, 'data'>}Expired`]: Ref<boolean>
 }>
 
 export function useAsyncData<

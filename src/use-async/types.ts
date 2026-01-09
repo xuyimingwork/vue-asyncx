@@ -1,6 +1,6 @@
 import type { ComputedRef, Ref, WatchCallback, WatchOptions, WatchSource } from 'vue'
-import type { Simplify, StringDefaultWhenEmpty } from '../utils/index'
-import { Fn as BaseFunction } from "../utils/base";
+import type { Simplify } from '../utils/index'
+import type { BaseFunction, NonEmptyString } from "../utils/types/utils";
 import { Addons, MergeAddonResults } from '../addons/types';
 import { CamelReplaceKeys } from '../utils/types/utils';
 
@@ -9,15 +9,15 @@ export type UseAsyncResult<
   Name extends string,
   AddonResults extends any[] = any
 > = Simplify<{
-  [K in StringDefaultWhenEmpty<Name, 'method'>]: Fn
+  [K in NonEmptyString<Name, 'method'>]: Fn
 } & {
-  [K in `${StringDefaultWhenEmpty<Name, 'method'>}Loading`]: Ref<boolean>
+  [K in `${NonEmptyString<Name, 'method'>}Loading`]: Ref<boolean>
 } & {
-  [K in `${StringDefaultWhenEmpty<Name, 'method'>}Arguments`]: ComputedRef<Parameters<Fn>>
+  [K in `${NonEmptyString<Name, 'method'>}Arguments`]: ComputedRef<Parameters<Fn>>
 } & {
-  [K in `${StringDefaultWhenEmpty<Name, 'method'>}ArgumentFirst`]: ComputedRef<Parameters<Fn>['0']>
+  [K in `${NonEmptyString<Name, 'method'>}ArgumentFirst`]: ComputedRef<Parameters<Fn>['0']>
 } & {
-  [K in `${StringDefaultWhenEmpty<Name, 'method'>}Error`]: Ref<any>
+  [K in `${NonEmptyString<Name, 'method'>}Error`]: Ref<any>
 } & CamelReplaceKeys<MergeAddonResults<AddonResults>, Name>>
 
 export interface UseAsyncWatchOptions<Fn extends BaseFunction> extends WatchOptions {
