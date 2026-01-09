@@ -5,7 +5,7 @@ import { withAddonArguments } from "../../addons/arguments"
 import { withAddonError } from "../../addons/error"
 import { withAddonFunction } from "../../addons/function"
 import { withAddonWatch } from "../../addons/watch"
-import { toNamedAddons } from "../../addons/utils"
+import { toNamedAddons } from "../../core/naming"
 import type { UseAsync } from './types'
 
 export const useAsync: UseAsync = (...args) => {
