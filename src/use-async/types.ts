@@ -1,8 +1,7 @@
 import type { ComputedRef, Ref, WatchCallback, WatchOptions, WatchSource } from 'vue'
-import type { Simplify } from '../utils/index'
-import type { BaseFunction, NonEmptyString } from "../utils/types/utils";
+import type { BaseFunction, NonEmptyString, Simplify } from "../utils/types";
 import { Addons, MergeAddonResults } from '../addons/types';
-import { CamelReplaceKeys } from '../utils/types/utils';
+import { CamelReplaceKeys } from '../utils/types';
 
 export type UseAsyncResult<
   Fn extends BaseFunction, 

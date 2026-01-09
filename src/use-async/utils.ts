@@ -1,6 +1,6 @@
 import { WatchCallback, WatchOptions, WatchSource } from "vue";
 import { UseAsyncOptions } from "./types";
-import { getFunction } from "../utils";
+import { getFunction } from "../utils/base";
 
 export function normalizeWatchOptions<Fn extends (...args: any) => any>(
   method: Fn,
