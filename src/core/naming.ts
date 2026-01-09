@@ -56,3 +56,4 @@ function toNamedAddonResultKey(name: string, key: string): string | undefined {
     : key 
   return raw.replace(new RegExp(PLACEHOLDER, 'g'), upperFirst(name))
 }
+

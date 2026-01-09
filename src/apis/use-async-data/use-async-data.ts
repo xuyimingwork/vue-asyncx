@@ -5,7 +5,7 @@ import type { NonEmptyString, Simplify } from "../../utils/types";
 import { parseArguments } from "../../core/parse-arguments";
 import { useAsync } from "../use-async/use-async";
 import { withAddonData } from "../../addons/data";
-import { toNamedAddons } from "../../addons/utils";
+import { toNamedAddons } from "../../core/naming";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -69,6 +69,5 @@ export function useAsyncData(...args: any[]): any {
 }
 
 
-export { unFirstArgumentEnhanced } from '../../addons/data/enhance'
-export { getAsyncDataContext } from '../../addons/data/context'
+export { unFirstArgumentEnhanced, getAsyncDataContext } from '../../addons/data'
 
