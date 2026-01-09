@@ -1,5 +1,5 @@
-// utils.tracker.test.ts
-import { createTracker, STATE } from '../../core/tracker'
+// core.tracker.test.ts
+import { createTracker, STATE } from '../tracker'
 import { describe, expect, it, vi, afterEach } from 'vitest'
 
 // Symbol keys for testing
@@ -700,3 +700,4 @@ describe('createTracker', () => {
     })
   })
 })
+
