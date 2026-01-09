@@ -69,6 +69,6 @@ export function useAsyncData(...args: any[]): any {
 }
 
 
-export { unFirstArgumentEnhanced } from './enhance-first-argument'
-export { getAsyncDataContext } from './context'
+export { unFirstArgumentEnhanced } from '../../addons/data/enhance'
+export { getAsyncDataContext } from '../../addons/data/context'
 

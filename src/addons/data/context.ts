@@ -58,4 +58,3 @@ export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGett
 export function getAsyncDataContext(): ReturnType<ContextGetter> | null {
   return currentContextGetter()
 }
-
