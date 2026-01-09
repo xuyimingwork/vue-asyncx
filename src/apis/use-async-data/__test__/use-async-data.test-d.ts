@@ -1,5 +1,5 @@
 import { describe, expectTypeOf, test } from 'vitest'
-import { useAsyncData } from '../apis/use-async-data/use-async-data'
+import { useAsyncData } from '../use-async-data'
 import { ComputedRef, Ref } from 'vue'
 
 describe('useAsyncData type', () => {
@@ -39,3 +39,4 @@ describe('useAsyncData type', () => {
     expectTypeOf(useAsyncData('one', fnAsync)).toEqualTypeOf<ResultWithName<typeof fnAsync>>()
   })
 })
+
