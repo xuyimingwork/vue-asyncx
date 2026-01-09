@@ -13,6 +13,7 @@ type MapKeysSmart<T, Name extends string, Placeholder extends string = "__placeh
 
 interface Example {
   __placeholder___id: number;     // 预期：user_id
+  __placeholder____placeholder___id: number;     // 预期：user_id
   current__placeholder__: string; // 预期：currentUser
   __placeholder__Data: boolean;   // 预期：UserData
   query__placeholder__Data: any; // 预期 queryUserName

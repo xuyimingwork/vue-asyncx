@@ -2,8 +2,9 @@ import { Ref, ShallowRef } from "vue"
 import type { UseAsyncOptions, UseAsyncResult } from "../use-async/types"
 import { Simplify, StringDefaultWhenEmpty, upperFirst } from "../utils";
 import { parseArguments } from "../shared/function";
-import { useStateData } from "../shared/state";
-import { _useAsync } from "../use-async/use-async";
+import { useAsync } from "../use-async/use-async";
+import { withAddonData } from "../addons/data";
+import { toNamedAddons } from "../addons/utils";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -54,43 +55,18 @@ export function useAsyncData<
 >(name: DataName, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>): UseAsyncDataResult<Fn, DataName, Shallow>
 export function useAsyncData(...args: any[]): any {
   const { name = 'data', fn, options } = parseArguments(args)
-  return _useAsyncData({ name, fn, options })
-}
-
-function _useAsyncData<
-  Name extends string,
-  Fn extends (...args: any) => any,
-  Shallow extends boolean = false
->({
-  name, fn, options
-}: {
-  name: Name, fn: Fn, options?: UseAsyncDataOptions<Fn, Shallow>
-}) {
-  type _Name = StringDefaultWhenEmpty<Name, 'data'>
-  const queryName = `query${upperFirst(name as _Name) }` as const
-  return _useAsync({ 
-    name: queryName, fn, options,
-    plugins: [
-      {
-        state({ monitor }): {
-          [K in _Name]: Shallow extends true 
-            ? ShallowRef<Awaited<ReturnType<Fn>>> 
-            : Ref<Awaited<ReturnType<Fn>>> 
-        } & {
-          [K in `${_Name}Expired`]: Ref<boolean>
-        } {
-          const {
-            data, dataExpired
-          } = useStateData(monitor, options)
-          return {
-            [name]: data,
-            [`${name}Expired`]: dataExpired
-          } as any
-        }
-      }
-    ]
+  const queryName = `query${upperFirst(name) }` as const
+  return useAsync(queryName, fn, {
+    ...options,
+    addons: toNamedAddons(name, [
+      withAddonData({
+        ...options,
+        type: 'data'
+      })
+    ])
   })
 }
+
 
 export { unFirstArgumentEnhanced } from './enhance-first-argument'
 export { getAsyncDataContext } from './context'

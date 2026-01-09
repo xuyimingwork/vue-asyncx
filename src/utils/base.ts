@@ -34,13 +34,22 @@ export type IsUnion<T, U = T> = T extends U
     : true 
   : never;
 
-export function upperFirst<Name extends string>(string: Name): UpperFirst<Name> {
+export function upperFirst<Name extends string>(string: Name): Capitalize<Name> {
   if (!string) return '' as any
 
   const chr = string[0]
   const trailing = string.slice(1)
 
   return chr.toUpperCase() + trailing as any
+}
+
+export function lowerFirst<Name extends string>(string: Name): Uncapitalize<Name> {
+  if (!string) return '' as any
+
+  const chr = string[0]
+  const trailing = string.slice(1)
+
+  return chr.toLowerCase() + trailing as any
 }
 
 export function max(...args: number[]): number | undefined {
@@ -72,12 +81,4 @@ export function getFunction<C, F extends (...args: any[]) => any>(creator: C, ar
     warn(error, e)
     return fallback as any
   }
-}
-
-export function runFunctions<const Fns extends readonly Fn[]>(fns: Fns): MergeReturnTypes<Fns> {
-  return fns.reduce((acc, fn) => {
-    const result = fn();
-    if (typeof result !== 'object' || !result) return acc
-    return { ...acc, ...result };
-  }, {})
 }
