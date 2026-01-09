@@ -65,4 +65,3 @@ export function normalizeEnhancedArguments<Args extends any[]>(args: Args, conte
   }
   return [first, ...restArgs] as any
 }
-

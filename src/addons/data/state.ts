@@ -1,11 +1,10 @@
 import { computed, ref, shallowRef } from "vue"
 import type { Ref, ShallowRef } from "vue"
-import type { FunctionMonitorWithTracker } from "../core/monitor"
-import type { Track } from "../core/tracker"
-import { STATE } from "../core/tracker"
-import { AddonTypes } from "./types"
-import { prepareAsyncDataContext } from "../apis/use-async-data/context"
-import { normalizeEnhancedArguments } from "../apis/use-async-data/enhance-first-argument"
+import type { FunctionMonitorWithTracker } from "../../core/monitor"
+import type { Track } from "../../core/tracker"
+import { STATE } from "../../core/tracker"
+import { prepareAsyncDataContext } from "./context"
+import { normalizeEnhancedArguments } from "./enhance"
 
 /**
  * Creates reactive data state that tracks function return values.
@@ -101,38 +100,4 @@ export function useStateData<Data = any>(
     data,
     dataExpired
   }
-}
-
-export function withAddonData<Config extends { 
-  type?: 'function' | 'data'
-  shallow?: boolean,
-  initialData?: any
-}>(config?: Config): 
-<T extends AddonTypes>(p: { _types: T }) => () => Config['type'] extends 'function' 
-  ? { 
-    __name__Data: Config['shallow'] extends true 
-      ? ShallowRef<Awaited<ReturnType<T['Method']>>> 
-      : Ref<Awaited<ReturnType<T['Method']>>> 
-    __name__DataExpired: Ref<boolean>
-  }
-  : {
-    __name__: Config['shallow'] extends true 
-      ? ShallowRef<Awaited<ReturnType<T['Method']>>> 
-      : Ref<Awaited<ReturnType<T['Method']>>> 
-    __name__Expired: Ref<boolean>
-  } {
-  const { type, ...options } = config
-  return (({ monitor }) => {
-    const {
-      data, dataExpired
-    } = useStateData(monitor, options)
-    if (type === 'function') return {
-      __name__Data: data,
-      __name__DataExpired: dataExpired
-    }
-    return {
-      __name__: data,
-      __name__Expired: dataExpired
-    }
-  }) as any
 }
