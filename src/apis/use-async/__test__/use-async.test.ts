@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { nextTick, reactive, ref } from 'vue'
-import { useAsync, useAsyncFunction } from '../apis/use-async/use-async'
+import { useAsync, useAsyncFunction } from '../use-async'
 import { debounce } from 'es-toolkit'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -852,3 +852,4 @@ describe('useAsync', () => {
     })
   })
 })
+
