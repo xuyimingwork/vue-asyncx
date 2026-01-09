@@ -9,4 +9,3 @@ export function parseArguments(args: any[]): { name?: string, fn: (...args: any)
   if (typeof fn !== 'function') throw TypeError(message(`Expected "fn" to be a function, but received ${typeof fn}.`))
   return { name, fn, options }
 }
-

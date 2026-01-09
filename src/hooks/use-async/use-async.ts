@@ -1,4 +1,3 @@
-import { parseArguments } from "@/core/parse-arguments"
 import { setupFunctionPipeline } from "@/core/setup-pipeline"
 import { withAddonLoading } from "@/addons/loading"
 import { withAddonArguments } from "@/addons/arguments"
@@ -7,6 +6,7 @@ import { withAddonFunction } from "@/addons/function"
 import { withAddonWatch } from "@/addons/watch"
 import { toNamedAddons } from "@/core/naming"
 import type { UseAsync } from './types'
+import { parseArguments } from "@/hooks/utils"
 
 export const useAsync: UseAsync = (...args) => {
   const { name = 'method', fn, options } = parseArguments(args)
