@@ -1,5 +1,5 @@
 import { Ref, ref } from "vue"
-import type { FunctionMonitorWithTracker } from "../core/monitor"
+import type { FunctionMonitorWithTracker } from "@/core/monitor"
 
 /**
  * Creates a reactive loading state that tracks function execution.

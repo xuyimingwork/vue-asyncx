@@ -1,6 +1,6 @@
 import { ref } from "vue"
 import type { Ref } from "vue"
-import type { FunctionMonitorWithTracker } from "../core/monitor"
+import type { FunctionMonitorWithTracker } from "@/core/monitor"
 
 /**
  * Creates a reactive error state that tracks function errors.

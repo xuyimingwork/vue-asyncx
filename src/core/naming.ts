@@ -1,6 +1,6 @@
-import { upperFirst } from "../utils/base";
-import { lowerFirst } from "../utils/base";
-import { BaseFunction, CamelReplaceKeys } from "../utils/types";
+import { upperFirst } from "@/utils/base";
+import { lowerFirst } from "@/utils/base";
+import { BaseFunction, CamelReplaceKeys } from "@/utils/types";
 
 export const PLACEHOLDER = '__name__'
 

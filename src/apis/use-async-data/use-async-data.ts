@@ -1,11 +1,11 @@
 import { Ref, ShallowRef } from "vue"
-import type { UseAsyncOptions, UseAsyncResult } from "../use-async/types"
-import { upperFirst } from "../../utils/base";
-import type { NonEmptyString, Simplify } from "../../utils/types";
-import { parseArguments } from "../../core/parse-arguments";
-import { useAsync } from "../use-async/use-async";
-import { withAddonData } from "../../addons/data";
-import { toNamedAddons } from "../../core/naming";
+import type { UseAsyncOptions, UseAsyncResult } from "@/apis/use-async/types"
+import { upperFirst } from "@/utils/base";
+import type { NonEmptyString, Simplify } from "@/utils/types";
+import { parseArguments } from "@/core/parse-arguments";
+import { useAsync } from "@/apis/use-async/use-async";
+import { withAddonData } from "@/addons/data";
+import { toNamedAddons } from "@/core/naming";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,
@@ -69,5 +69,5 @@ export function useAsyncData(...args: any[]): any {
 }
 
 
-export { unFirstArgumentEnhanced, getAsyncDataContext } from '../../addons/data'
+export { unFirstArgumentEnhanced, getAsyncDataContext } from '@/addons/data'
 

@@ -1,4 +1,4 @@
-import { message } from "../../utils/base"
+import { message } from "@/utils/base"
 
 const FLAG_FIRST_ARGUMENT_ENHANCED = '__va_fae'
 

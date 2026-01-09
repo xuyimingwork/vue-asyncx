@@ -1,4 +1,4 @@
-import { getFunction } from "../utils/base"
+import { getFunction } from "@/utils/base"
 
 export function useSetup<
   Fn extends (...args: any) => any,

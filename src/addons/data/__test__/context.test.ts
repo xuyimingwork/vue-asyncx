@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { getAsyncDataContext, prepareAsyncDataContext } from "../context"
+import { getAsyncDataContext, prepareAsyncDataContext } from "@/addons/data/context"
 
 describe('context single', () => {
   test('should return null when not prepare', () => {

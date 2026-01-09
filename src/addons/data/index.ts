@@ -1,6 +1,6 @@
 import type { Ref, ShallowRef } from "vue"
-import type { FunctionMonitorWithTracker } from "../../core/monitor"
-import { AddonTypes } from "../types"
+import type { FunctionMonitorWithTracker } from "@/core/monitor"
+import { AddonTypes } from "@/addons/types"
 import { useStateData } from "./state"
 
 export function withAddonData<Config extends { 

@@ -1,4 +1,4 @@
-import { createTracker, Track, Tracker } from "./tracker"
+import { createTracker, Track, Tracker } from "@/core/tracker"
 
 export type FunctionMonitorEventMap = {
   'init': { args: any[], track: Track }

@@ -1,6 +1,6 @@
 import { useSetup } from "./use-setup";
 import { withFunctionMonitor } from "./monitor";
-import { message } from "../utils/base";
+import { message } from "@/utils/base";
 import { SetupFunctionPipeline } from "./types";
 
 const setupFunctionPipeline: SetupFunctionPipeline = (options) => {
