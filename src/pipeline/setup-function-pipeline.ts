@@ -1,5 +1,5 @@
 import { useSetup } from "../shared/function";
-import { withFunctionMonitor } from "../utils";
+import { withFunctionMonitor } from "../utils/monitor";
 import { message } from "../utils/base";
 import { SetupFunctionPipeline } from "./types";
 

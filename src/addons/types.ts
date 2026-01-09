@@ -1,5 +1,5 @@
-import type { FunctionMonitorWithTracker } from "../utils"
-import type { BaseFunction, IsUnion, MergeTypes, ObjectShape, ObjectShapeList } from "../utils/types/utils"
+import type { FunctionMonitorWithTracker } from "../utils/monitor"
+import type { BaseFunction, IsUnion, MergeTypes, ObjectShape, ObjectShapeList } from "../utils/types"
 
 export interface AddonTypes<M extends BaseFunction = any> {
   Method: M
