@@ -2,12 +2,13 @@ import { computed, ref } from "vue";
 import type { ComputedRef, Ref } from "vue";
 import type { FunctionMonitorWithTracker } from "@/core/monitor";
 import { AddonTypes } from "@/addons/types";
+import { BaseFunction } from "@/utils/types";
 
 /**
  * Creates reactive parameter state that tracks function arguments.
  * Returns parameters during execution, undefined when complete (if latest call).
  */
-export function useStateParameters<Fn extends (...args: any) => any>(
+export function useStateParameters<Fn extends BaseFunction>(
   monitor: FunctionMonitorWithTracker
 ): {
   parameters: ComputedRef<Parameters<Fn> | undefined>

@@ -2,8 +2,9 @@ import { watch } from "vue"
 import type { WatchCallback, WatchOptions, WatchSource } from "vue"
 import { getFunction } from "@/utils/base"
 import { AddonTypes } from "@/addons/types"
+import { BaseFunction } from "@/utils/types"
 
-function normalizeWatchOptions<Fn extends (...args: any) => any>(
+function normalizeWatchOptions<Fn extends BaseFunction>(
   method: Fn,
   options?: {
     watch?: WatchSource | WatchSource[]
@@ -39,7 +40,7 @@ function normalizeWatchOptions<Fn extends (...args: any) => any>(
   }
 }
 
-function useWatch(fn: (...args: any) => any, options?: any): void {
+function useWatch(fn: BaseFunction, options?: any): void {
   const watchConfig = normalizeWatchOptions(fn, options)
   if (!watchConfig) return
   watch(watchConfig.source, watchConfig.handler, watchConfig.options)

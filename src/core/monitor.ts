@@ -1,4 +1,5 @@
 import { createTracker, Track, Tracker } from "@/core/tracker"
+import { BaseFunction } from "@/utils/types"
 
 export type FunctionMonitorEventMap = {
   'init': { args: any[], track: Track }
@@ -77,7 +78,7 @@ function runInterceptor(interceptor?: () => any, fallback?: any) {
   return result
 }
 
-export function withFunctionMonitor<Fn extends (...args: any) => any>(
+export function withFunctionMonitor<Fn extends BaseFunction>(
   fn: Fn
 ): {
   run: Fn
