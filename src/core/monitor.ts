@@ -49,15 +49,16 @@ type EventHandler<T extends keyof FunctionMonitorEventMap> = (
  * @description 提供函数执行生命周期的事件发布订阅机制。
  * 支持监听 init、before、after、fulfill、reject 等事件。
  */
-interface BaseFunctionMonitor {
+interface InternalFunctionMonitor {
   /**
+   * @deprecated 该 API 仅用于内部兼容功能（如已废弃的 enhanceFirstArgument），外部调用无效
+   * @internal 该 API 仅用于内部兼容功能（如已废弃的 enhanceFirstArgument），外部调用无效
+   * 
    * 设置参数增强拦截器
    * 
    * @description 这是一个特殊的拦截器机制，用于在函数执行前转换参数。
    * 执行顺序：init → before → enhance-arguments → after → fulfill/reject
-   * 
-   * @internal 该 API 仅用于内部兼容功能（如已废弃的 enhanceFirstArgument），不对外暴露。
-   * 对事件监听器是透明的，只能设置一个拦截器，后设置的会覆盖先设置的。
+   * 覆盖逻辑：只能设置一个拦截器，后设置的会覆盖先设置的
    * 
    * @param event - 事件类型，固定为 'enhance-arguments'
    * @param handler - 拦截器函数，接收参数和 track，返回转换后的参数数组或 void
@@ -120,7 +121,7 @@ interface BaseFunctionMonitor {
  * @description 扩展了基础监控器，添加了调用追踪能力。
  * 提供 `has.finished` 属性，用于查询是否已有完成的调用。
  */
-export interface FunctionMonitor extends BaseFunctionMonitor {
+export type FunctionMonitor = Pick<InternalFunctionMonitor, 'on' | 'off' | 'use'> & {
   /**
    * 调用追踪状态
    */
@@ -142,18 +143,19 @@ export interface FunctionMonitor extends BaseFunctionMonitor {
  * 
  * @internal 内部实现，不对外暴露
  */
-function createBaseFunctionMonitor(): BaseFunctionMonitor {
+function createInternalFunctionMonitor(): InternalFunctionMonitor {
   // 使用 Map 存储每个事件类型的处理器集合
   const handlers = new Map<keyof FunctionMonitorEventMap, Set<EventHandler<any>>>()
   
   // 参数增强拦截器（特殊机制，只允许一个）
   let enhanceArgumentsInterceptor: ((data: { args: any[], track: Track }) => any[] | void) | undefined
 
-  const monitor: BaseFunctionMonitor = {
+  const monitor: InternalFunctionMonitor = {
     use(event: 'enhance-arguments', handler: any): void {
-      if (event === 'enhance-arguments') return enhanceArgumentsInterceptor = handler
+      if (event === 'enhance-arguments' && handler?.[ENHANCE_ARGUMENTS_HANDLER]) return enhanceArgumentsInterceptor = handler
     },
     get(event: 'enhance-arguments'): any {
+      /* v8 ignore else -- @preserve enhance-arguments 是唯一情况 */
       if (event === 'enhance-arguments') return enhanceArgumentsInterceptor
     },
     on<T extends keyof FunctionMonitorEventMap>(event: T, handler: EventHandler<T>) {
@@ -177,6 +179,16 @@ function createBaseFunctionMonitor(): BaseFunctionMonitor {
   }
 
   return monitor
+}
+
+function createFunctionMonitor(monitor: InternalFunctionMonitor, tracker: Tracker): FunctionMonitor {
+  const { on, off, use } = monitor
+  return {
+    on, off, use,
+    has: {
+      finished: tracker.has.finished
+    }
+  }
 }
 
 /**
@@ -245,12 +257,7 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
   const tracker = createTracker()
   
   // 创建函数监控器
-  const monitor = createBaseFunctionMonitor() as FunctionMonitor
-  
-  // 设置委托到 tracker.has.finished
-  monitor.has = {
-    finished: tracker.has.finished
-  }
+  const monitor = createInternalFunctionMonitor()
 
   // 包装函数，添加事件监控
   const run = ((...args: Parameters<Fn>): ReturnType<Fn> => {
@@ -315,6 +322,11 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
     }
   }) as Fn
 
-  return { run, monitor }
+  return { run, monitor: createFunctionMonitor(monitor, tracker) }
 }
 
+const ENHANCE_ARGUMENTS_HANDLER: symbol = Symbol('EnhanceArgumentsHandler')
+export function createEnhanceArgumentsHandler<H extends BaseFunction>(handler: H): H & { [ENHANCE_ARGUMENTS_HANDLER]: true } {
+  handler[ENHANCE_ARGUMENTS_HANDLER] = true
+  return handler as H & { [ENHANCE_ARGUMENTS_HANDLER]: true }
+}

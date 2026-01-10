@@ -1,4 +1,4 @@
-import type { FunctionMonitor } from "@/core/monitor"
+import { createEnhanceArgumentsHandler, type FunctionMonitor } from "@/core/monitor"
 import type { Track } from "@/core/tracker"
 import { STATE } from "@/core/tracker"
 import type { Ref, ShallowRef } from "vue"
@@ -54,7 +54,7 @@ import { normalizeEnhancedArguments } from "./enhance"
  */
 export function useStateData<Data = any>(
   monitor: FunctionMonitor,
-  options?: {
+  options: {
     initialData?: Data
     shallow?: boolean
     /**
@@ -71,7 +71,7 @@ export function useStateData<Data = any>(
   const CONTEXT_KEY = Symbol('context')  // 存储上下文对象
   const RESTORE_KEY = Symbol('restore')  // 存储上下文恢复函数
 
-  const { initialData, shallow = false, enhanceFirstArgument = false } = options || {}
+  const { initialData, shallow = false, enhanceFirstArgument = false } = options
   
   // 创建响应式数据引用（根据 shallow 选项选择 ref 或 shallowRef）
   const data = (shallow 
@@ -167,10 +167,10 @@ export function useStateData<Data = any>(
   // @internal enhance-arguments 是内部 API，仅用于兼容已废弃的 enhanceFirstArgument 功能
   // enhance-arguments 事件在 'init' 事件之后触发，此时上下文已准备好
   if (enhanceFirstArgument) {
-    monitor.use('enhance-arguments', ({ args, track }) => {
+    monitor.use('enhance-arguments', createEnhanceArgumentsHandler(({ args, track }) => {
       // 上下文使用后可以删除，因为只需要在这里使用
       return normalizeEnhancedArguments(args, track.takeData(CONTEXT_KEY)!)
-    })
+    }))
   }
 
   /**

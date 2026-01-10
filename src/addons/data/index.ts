@@ -20,7 +20,7 @@ export function withAddonData<Config extends {
       : Ref<Awaited<ReturnType<T['Method']>>> 
     __name__Expired: Ref<boolean>
   } {
-  const { type, ...options } = config
+  const { type, ...options } = config || {}
   return (({ monitor }) => {
     const {
       data, dataExpired
