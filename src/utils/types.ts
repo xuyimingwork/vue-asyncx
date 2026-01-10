@@ -1,6 +1,33 @@
 /**
- * 基础函数类型。
- * 匹配任何具有任意参数和返回值的函数。
+ * @fileoverview 类型工具系统
+ * 
+ * 该模块提供 TypeScript 类型工具，用于支持 Vue-AsyncX 的类型推导。
+ * 
+ * 主要功能：
+ * - 基础类型定义（BaseFunction、Not 等）
+ * - 字符串处理工具（CamelReplace、NonEmptyString 等）
+ * - 对象处理工具（Merge、ObjectShape 等）
+ * - 类型判断工具（IsUnion 等）
+ * 
+ * 这些工具主要用于：
+ * - 插件返回类型的合并和转换
+ * - 命名约定的类型推导
+ * - 类型安全的保障
+ * 
+ * @module utils/types
+ */
+
+/**
+ * 基础函数类型
+ * 
+ * @description 匹配任何具有任意参数和返回值的函数。
+ * 用于约束函数类型，确保类型安全。
+ * 
+ * @example
+ * ```ts
+ * const fn: BaseFunction = () => {}
+ * const fn2: BaseFunction = (a: number) => a
+ * ```
  */
 export type BaseFunction = (...args: any) => any;
 

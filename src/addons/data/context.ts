@@ -1,18 +1,100 @@
+/**
+ * @fileoverview 异步数据上下文管理
+ * 
+ * 该模块提供异步数据上下文的全局管理机制。
+ * 上下文只在函数执行的同步部分可用，用于在函数执行过程中访问和更新数据。
+ * 
+ * ## 工作原理
+ * 
+ * 1. 在函数调用前（before 事件），通过 `prepareAsyncDataContext` 设置上下文
+ * 2. 在函数执行期间（同步部分），可以通过 `getAsyncDataContext` 获取上下文
+ * 3. 在函数执行后（after 事件），通过恢复函数移除上下文
+ * 
+ * ## 限制
+ * 
+ * - 上下文只在函数执行的同步部分可用
+ * - 在异步回调中无法获取上下文（会返回 null）
+ * - 嵌套调用必须按顺序恢复上下文
+ * 
+ * @module addons/data/context
+ */
+
 import { message } from "@/utils/base"
 
+/**
+ * 上下文获取器类型
+ * 
+ * @description 用于获取上下文对象的函数类型。
+ * 
+ * @template D - 数据类型
+ */
 type ContextGetter<D = any> = () => { 
   getData: () => D,
   updateData: (v: D) => void
 }
 
+/**
+ * 当前上下文获取器
+ * 
+ * @description 全局变量，存储当前活跃的上下文获取器。
+ * 如果当前不在函数执行上下文中，返回 null。
+ * 
+ * @internal 内部实现，不对外暴露
+ */
 let currentContextGetter: ContextGetter | (() => null) = () => null
 
+/**
+ * 准备异步数据上下文
+ * 
+ * @description 设置全局上下文，使得 `getAsyncDataContext` 可以获取到上下文。
+ * 返回一个恢复函数，用于在函数执行后恢复之前的上下文状态。
+ * 
+ * 嵌套调用处理：
+ * - 支持嵌套调用，但必须按顺序恢复
+ * - 如果恢复顺序错误，会抛出错误
+ * 
+ * @template D - 数据类型
+ * 
+ * @param context - 上下文对象，包含 getData 和 updateData 方法
+ * 
+ * @returns 返回上下文恢复函数，调用后会恢复之前的上下文状态
+ * 
+ * @internal 内部实现，不对外暴露
+ * 
+ * @example
+ * ```ts
+ * const context = { getData: () => data.value, updateData: (v) => data.value = v }
+ * const restore = prepareAsyncDataContext(context)
+ * 
+ * // 此时 getAsyncDataContext() 可以获取到 context
+ * 
+ * restore() // 恢复之前的上下文状态
+ * ```
+ */
 export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGetter<D>>): () => void {
+  // 保存之前的上下文获取器
   const prev = currentContextGetter
+  
+  // 创建新的上下文获取器
   const getter = () => context
+  
+  // 设置当前上下文获取器
   currentContextGetter = getter
+  
+  /**
+   * 恢复异步数据上下文
+   * 
+   * @description 恢复之前的上下文状态。
+   * 如果当前上下文不是当前设置的上下文，说明恢复顺序错误，会抛出错误。
+   * 
+   * @throws {Error} 当嵌套调用恢复顺序错误时抛出错误
+   */
   function restoreAsyncDataContext() {
-    if (getter !== currentContextGetter) throw new Error(message('[Internal] Nested AsyncDataContext must be restored in order.'))
+    // 检查恢复顺序：必须是当前上下文才能恢复
+    if (getter !== currentContextGetter) {
+      throw new Error(message('[Internal] Nested AsyncDataContext must be restored in order.'))
+    }
+    // 恢复之前的上下文
     currentContextGetter = prev
   }
 
