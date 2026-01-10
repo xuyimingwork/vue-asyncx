@@ -1,5 +1,5 @@
 // core.monitor.test.ts
-import { withFunctionMonitor } from '@/core/monitor'
+import { createEnhanceArgumentsHandler, withFunctionMonitor } from '@/core/monitor'
 import { STATE } from '@/core/tracker'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -17,7 +17,6 @@ describe('withFunctionMonitor', () => {
       expect(monitor).toBeTypeOf('object')
       expect(monitor.on).toBeTypeOf('function')
       expect(monitor.off).toBeTypeOf('function')
-      expect(monitor.emit).toBeTypeOf('function')
     })
 
     it('should execute function and return result', () => {
@@ -293,9 +292,9 @@ describe('withFunctionMonitor', () => {
         const fn = vi.fn((a: number, b: number) => a + b)
         const { run, monitor } = withFunctionMonitor(fn)
         
-        monitor.use('enhance-arguments', ({ args }) => {
+        monitor.use('enhance-arguments', createEnhanceArgumentsHandler(({ args }) => {
           return [args[0] * 2, args[1] * 2]
-        })
+        }))
         
         const result = run(1, 2)
         expect(result).toBe(6) // (1*2) + (2*2) = 6
@@ -306,9 +305,9 @@ describe('withFunctionMonitor', () => {
         const fn = vi.fn((a: number) => a)
         const { run, monitor } = withFunctionMonitor(fn)
         
-        monitor.use('enhance-arguments', () => {
+        monitor.use('enhance-arguments', createEnhanceArgumentsHandler(() => {
           // Interceptor doesn't return anything
-        })
+        }))
         
         const result = run(5)
         expect(result).toBe(5)
@@ -319,44 +318,50 @@ describe('withFunctionMonitor', () => {
         const fn = vi.fn((a: number) => a)
         const { run, monitor } = withFunctionMonitor(fn)
         
-        monitor.use('enhance-arguments', ({ args }) => [args[0] * 2])
-        monitor.use('enhance-arguments', ({ args }) => [args[0] * 3]) // Latest will be used
+        monitor.use('enhance-arguments', createEnhanceArgumentsHandler(({ args }) => [args[0] * 2]))
+        monitor.use('enhance-arguments', createEnhanceArgumentsHandler(({ args }) => [args[0] * 3])) // Latest will be used
         
         const result = run(2)
         expect(result).toBe(6) // 2 * 3, latest interceptor
         expect(fn).toHaveBeenCalledWith(6)
       })
 
-      it('should get enhance-arguments handler', () => {
+      it('should only accept handlers created with createEnhanceArgumentsHandler', () => {
         const fn = vi.fn((a: number) => a)
-        const { monitor } = withFunctionMonitor(fn)
+        const { run, monitor } = withFunctionMonitor(fn)
         const handler = vi.fn(({ args }) => [args[0] * 2])
         
-        expect(monitor.get('enhance-arguments')).toBeUndefined()
+        // Direct handler without createEnhanceArgumentsHandler should not work
+        monitor.use('enhance-arguments', handler as any)
+        const result1 = run(5)
+        expect(result1).toBe(5) // Original args used, interceptor not applied
+        expect(fn).toHaveBeenCalledWith(5)
         
-        monitor.use('enhance-arguments', handler)
-        
-        expect(monitor.get('enhance-arguments')).toBe(handler)
+        // Handler created with createEnhanceArgumentsHandler should work
+        const wrappedHandler = createEnhanceArgumentsHandler(vi.fn(({ args }) => [args[0] * 2]))
+        monitor.use('enhance-arguments', wrappedHandler)
+        const result2 = run(5)
+        expect(result2).toBe(10) // Interceptor applied
+        expect(fn).toHaveBeenCalledWith(10)
       })
 
-      it('should set and get enhance-arguments interceptor explicitly', () => {
+      it('should overwrite previous interceptor when setting new one', () => {
         const fn = vi.fn((a: number) => a)
-        const { monitor } = withFunctionMonitor(fn)
-        const handler1 = vi.fn(({ args }) => args)
-        const handler2 = vi.fn(({ args }) => [args[0] * 2])
+        const { run, monitor } = withFunctionMonitor(fn)
+        const handler1 = createEnhanceArgumentsHandler(vi.fn(({ args }) => [args[0] * 2]))
+        const handler2 = createEnhanceArgumentsHandler(vi.fn(({ args }) => [args[0] * 3]))
         
-        // Test get before setting - covers branch 51 when undefined
-        expect(monitor.get('enhance-arguments')).toBeUndefined()
+        // Set first interceptor
+        monitor.use('enhance-arguments', handler1)
+        const result1 = run(2)
+        expect(result1).toBe(4) // 2 * 2
+        expect(fn).toHaveBeenCalledWith(4)
         
-        // Test use - covers branch 47
-        const result1 = monitor.use('enhance-arguments', handler1)
-        expect(monitor.get('enhance-arguments')).toBe(handler1)
-        expect(result1).toBe(handler1)
-        
-        // Test overwrite
-        const result2 = monitor.use('enhance-arguments', handler2)
-        expect(monitor.get('enhance-arguments')).toBe(handler2)
-        expect(result2).toBe(handler2)
+        // Overwrite with second interceptor
+        monitor.use('enhance-arguments', handler2)
+        const result2 = run(2)
+        expect(result2).toBe(6) // 2 * 3, latest interceptor used
+        expect(fn).toHaveBeenCalledWith(6)
       })
 
       it('should handle enhance-arguments interceptor with undefined context', () => {
@@ -364,10 +369,10 @@ describe('withFunctionMonitor', () => {
         const { run, monitor } = withFunctionMonitor(fn)
         
         // Set interceptor that might receive undefined context
-        monitor.use('enhance-arguments', ({ args }) => {
+        monitor.use('enhance-arguments', createEnhanceArgumentsHandler(({ args }) => {
           // Simulate case where context might be undefined
           return args
-        })
+        }))
         
         const result = run(5)
         expect(result).toBe(5)
@@ -375,13 +380,18 @@ describe('withFunctionMonitor', () => {
       })
     })
     describe('undefined interceptor', () => {
-      it('should not get undefined handler', () => {
+      it('should not accept handlers for undefined event types', () => {
         const fn = vi.fn(() => 1)
-        const { monitor } = withFunctionMonitor(fn)
-        const handler = vi.fn(() => 'undefined')
-        expect(monitor.get('undefined' as any)).toBeUndefined()
+        const { run, monitor } = withFunctionMonitor(fn)
+        const handler = createEnhanceArgumentsHandler(vi.fn(() => [999]))
+        
+        // Try to use handler for undefined event type
         monitor.use('undefined' as any, handler as any)
-        expect(monitor.get('undefined' as any)).toBeUndefined()
+        
+        // Function should execute normally without interceptor
+        const result = run()
+        expect(result).toBe(1)
+        expect(fn).toHaveBeenCalledTimes(1)
       })
     })
   })

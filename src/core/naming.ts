@@ -202,6 +202,7 @@ function toNamedAddonResult(name: string, result: any): any {
  */
 function toNamedAddonResultKey(name: string, key: string): string | undefined {
   // 如果 key 不是字符串，返回 undefined
+  /* v8 ignore if -- @preserve 上层通过 Object.keys 调用，不产生 string 实际不会引发问题 */
   if (typeof key !== 'string') return
   
   // 如果 key 不包含占位符，返回 undefined（表示丢弃）
