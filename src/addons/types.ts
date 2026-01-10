@@ -1,4 +1,4 @@
-import type { FunctionMonitorWithTracker } from "@/core/monitor"
+import type { FunctionMonitor } from "@/core/monitor"
 import type { BaseFunction, IsUnion, MergeTypes, ObjectShape, ObjectShapeList } from "@/utils/types"
 
 export interface AddonTypes<M extends BaseFunction = any> {
@@ -23,7 +23,7 @@ export interface AddonTypes<M extends BaseFunction = any> {
  * @example
  * // 1. 基础插件：仅参与 setup 前的监听
  * function withAddonLoading(): (params: { 
- *   monitor: FunctionMonitorWithTracker
+ *   monitor: FunctionMonitor
  * }) => { loading: Ref<boolean> } {
  *   return
  * }
@@ -50,7 +50,7 @@ export interface AddonTypes<M extends BaseFunction = any> {
  * }
  */
 export type Addon<Method extends BaseFunction = any, AddonResult = any> = (params: { 
-  monitor: FunctionMonitorWithTracker, 
+  monitor: FunctionMonitor, 
   _types: AddonTypes<Method>
 }) => (AddonResult | ((params: { method: Method }) => AddonResult))
 

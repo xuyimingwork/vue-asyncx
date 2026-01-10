@@ -1,8 +1,8 @@
 import { AddonTypes } from "@/addons/types";
-import type { FunctionMonitorWithTracker } from "@/core/monitor";
+import type { FunctionMonitor } from "@/core/monitor";
 
 export function withAddonFunction(): <T extends AddonTypes>(params: { 
-  monitor: FunctionMonitorWithTracker,
+  monitor: FunctionMonitor,
   _types: T
 }) => ({ method }: { method: T['Method'] }) => {
   __name__: T['Method']

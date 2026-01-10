@@ -1,7 +1,7 @@
 import { Track, Tracker, createTracker } from "@/core/tracker"
 import { BaseFunction } from "@/utils/types"
 
-export type FunctionMonitorEventMap = {
+type FunctionMonitorEventMap = {
   'init': { args: any[], track: Track }
   'before': { args: any[], track: Track }
   'after': { track: Track }
@@ -13,7 +13,7 @@ type EventHandler<T extends keyof FunctionMonitorEventMap> = (
   event: FunctionMonitorEventMap[T]
 ) => void
 
-export interface FunctionMonitor {
+interface BaseFunctionMonitor {
   /**
    * this is only for compat use, transform is transparent for any event listener
    * order: init before enhance-arguments after fulfill/reject
@@ -35,17 +35,17 @@ export interface FunctionMonitor {
   emit(event: 'after', data: FunctionMonitorEventMap['after']): void
 }
 
-export interface FunctionMonitorWithTracker extends FunctionMonitor {
+export interface FunctionMonitor extends BaseFunctionMonitor {
   has: {
     finished: Tracker['has']['finished']
   }
 }
 
-export function createFunctionMonitor(): FunctionMonitor {
+function createBaseFunctionMonitor(): BaseFunctionMonitor {
   const handlers = new Map<keyof FunctionMonitorEventMap, Set<EventHandler<any>>>()
   let enhanceArgumentsInterceptor: ((data: { args: any[], track: Track }) => any[] | void) | undefined
 
-  const monitor: FunctionMonitor = {
+  const monitor: BaseFunctionMonitor = {
     use(event: 'enhance-arguments', handler: any): void {
       if (event === 'enhance-arguments') return enhanceArgumentsInterceptor = handler
     },
@@ -82,10 +82,10 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
   fn: Fn
 ): {
   run: Fn
-  monitor: FunctionMonitorWithTracker
+  monitor: FunctionMonitor
 } {
   const tracker = createTracker()
-  const monitor = createFunctionMonitor() as FunctionMonitorWithTracker
+  const monitor = createBaseFunctionMonitor() as FunctionMonitor
   
   // Setup delegate to tracker.has.finished
   monitor.has = {
