@@ -5,7 +5,7 @@ import type { NonEmptyString, Simplify } from "@/utils/types";
 import { useAsync } from "@/hooks/use-async/use-async";
 import { withAddonData } from "@/addons/data";
 import { toNamedAddons } from "@/core/naming";
-import { parseArguments } from "@/hooks/utils";
+import { parseArguments } from "@/hooks/shared";
 
 interface _UseAsyncDataOptions<Fn extends (...args: any) => any, Shallow extends boolean> extends UseAsyncOptions<Fn> {
   initialData?: Awaited<ReturnType<Fn>>,

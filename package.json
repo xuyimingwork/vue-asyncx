@@ -19,8 +19,6 @@
     "build": "vite build",
     "test:unit": "vitest",
     "test:unit:coverage": "vitest run --coverage",
-    "test:use-async": "vitest ./src/apis/use-async/__test__/use-async.test.ts",
-    "test:use-async-data": "vitest ./src/apis/use-async-data/__test__/use-async-data.test.ts",
     "test": "pnpm run test:unit",
     "prepublish": "pnpm run build"
   },

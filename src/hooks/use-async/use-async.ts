@@ -6,23 +6,21 @@ import { withAddonFunction } from "@/addons/function"
 import { withAddonWatch } from "@/addons/watch"
 import { toNamedAddons } from "@/core/naming"
 import type { UseAsync } from './types'
-import { parseArguments } from "@/hooks/utils"
+import { parseArguments } from "@/hooks/shared"
 
 export const useAsync: UseAsync = (...args) => {
   const { name = 'method', fn, options } = parseArguments(args)
   return setupFunctionPipeline({
     fn,
     options,
-    addons: [
-      ...toNamedAddons(name, [
-        withAddonLoading(),
-        withAddonError(),
-        withAddonArguments(),
-        withAddonFunction(),
-        withAddonWatch(options)
-      ]),
-      ...(options?.addons || [])
-    ] as any
+    addons: toNamedAddons(name, [
+      withAddonLoading(),
+      withAddonError(),
+      withAddonArguments(),
+      withAddonFunction(),
+      ...(options?.addons || []),
+      withAddonWatch(options)
+    ]) as any
   }) as any
 }
 
