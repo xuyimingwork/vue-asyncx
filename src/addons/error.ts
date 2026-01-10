@@ -1,9 +1,9 @@
-import type { FunctionMonitorWithTracker } from "@/core/monitor"
+import type { FunctionMonitor } from "@/core/monitor"
 import type { Ref } from "vue"
 import { ref } from "vue"
 
 export function withAddonError(): (params: { 
-  monitor: FunctionMonitorWithTracker
+  monitor: FunctionMonitor
 }) => {
   __name__Error: Ref<any>
 } {

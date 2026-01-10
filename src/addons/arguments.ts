@@ -1,10 +1,10 @@
 import { AddonTypes } from "@/addons/types";
-import type { FunctionMonitorWithTracker } from "@/core/monitor";
+import type { FunctionMonitor } from "@/core/monitor";
 import type { ComputedRef } from "vue";
 import { computed, ref } from "vue";
 
 export function withAddonArguments(): <T extends AddonTypes>(params: { 
-  monitor: FunctionMonitorWithTracker,
+  monitor: FunctionMonitor,
   _types: T
 }) => {
   __name__Arguments: ComputedRef<Parameters<T['Method']>>

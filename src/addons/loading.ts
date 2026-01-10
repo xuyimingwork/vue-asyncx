@@ -1,8 +1,8 @@
-import type { FunctionMonitorWithTracker } from "@/core/monitor"
+import type { FunctionMonitor } from "@/core/monitor"
 import { Ref, ref } from "vue"
 
 export function withAddonLoading(): (params: { 
-  monitor: FunctionMonitorWithTracker
+  monitor: FunctionMonitor
 }) => {
   __name__Loading: Ref<boolean>
 } {
