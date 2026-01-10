@@ -3,20 +3,22 @@ import type { BaseFunction, NonEmptyString, Simplify } from "@/utils/types";
 import { Addons, MergeAddonResults } from '@/addons/types';
 import { CamelReplaceKeys } from '@/utils/types';
 
+type UseAsyncNameDefault = 'method'
+
 export type UseAsyncResult<
   Fn extends BaseFunction, 
   Name extends string,
-  AddonResults extends any[] = any
+  AddonResults extends any[] = any[]
 > = Simplify<{
-  [K in NonEmptyString<Name, 'method'>]: Fn
+  [K in NonEmptyString<Name, UseAsyncNameDefault>]: Fn
 } & {
-  [K in `${NonEmptyString<Name, 'method'>}Loading`]: Ref<boolean>
+  [K in `${NonEmptyString<Name, UseAsyncNameDefault>}Loading`]: Ref<boolean>
 } & {
-  [K in `${NonEmptyString<Name, 'method'>}Arguments`]: ComputedRef<Parameters<Fn>>
+  [K in `${NonEmptyString<Name, UseAsyncNameDefault>}Arguments`]: ComputedRef<Parameters<Fn>>
 } & {
-  [K in `${NonEmptyString<Name, 'method'>}ArgumentFirst`]: ComputedRef<Parameters<Fn>['0']>
+  [K in `${NonEmptyString<Name, UseAsyncNameDefault>}ArgumentFirst`]: ComputedRef<Parameters<Fn>['0']>
 } & {
-  [K in `${NonEmptyString<Name, 'method'>}Error`]: Ref<any>
+  [K in `${NonEmptyString<Name, UseAsyncNameDefault>}Error`]: Ref<any>
 } & CamelReplaceKeys<MergeAddonResults<AddonResults>, Name>>
 
 export interface UseAsyncWatchOptions<Fn extends BaseFunction> extends WatchOptions {
@@ -31,12 +33,10 @@ export type UseAsyncOptions<Fn extends BaseFunction, Addons = any> = {
   addons?: Addons
 }
 
-type UseAsyncNameDefault = 'method'
-
 export interface UseAsync {
   <
     Fn extends BaseFunction, 
-    AddonResults extends any[] = any
+    AddonResults extends any[] = any[]
   >(
     fn: Fn, 
     options?: UseAsyncOptions<Fn, Addons<Fn, AddonResults>>
@@ -44,7 +44,7 @@ export interface UseAsync {
   <
     Fn extends BaseFunction, 
     Name extends string = string,
-    AddonResults extends any[] = any
+    AddonResults extends any[] = any[]
   >(
     name: Name, 
     fn: Fn, 
