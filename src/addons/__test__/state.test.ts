@@ -4,7 +4,7 @@ import { useStateLoading } from '@/addons/loading'
 import { useStateParameters } from '@/addons/arguments'
 import { useStateError } from '@/addons/error'
 import { useStateData } from '@/addons/data/state'
-import { describe, expect, it, vi, afterEach } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 

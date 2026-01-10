@@ -1,4 +1,4 @@
-import { createTracker, Track, Tracker } from "@/core/tracker"
+import { Track, Tracker, createTracker } from "@/core/tracker"
 import { BaseFunction } from "@/utils/types"
 
 export type FunctionMonitorEventMap = {

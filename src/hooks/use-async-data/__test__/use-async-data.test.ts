@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { unFirstArgumentEnhanced, useAsyncData, getAsyncDataContext } from '@/hooks/use-async-data/use-async-data'
+import { getAsyncDataContext, unFirstArgumentEnhanced, useAsyncData } from '@/hooks/use-async-data/use-async-data'
 import { isReactive } from 'vue'
 import { debounce, upperFirst } from 'es-toolkit'
 

@@ -1,7 +1,7 @@
-import { useSetup } from "./use-setup";
-import { withFunctionMonitor } from "./monitor";
 import { message } from "@/utils/base";
+import { withFunctionMonitor } from "./monitor";
 import { SetupFunctionPipeline } from "./types";
+import { useSetup } from "./use-setup";
 
 const setupFunctionPipeline: SetupFunctionPipeline = (options) => {
   const { fn, addons } = options
@@ -24,7 +24,7 @@ const setupFunctionPipeline: SetupFunctionPipeline = (options) => {
   }, states)
 }
 
-export { setupFunctionPipeline }
+export { setupFunctionPipeline };
 
 function mergeAddonResults(base: any, patch: any): any {
   if (typeof patch !== 'object' || !patch) return base

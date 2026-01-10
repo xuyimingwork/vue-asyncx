@@ -1,6 +1,6 @@
-import type { Ref, ShallowRef } from "vue"
-import type { UseAsyncOptions, UseAsyncResult } from "@/hooks/use-async/types"
+import type { UseAsyncOptions, UseAsyncResult } from "@/hooks/use-async/types";
 import type { BaseFunction, NonEmptyString, Simplify } from "@/utils/types";
+import type { Ref, ShallowRef } from "vue";
 
 type UseAsyncDataNameDefault = 'data'
 

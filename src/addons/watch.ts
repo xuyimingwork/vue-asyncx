@@ -1,8 +1,8 @@
-import { watch } from "vue"
-import type { WatchCallback, WatchOptions, WatchSource } from "vue"
-import { getFunction } from "@/utils/base"
 import { AddonTypes } from "@/addons/types"
+import { getFunction } from "@/utils/base"
 import { BaseFunction } from "@/utils/types"
+import type { WatchCallback, WatchOptions, WatchSource } from "vue"
+import { watch } from "vue"
 
 function normalizeWatchOptions<Fn extends BaseFunction>(
   method: Fn,

@@ -1,0 +1,19 @@
+# 忽略测试文件
+**/__test__/**
+**/*.test.ts
+**/*.test.tsx
+**/*.test-d.ts
+**/*.spec.ts
+**/*.spec.tsx
+
+# 忽略构建产物
+dist/
+coverage/
+node_modules/
+
+# 忽略 demo
+demo/
+
+# 忽略文档
+docs/
+

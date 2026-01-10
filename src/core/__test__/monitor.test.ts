@@ -1,7 +1,7 @@
 // core.monitor.test.ts
 import { withFunctionMonitor } from '@/core/monitor'
 import { STATE } from '@/core/tracker'
-import { describe, expect, it, vi, afterEach } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
