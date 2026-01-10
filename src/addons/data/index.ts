@@ -1,5 +1,5 @@
-import type { Ref, ShallowRef } from "vue"
 import { AddonTypes } from "@/addons/types"
+import type { Ref, ShallowRef } from "vue"
 import { useStateData } from "./state"
 
 export function withAddonData<Config extends { 
@@ -37,6 +37,6 @@ export function withAddonData<Config extends {
 }
 
 // Re-export for convenience
-export { useStateData } from "./state"
 export { getAsyncDataContext, prepareAsyncDataContext } from "./context"
-export { unFirstArgumentEnhanced, normalizeEnhancedArguments, type FirstArgumentEnhanced } from "./enhance"
+export { normalizeEnhancedArguments, unFirstArgumentEnhanced, type FirstArgumentEnhanced } from "./enhance"
+

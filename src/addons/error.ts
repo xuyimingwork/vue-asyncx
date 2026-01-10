@@ -1,25 +1,6 @@
-import { ref } from "vue"
-import type { Ref } from "vue"
 import type { FunctionMonitorWithTracker } from "@/core/monitor"
-
-/**
- * Creates a reactive error state that tracks function errors.
- * Clears on new call, sets error on rejection (if latest call).
- */
-export function useStateError(monitor: FunctionMonitorWithTracker): Ref<any> {
-  const error = ref()
-
-  monitor.on('before', () => {
-    error.value = undefined
-  })
-
-  monitor.on('reject', ({ track, error: err }) => {
-    if (!track.isLatestCall()) return
-    error.value = err
-  })
-
-  return error
-}
+import type { Ref } from "vue"
+import { ref } from "vue"
 
 export function withAddonError(): (params: { 
   monitor: FunctionMonitorWithTracker
@@ -27,8 +8,19 @@ export function withAddonError(): (params: {
   __name__Error: Ref<any>
 } {
   return (({ monitor }) => {
+    const error = ref()
+
+    monitor.on('before', () => {
+      error.value = undefined
+    })
+
+    monitor.on('reject', ({ track, error: err }) => {
+      if (!track.isLatestCall()) return
+      error.value = err
+    })
+
     return {
-      __name__Error: useStateError(monitor),
+      __name__Error: error,
     }
   }) as any
 }

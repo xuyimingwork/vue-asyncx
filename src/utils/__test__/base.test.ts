@@ -1,5 +1,5 @@
+import { lowerFirst, max, upperFirst } from "@/utils/base";
 import { describe, expect, test } from "vitest";
-import { max, upperFirst } from "@/utils/base";
 
 describe('upperFirst', () => {
   test('should return empty string when invalid input', () => {
@@ -18,6 +18,26 @@ describe('upperFirst', () => {
   test('should handle single character', () => {
     expect(upperFirst('a')).toBe('A')
     expect(upperFirst('Z')).toBe('Z')
+  })
+})
+
+describe('lowerFirst', () => {
+  test('should return empty string when invalid input', () => {
+    expect(lowerFirst(undefined as any)).toBe('')
+  })
+
+  test('should return empty string when empty string input', () => {
+    expect(lowerFirst('')).toBe('')
+  })
+
+  test('should upper case first and keep rest', () => {
+    expect(lowerFirst('Abc')).toBe('abc')
+    expect(lowerFirst('abc')).toBe('abc')
+  })
+
+  test('should handle single character', () => {
+    expect(lowerFirst('A')).toBe('a')
+    expect(lowerFirst('z')).toBe('z')
   })
 })
 
