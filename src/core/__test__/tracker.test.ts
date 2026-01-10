@@ -1,6 +1,6 @@
 // core.tracker.test.ts
-import { createTracker, STATE } from '@/core/tracker'
-import { describe, expect, it, vi, afterEach } from 'vitest'
+import { STATE, createTracker } from '@/core/tracker'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // Symbol keys for testing
 const VALUE_KEY = Symbol('value')

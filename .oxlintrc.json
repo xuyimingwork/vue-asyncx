@@ -1,0 +1,9 @@
+{
+  "rules": {
+    "sort-imports": ["error", {
+      "allowSeparatedGroups": true
+    }],
+    "no-unused-vars": "warn"
+  }
+}
+

@@ -1,6 +1,6 @@
+import { resolve } from 'path';
 import { defineConfig } from "vite";
-import { resolve } from 'path'
-import dts from 'vite-plugin-dts'
+import dts from 'vite-plugin-dts';
 
 export default defineConfig({
   resolve: {

@@ -17,6 +17,8 @@
   },
   "scripts": {
     "build": "vite build",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "test:unit": "vitest",
     "test:unit:coverage": "vitest run --coverage",
     "test": "pnpm run test:unit",
@@ -45,8 +47,9 @@
     "@vueuse/core": "^14.0.0",
     "es-toolkit": "^1.42.0",
     "jsdom": "^24.1.1",
+    "oxlint": "^1.0.0",
     "typescript": "^5.9.3",
-    "vite": "^8.0.0-beta.3",
+    "vite": "^8.0.0-beta.7",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.0.14"
   },

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { unFirstArgumentEnhanced, useAsync, useAsyncData, useAsyncFunction, getAsyncDataContext } from '@/main'
+import { getAsyncDataContext, unFirstArgumentEnhanced, useAsync, useAsyncData, useAsyncFunction } from '@/main'
 
 describe('main', () => {
   test('should exports useAsync, useAsyncData, getAsyncDataContext, unFirstArgumentEnhanced, useAsyncFunction', () => {

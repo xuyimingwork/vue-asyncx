@@ -1,12 +1,12 @@
-import { setupFunctionPipeline } from "@/core/setup-pipeline"
-import { withAddonLoading } from "@/addons/loading"
 import { withAddonArguments } from "@/addons/arguments"
 import { withAddonError } from "@/addons/error"
 import { withAddonFunction } from "@/addons/function"
+import { withAddonLoading } from "@/addons/loading"
 import { withAddonWatch } from "@/addons/watch"
 import { toNamedAddons } from "@/core/naming"
-import type { UseAsync } from './types'
+import { setupFunctionPipeline } from "@/core/setup-pipeline"
 import { parseArguments } from "@/hooks/shared"
+import type { UseAsync } from './types'
 
 export const useAsync: UseAsync = (...args) => {
   const { name = 'method', fn, options } = parseArguments(args)

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { upperFirst, max } from "@/utils/base";
+import { max, upperFirst } from "@/utils/base";
 
 describe('upperFirst', () => {
   test('should return empty string when invalid input', () => {
