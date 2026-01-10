@@ -1,8 +1,8 @@
-import { computed, ref, shallowRef } from "vue"
-import type { Ref, ShallowRef } from "vue"
 import type { FunctionMonitorWithTracker } from "@/core/monitor"
 import type { Track } from "@/core/tracker"
 import { STATE } from "@/core/tracker"
+import type { Ref, ShallowRef } from "vue"
+import { computed, ref, shallowRef } from "vue"
 import { prepareAsyncDataContext } from "./context"
 import { normalizeEnhancedArguments } from "./enhance"
 
@@ -10,6 +10,8 @@ import { normalizeEnhancedArguments } from "./enhance"
  * Creates reactive data state that tracks function return values.
  * Updates on fulfill (if latest), tracks rejections for expired state.
  * Supports manual updates via context and handles context setup/cleanup.
+ * 
+ * @internal This function is for internal use only and is not part of the public API.
  */
 export function useStateData<Data = any>(
   monitor: FunctionMonitorWithTracker,
