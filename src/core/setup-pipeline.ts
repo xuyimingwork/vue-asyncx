@@ -3,7 +3,7 @@ import { withFunctionMonitor } from "./monitor";
 import { SetupFunctionPipeline } from "./types";
 import { useSetup } from "./use-setup";
 
-const setupFunctionPipeline: SetupFunctionPipeline = (options) => {
+export const setupFunctionPipeline: SetupFunctionPipeline = (options) => {
   const { fn, addons } = options
   const { run, monitor } = withFunctionMonitor(fn)
   const { states, postAddons } = addons.reduce((acc, addon) => {
@@ -23,8 +23,6 @@ const setupFunctionPipeline: SetupFunctionPipeline = (options) => {
     return mergeAddonResults(acc, result)
   }, states)
 }
-
-export { setupFunctionPipeline };
 
 function mergeAddonResults(base: any, patch: any): any {
   if (typeof patch !== 'object' || !patch) return base
