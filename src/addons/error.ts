@@ -15,7 +15,7 @@ export function withAddonError(): (params: {
     })
 
     monitor.on('reject', ({ track, error: err }) => {
-      if (!track.isLatestCall()) return
+      if (!track.isLatest()) return
       error.value = err
     })
 

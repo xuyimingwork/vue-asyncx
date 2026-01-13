@@ -6,7 +6,7 @@ export function withAddonLoading(): (params: {
 }) => {
   __name__Loading: Ref<boolean>
 } {
-  return (({ monitor }) => {
+  return (({ monitor }: { monitor: FunctionMonitor }) => {
     const loading = ref(false)
 
     monitor.on('before', () => {
@@ -14,12 +14,12 @@ export function withAddonLoading(): (params: {
     })
 
     monitor.on('fulfill', ({ track }) => {
-      if (!track.isLatestCall()) return
+      if (!track.isLatest()) return
       loading.value = false
     })
 
     monitor.on('reject', ({ track }) => {
-      if (!track.isLatestCall()) return
+      if (!track.isLatest()) return
       loading.value = false
     })
 

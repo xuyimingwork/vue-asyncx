@@ -21,7 +21,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           userLoading: { value: false },
@@ -35,7 +35,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           userUserState: { value: 1 }
@@ -51,7 +51,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           queryUser: { value: null },
@@ -65,7 +65,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           getUser: { value: null }
@@ -80,7 +80,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         // First __name__ at start -> user, second __name__ in middle -> User
         expect(result).toEqual({
@@ -94,7 +94,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           userQueryUserData: { value: 1 }
@@ -111,13 +111,13 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           userLoading: { value: false }
         })
-        expect(result.otherKey).toBeUndefined()
-        expect(result.anotherKey).toBeUndefined()
+        expect((result as any).otherKey).toBeUndefined()
+        expect((result as any).anotherKey).toBeUndefined()
       })
 
       it('should keep only keys with placeholder', () => {
@@ -129,7 +129,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           userState: { value: 1 },
@@ -145,7 +145,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         // empty string -> lowerFirst('') = '', so __name__Loading becomes Loading
         expect(result).toEqual({
@@ -160,7 +160,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('a', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           aState: { value: 1 },
@@ -175,7 +175,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('USER', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           uSERLoading: { value: false }, // lowerFirst('USER') = 'uSER'
@@ -190,7 +190,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('userProfile', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           userProfileLoading: { value: false },
@@ -210,7 +210,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toBeTypeOf('object')
         expect(result).not.toBeNull()
@@ -221,7 +221,7 @@ describe('naming', () => {
         const addon = vi.fn(({ monitor }: { monitor: FunctionMonitor }) => null)
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toBeUndefined()
       })
@@ -230,7 +230,7 @@ describe('naming', () => {
         const addon = vi.fn(({ monitor }: { monitor: FunctionMonitor }) => undefined)
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toBeUndefined()
       })
@@ -239,7 +239,7 @@ describe('naming', () => {
         const addon = vi.fn(({ monitor }: { monitor: FunctionMonitor }) => 'string' as any)
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toBeUndefined()
       })
@@ -248,7 +248,7 @@ describe('naming', () => {
         const addon = vi.fn(({ monitor }: { monitor: FunctionMonitor }) => ({}))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({})
       })
@@ -261,7 +261,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         // Object.keys() only returns string keys, so symbol keys are ignored
         expect(result).toEqual({
@@ -280,7 +280,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         // Symbol keys are always ignored, regardless of their description
         expect(result).toEqual({
@@ -297,7 +297,7 @@ describe('naming', () => {
         }))
         
         const namedAddon = toNamedAddon('user', addon)
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         // Object.keys() returns empty array for symbol-only objects
         expect(result).toEqual({})
@@ -316,7 +316,7 @@ describe('naming', () => {
         const namedAddon = toNamedAddon('user', addon)
         const method = vi.fn()
         
-        const phase1Result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const phase1Result = namedAddon({ monitor: {} as FunctionMonitor })
         const phase2Result = phase1Result({ method })
         
         // Symbol keys are ignored in phase 2 as well
@@ -338,7 +338,7 @@ describe('naming', () => {
         const namedAddon = toNamedAddon('user', addon)
         
         expect(namedAddon).toBeTypeOf('function')
-        const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result = namedAddon({ monitor: {} as FunctionMonitor })
         
         expect(result).toEqual({
           userLoading: { value: false }
@@ -355,7 +355,7 @@ describe('naming', () => {
         const namedAddon = toNamedAddon('user', addon)
         const monitor = { on: vi.fn(), emit: vi.fn() } as any
         
-        const result = namedAddon({ monitor, _types: undefined })
+        const result = namedAddon({ monitor })
         
         expect(result).toEqual({
           userCount: { value: 0 }
@@ -375,7 +375,7 @@ describe('naming', () => {
         const namedAddon = toNamedAddon('user', addon)
         const method = vi.fn()
         
-        const phase1Result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const phase1Result = namedAddon({ monitor: {} as FunctionMonitor })
         expect(phase1Result).toBeTypeOf('function')
         
         const phase2Result = phase1Result({ method })
@@ -395,7 +395,7 @@ describe('naming', () => {
         const namedAddon = toNamedAddon('user', addon)
         const method = vi.fn()
         
-        const phase1Result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+        const phase1Result = namedAddon({ monitor: {} as FunctionMonitor })
         const phase2Result = phase1Result({ method })
         
         expect(phase2Result).toEqual({
@@ -424,10 +424,10 @@ describe('naming', () => {
         }))
         
         const namedAddon1 = toNamedAddon('user', addon)
-        const result1 = namedAddon1({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result1 = namedAddon1({ monitor: {} as FunctionMonitor })
         
         const namedAddon2 = toNamedAddon('user', namedAddon1)
-        const result2 = namedAddon2({ monitor: {} as FunctionMonitor, _types: undefined })
+        const result2 = namedAddon2({ monitor: {} as FunctionMonitor })
         
         // Results should be the same
         expect(result1).toEqual(result2)
@@ -452,8 +452,8 @@ describe('naming', () => {
       expect(namedAddons[0]).toBeTypeOf('function')
       expect(namedAddons[1]).toBeTypeOf('function')
       
-      const result1 = namedAddons[0]({ monitor: {} as FunctionMonitor, _types: undefined })
-      const result2 = namedAddons[1]({ monitor: {} as FunctionMonitor, _types: undefined })
+      const result1 = namedAddons[0]({ monitor: {} as FunctionMonitor })
+      const result2 = namedAddons[1]({ monitor: {} as FunctionMonitor })
       
       expect(result1).toEqual({ userLoading: { value: false } })
       expect(result2).toEqual({ userError: { value: null } })
@@ -481,10 +481,10 @@ describe('naming', () => {
       
       expect(namedAddons).toHaveLength(2)
       
-      const result1 = namedAddons[0]({ monitor: {} as FunctionMonitor, _types: undefined })
+      const result1 = namedAddons[0]({ monitor: {} as FunctionMonitor })
       expect(result1).toEqual({ userLoading: { value: false } })
       
-      const phase1Result = namedAddons[1]({ monitor: {} as FunctionMonitor, _types: undefined })
+      const phase1Result = namedAddons[1]({ monitor: {} as FunctionMonitor })
       const method = vi.fn()
       const result2 = phase1Result({ method })
       expect(result2).toEqual({ userMethod: method })
@@ -505,9 +505,9 @@ describe('naming', () => {
       
       const namedAddons = toNamedAddons('user', [addon1, addon2, addon3])
       
-      const result1 = namedAddons[0]({ monitor: {} as FunctionMonitor, _types: undefined })
-      const result2 = namedAddons[1]({ monitor: {} as FunctionMonitor, _types: undefined })
-      const result3 = namedAddons[2]({ monitor: {} as FunctionMonitor, _types: undefined })
+      const result1 = namedAddons[0]({ monitor: {} as FunctionMonitor })
+      const result2 = namedAddons[1]({ monitor: {} as FunctionMonitor })
+      const result3 = namedAddons[2]({ monitor: {} as FunctionMonitor })
       
       expect(result1).toEqual({ userState1: { value: 1 } })
       expect(result2).toEqual({ userState2: { value: 2 } })
@@ -523,7 +523,7 @@ describe('naming', () => {
       }))
       
       const namedAddon = toNamedAddon('fetchUser', addon)
-      const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+      const result = namedAddon({ monitor: {} as FunctionMonitor })
       
       expect(result).toEqual({
         fetchUserLoading: { value: false },
@@ -542,7 +542,7 @@ describe('naming', () => {
       const namedAddon = toNamedAddon('user', addon)
       const method = vi.fn()
       
-      const phase1Result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+      const phase1Result = namedAddon({ monitor: {} as FunctionMonitor })
       const phase2Result = phase1Result({ method })
       
       expect(phase2Result).toEqual({
@@ -561,7 +561,7 @@ describe('naming', () => {
       const namedAddon = toNamedAddon('fetchUser', addon)
       const method = vi.fn()
       
-      const phase1Result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+      const phase1Result = namedAddon({ monitor: {} as FunctionMonitor })
       const phase2Result = phase1Result({ method })
       
       expect(phase2Result).toEqual({
@@ -579,7 +579,7 @@ describe('naming', () => {
       }))
       
       const namedAddon = toNamedAddon('user', addon)
-      const result = namedAddon({ monitor: {} as FunctionMonitor, _types: undefined })
+      const result = namedAddon({ monitor: {} as FunctionMonitor })
       
       expect(result).toEqual({
         userLoading: { value: false },

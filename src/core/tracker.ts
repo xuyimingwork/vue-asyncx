@@ -22,6 +22,9 @@
 import { max } from "@/utils/base";
 import { ComputedRef, Ref, computed, ref } from "vue";
 
+type TrackState = 'pending' | 'fulfilled' | 'rejected'
+type TrackQueryState = TrackState | 'finished'
+
 /**
  * 调用追踪对象
  * 
@@ -31,24 +34,19 @@ import { ComputedRef, Ref, computed, ref } from "vue";
 export type Track = {
   /** 调用序号，唯一标识每次调用 */
   readonly sn: number
+
   /** 检查当前是否处于指定状态 */
-  inState: (state: State) => boolean
-  /** 检查是否可以更新状态（用于中途更新数据） */
-  canUpdate: () => boolean
-  /** 更新状态（用于中途更新数据） */
-  update: () => void
-  /** 标记为成功完成 */
+  is: (state?: TrackQueryState) => boolean
+  /* 检测当前是否为最新状态 */
+  isLatest: (state?: TrackQueryState) => boolean
+  /* 检测之后是否有指定状态的调用 */
+  hasLater: (state?: TrackQueryState) => boolean
+
+  /** 标记为成功 */
   fulfill: () => void
   /** 标记为失败 */
   reject: () => void
-  /** 检查是否为最新调用 */
-  isLatestCall: () => boolean
-  /** 检查是否为最新的更新调用 */
-  isLatestUpdate: () => boolean
-  /** 检查是否为最新的成功完成调用 */
-  isLatestFulfill: () => boolean
-  /** 检查是否有后续的失败调用 */
-  hasLaterReject: () => boolean
+
   /** 存储关联数据（使用 Symbol 作为键） */
   setData: (key: symbol, value?: any) => void
   /** 获取关联数据 */
@@ -73,57 +71,6 @@ export type Tracker = {
 }
 
 /**
- * 调用状态常量
- * 
- * @description 定义了函数调用可能的所有状态。
- * 
- * - PENDING：初始状态，调用已创建但未开始执行
- * - UPDATING：更新中，用于中途更新数据
- * - FULFILLED：成功完成
- * - REJECTED：执行失败
- * - FINISHED：查询专用，不参与状态转换（表示已完成，无论是成功还是失败）
- */
-export const STATE = {
-  /** 初始状态，调用已创建但未开始执行 */
-  PENDING: 0,
-  /** 更新中，用于中途更新数据 */
-  UPDATING: 1,
-  /** 成功完成 */
-  FULFILLED: 2,
-  /** 执行失败 */
-  REJECTED: 3,
-  /** 查询专用，不参与状态转换（表示已完成，无论是成功还是失败） */
-  FINISHED: 4
-} as const;
-
-/** 所有状态的联合类型 */
-type State = typeof STATE[keyof typeof STATE]
-
-/** 实际状态（排除 FINISHED，因为它只是查询用的） */
-type StateReal = Exclude<State, typeof STATE.FINISHED>
-
-/** 目标状态（排除 PENDING，因为它是起始状态） */
-type StateTo = Exclude<StateReal, typeof STATE.PENDING>
-
-/**
- * 状态转换表
- * 
- * @description 定义了允许的状态转换规则。
- * 
- * 状态转换规则：
- * - PENDING → UPDATING/FULFILLED/REJECTED（可以转换为任何非初始状态）
- * - UPDATING → UPDATING/FULFILLED/REJECTED（可以继续更新，或完成/失败）
- * - FULFILLED → []（终态，不能转换）
- * - REJECTED → []（终态，不能转换）
- */
-const STATE_TRANSITIONS = {
-  [STATE.PENDING]: [STATE.UPDATING, STATE.FULFILLED, STATE.REJECTED],
-  [STATE.UPDATING]: [STATE.UPDATING, STATE.FULFILLED, STATE.REJECTED],
-  [STATE.FULFILLED]: [],
-  [STATE.REJECTED]: [],
-}
-
-/**
  * 检查是否允许状态转换
  * 
  * @description 根据状态转换表检查从 from 状态转换到 to 状态是否允许。
@@ -136,16 +83,17 @@ const STATE_TRANSITIONS = {
  * @internal 内部实现，不对外暴露
  */
 function allowTransition(
-  from: StateReal,
-  to: StateTo
+  from: TrackState,
+  to: TrackState
 ): boolean {
-  return STATE_TRANSITIONS[from].indexOf(to as any) > -1
+  if (from === 'fulfilled' || from === 'rejected') return false
+  return to !== 'pending'
 }
 
 type InnerTracker = {
   sn: () => number
-  get: (state: StateReal) => number
-  set: (state: StateTo, sn: number) => boolean
+  get: (state: TrackQueryState) => number
+  set: (state: Exclude<TrackState, 'pending'>, sn: number) => boolean
 }
 
 /**
@@ -167,7 +115,7 @@ function createTrack(
   const sn = tracker.sn()
   
   // 当前状态（初始为 PENDING）
-  let state: StateReal = STATE.PENDING
+  let state: TrackState = 'pending'
   
   // 关联数据存储（使用 Symbol 作为键，避免冲突）
   const data = new Map<symbol, any>()
@@ -185,31 +133,26 @@ function createTrack(
      * 
      * @description FINISHED 是特殊状态，表示已完成（无论是成功还是失败）
      */
-    inState: (target: State) => {
-      if (target === STATE.FINISHED) return state === STATE.FULFILLED || state === STATE.REJECTED
-      return state === target
+    is(target) {
+      if (target === 'finished') return (state === 'fulfilled' || state === 'rejected')
+      return target === state
     },
-    
+
+    isLatest(state) {
+      if (!state) return tracker.get('pending') === sn
+      return self.is(state) && tracker.get(state) === sn
+    },
+
     /**
-     * 检查是否可以更新状态
+     * 检查是否有后续的失败调用
      * 
-     * @description 用于判断是否可以在函数执行过程中更新数据。
-     * 只有从 PENDING 或 UPDATING 状态才能转换到 UPDATING。
+     * @description 用于判断在当前调用之后是否有失败的调用。
+     * 用于数据过期判断：如果后续有失败调用，当前数据可能过期。
      * 
-     * @returns 如果可以更新返回 true，否则返回 false
+     * @returns 如果有后续失败调用返回 true，否则返回 false
      */
-    canUpdate: () => allowTransition(state, STATE.UPDATING),
-    
-    /**
-     * 转换到更新状态
-     * 
-     * @description 标记调用进入更新状态（用于中途更新数据）。
-     * 如果当前状态不允许转换到 UPDATING，则忽略。
-     */
-    update: () => {
-      if (!allowTransition(state, STATE.UPDATING)) return
-      state = STATE.UPDATING
-      tracker.set(STATE.UPDATING, sn)
+    hasLater(state) {
+      return tracker.get(state) > sn
     },
     
     /**
@@ -219,9 +162,9 @@ function createTrack(
      * 如果当前状态不允许转换到 FULFILLED，则忽略。
      */
     fulfill: () => {
-      if (!allowTransition(state, STATE.FULFILLED)) return
-      state = STATE.FULFILLED
-      tracker.set(STATE.FULFILLED, sn)
+      if (!allowTransition(state, 'fulfilled')) return
+      state = 'fulfilled'
+      tracker.set('fulfilled', sn)
     },
     
     /**
@@ -231,60 +174,9 @@ function createTrack(
      * 如果当前状态不允许转换到 REJECTED，则忽略。
      */
     reject: () => {
-      if (!allowTransition(state, STATE.REJECTED)) return
-      state = STATE.REJECTED
-      tracker.set(STATE.REJECTED, sn)
-    },
-    
-    /**
-     * 检查是否为最新调用
-     * 
-     * @description 通过比较当前调用的序号和最新的 PENDING 序号来判断。
-     * 
-     * @returns 如果是最新调用返回 true，否则返回 false
-     */
-    isLatestCall() {
-      return tracker.get(STATE.PENDING) === sn
-    },
-    
-    /**
-     * 检查是否为最新的更新调用
-     * 
-     * @description 用于判断当前更新调用是否为最新的。
-     * 需要满足：当前处于 UPDATING 状态，且是最新的更新调用。
-     * 
-     * @returns 如果是最新更新返回 true，否则返回 false
-     */
-    isLatestUpdate() {
-      if (!self.inState(STATE.UPDATING)) return false
-      // 最新的更新调用：FULFILLED 序号小于当前序号，且 UPDATING 序号等于当前序号
-      return tracker.get(STATE.FULFILLED) < sn && tracker.get(STATE.UPDATING) === sn
-    },
-    
-    /**
-     * 检查是否为最新的成功完成调用
-     * 
-     * @description 用于判断当前成功完成调用是否为最新的。
-     * 需要满足：当前处于 FULFILLED 状态，且是最新的成功完成调用。
-     * 
-     * @returns 如果是最新成功完成返回 true，否则返回 false
-     */
-    isLatestFulfill() {
-      if (!self.inState(STATE.FULFILLED)) return false
-      // 最新的成功完成调用：UPDATING 序号小于等于当前序号，且 FULFILLED 序号等于当前序号
-      return tracker.get(STATE.UPDATING) <= sn && tracker.get(STATE.FULFILLED) === sn
-    },
-    
-    /**
-     * 检查是否有后续的失败调用
-     * 
-     * @description 用于判断在当前调用之后是否有失败的调用。
-     * 用于数据过期判断：如果后续有失败调用，当前数据可能过期。
-     * 
-     * @returns 如果有后续失败调用返回 true，否则返回 false
-     */
-    hasLaterReject() {
-      return tracker.get(STATE.REJECTED) > sn
+      if (!allowTransition(state, 'rejected')) return
+      state = 'rejected'
+      tracker.set('rejected', sn)
     },
     
     /**
@@ -366,7 +258,6 @@ export function createTracker(): Tracker {
   // 记录【最新的】不同状态的序号
   // 使用响应式引用，确保状态变化可以被追踪
   const pending = ref<number>(0)    // 最新的 PENDING 序号
-  const updating = ref<number>(0)   // 最新的 UPDATING 序号
   const fulfilled = ref<number>(0)  // 最新的 FULFILLED 序号
   const rejected = ref<number>(0)   // 最新的 REJECTED 序号
   
@@ -413,12 +304,12 @@ export function createTracker(): Tracker {
        * 
        * @returns 返回该状态的最新序号
        */
-      get: (state: StateReal) => {
-        if (state === STATE.PENDING) return pending.value
-        if (state === STATE.UPDATING) return updating.value
-        if (state === STATE.FULFILLED) return fulfilled.value
+      get: (state: TrackQueryState) => {
+        if (state === 'pending') return pending.value
+        if (state === 'fulfilled') return fulfilled.value
+        if (state === 'rejected')  return rejected.value
         /* v8 ignore else -- @preserve */
-        if (state === STATE.REJECTED)  return rejected.value
+        if (state === 'finished') return max(fulfilled.value, rejected.value)
         /* v8 ignore next -- @preserve */
         return 0
       },
@@ -433,11 +324,10 @@ export function createTracker(): Tracker {
        * 
        * @returns 如果成功更新返回 true，否则返回 false
        */
-      set: (state: StateTo, sn: number) => {
-        if (state === STATE.UPDATING) return record(sn, updating)
-        if (state === STATE.FULFILLED) return record(sn, fulfilled)
+      set: (state: Exclude<TrackState, 'pending'>, sn: number) => {
+        if (state === 'fulfilled') return record(sn, fulfilled)
         /* v8 ignore else -- @preserve */
-        if (state === STATE.REJECTED) return record(sn, rejected)
+        if (state === 'rejected') return record(sn, rejected)
         /* v8 ignore next -- @preserve */
         return false
       }
