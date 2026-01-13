@@ -7,14 +7,14 @@
  * 
  * - **Track**：单次调用的追踪对象，包含序号（sn）和状态
  * - **Tracker**：追踪器，管理所有调用的状态
- * - **状态机**：PENDING → UPDATING/FULFILLED/REJECTED
+ * - **状态机**：PENDING → FULFILLED/REJECTED
  * 
  * ## 竟态处理原理
  * 
  * 1. 每次调用分配唯一序号（sn）
  * 2. 记录每种状态的最新序号
  * 3. 只有最新调用的状态才会更新到最终结果
- * 4. 通过 isLatestCall()、isLatestFulfill() 等方法判断调用顺序
+ * 4. 通过 isLatest()、hasLater() 等方法判断调用顺序
  * 
  * @module core/tracker
  */

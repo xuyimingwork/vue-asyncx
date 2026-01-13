@@ -158,14 +158,13 @@ Vue-AsyncX 使用复杂的类型系统来确保类型安全。
 1. 每次调用分配唯一序号
 2. 记录每种状态的最新序号
 3. 只有最新调用的状态才会更新
-4. 通过 `isLatestCall()` 等方法判断调用顺序
+4. 通过 `isLatest()` 等方法判断调用顺序
 
 **状态转换规则**：
 ```
-PENDING → UPDATING/FULFILLED/REJECTED
-UPDATING → UPDATING/FULFILLED/REJECTED
-FULFILLED → []（终态）
-REJECTED → []（终态）
+PENDING → FULFILLED/REJECTED
+FULFILLED → []（终态，不允许转换）
+REJECTED → []（终态，不允许转换）
 ```
 
 **详细说明**：参考 [架构文档](./architecture.md#竟态处理的实现原理)
@@ -310,7 +309,7 @@ REJECTED → []（终态）
 
 **可能原因**：
 - 未监听正确的事件
-- 未检查 `isLatestCall()`
+- 未检查 `isLatest()`
 - 状态合并失败
 
 **排查步骤**：

@@ -13,6 +13,8 @@ import { normalizeEnhancedArguments } from "./enhance"
  * 主要功能：
  * - 在函数成功完成时更新数据（仅最新调用）
  * - 支持在函数执行过程中手动更新数据（通过 getAsyncDataContext）
+ *   - 这允许在异步函数执行过程中多次更新数据，实现"updating"效果
+ *   - 但这是数据 addon 的内部实现，不依赖 tracker 的 updating 状态
  * - 自动处理竟态条件，确保只有最新调用的数据才会更新
  * - 追踪数据过期状态（当最新调用失败但之前调用成功时）
  * - 处理上下文设置和清理
@@ -84,11 +86,11 @@ export function useStateData<Data = any>(
    * 数据更新逻辑
    * 
    * @description 更新数据值，但只接受最新调用的更新。
-   * 竟态处理：
-   * - 如果是 UPDATING 状态，必须是最新更新才接受
-   * - 如果是 FULFILLED 状态，必须是最新成功完成才接受
+   * 竟态处理：通过序号（sn）比较确保只有最新调用的数据才会更新。
+   * - 如果当前已有数据且其序号大于本次调用的序号，则忽略本次更新
+   * - 这确保了即使多个调用同时更新数据，也只有最新的调用会生效
    * 
-   * @param v - 新的数据值
+   * @param value - 新的数据值
    * @param track - 调用追踪对象
    */
   function update(value: any, track: Track) {
@@ -119,15 +121,15 @@ export function useStateData<Data = any>(
       /**
        * 手动更新数据
        * 
-       * @description 在函数执行过程中手动更新数据。
+       * @description 在函数执行过程中手动更新数据（在函数完成前）。
        * 会自动处理竟态条件，只有最新调用才能更新。
        * 
-       * @param v - 新的数据值
+       * @param value - 新的数据值
        * 
        * @returns 返回更新后的值
        */
       updateData: (value: any) => {
-        // 检查是否可以更新（只有 PENDING 或 UPDATING 状态才能更新）
+        // 只有在函数未完成时才能更新（finished 表示已 fulfill 或 reject）
         if (track.is('finished')) return
         update(value, track)
         return value

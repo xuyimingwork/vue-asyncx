@@ -350,7 +350,7 @@ function mergeAddonResults(base: any, patch: any): any {
  * 
  * - **Track**：单次调用的追踪对象，包含序号（sn）和状态
  * - **Tracker**：追踪器，管理所有调用的状态
- * - **状态机**：PENDING → UPDATING/FULFILLED/REJECTED
+ * - **状态机**：PENDING → FULFILLED/REJECTED
  * 
  * ## 竟态处理原理
  * 
@@ -554,7 +554,7 @@ if (duplicates.length) {
 }
 
 // 只有最新调用的状态才会更新到最终结果
-if (!track.isLatestCall()) return
+if (!track.isLatest()) return
 ```
 
 ### 算法说明注释
@@ -563,7 +563,7 @@ if (!track.isLatestCall()) return
 // 竟态处理算法：
 // 1. 每次调用分配唯一序号（sn）
 // 2. 记录每种状态的最新序号
-// 3. 通过 isLatestCall() 判断是否为最新调用
+// 3. 通过 isLatest() 判断是否为最新调用
 // 4. 只有最新调用的状态才会更新
 ```
 
@@ -612,7 +612,7 @@ const sn = tracker.sn()
 
 // ✅ 好的注释（提供上下文）
 // 检查是否为最新调用，只有最新调用的状态才会更新到最终结果
-if (!track.isLatestCall()) return
+if (!track.isLatest()) return
 ```
 
 ## 九、检查清单

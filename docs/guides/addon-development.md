@@ -59,12 +59,12 @@ function withAddonLoading(): (params: {
     })
 
     monitor.on('fulfill', ({ track }) => {
-      if (!track.isLatestCall()) return
+      if (!track.isLatest()) return
       loading.value = false
     })
 
     monitor.on('reject', ({ track }) => {
-      if (!track.isLatestCall()) return
+      if (!track.isLatest()) return
       loading.value = false
     })
 
@@ -213,28 +213,30 @@ monitor.off('before', handler)
 
 ### Track API
 
+**注意**：在 Addon 中使用的 `Track` 类型是受限的，不包含状态修改方法（`fulfill()` 和 `reject()`）。这些方法仅在内部使用，外部 Addon 无法修改调用状态。
+
 #### 状态检查
 
 ```typescript
-track.inState(STATE.PENDING)    // 检查是否处于指定状态
-track.canUpdate()               // 检查是否可以更新
-```
-
-#### 状态转换
-
-```typescript
-track.update()    // 转换到更新状态
-track.fulfill()   // 标记为成功完成
-track.reject()     // 标记为失败
+track.is('pending')      // 检查是否处于 pending 状态
+track.is('fulfilled')    // 检查是否处于 fulfilled 状态
+track.is('rejected')     // 检查是否处于 rejected 状态
+track.is('finished')     // 检查是否已完成（fulfilled 或 rejected）
+track.is()               // 无参数时返回当前状态
 ```
 
 #### 竟态判断
 
 ```typescript
-track.isLatestCall()      // 是否为最新调用
-track.isLatestUpdate()    // 是否为最新更新
-track.isLatestFulfill()   // 是否为最新成功完成
-track.hasLaterReject()    // 是否有后续的失败调用
+track.isLatest()                    // 是否为最新的 pending 调用
+track.isLatest('pending')           // 是否为最新的 pending 调用
+track.isLatest('fulfilled')         // 是否为最新的 fulfilled 调用
+track.isLatest('rejected')          // 是否为最新的 rejected 调用
+
+track.hasLater('pending')           // 是否有后续的 pending 调用
+track.hasLater('fulfilled')        // 是否有后续的 fulfilled 调用
+track.hasLater('rejected')         // 是否有后续的 rejected 调用
+track.hasLater('finished')         // 是否有后续的 finished 调用
 ```
 
 #### 数据存储
@@ -313,7 +315,7 @@ track.takeData(KEY)        // 获取并移除数据
 ### 状态管理
 
 1. **使用响应式引用**：使用 `ref` 或 `computed` 创建响应式状态
-2. **竟态处理**：使用 `track.isLatestCall()` 确保只更新最新调用的状态
+2. **竟态处理**：使用 `track.isLatest()` 确保只更新最新调用的状态
 3. **状态清理**：在适当的时候清理状态（如新调用开始时）
 
 **示例**：
@@ -325,7 +327,7 @@ monitor.on('before', () => {
 
 monitor.on('fulfill', ({ track }) => {
   // 只有最新调用才更新状态
-  if (!track.isLatestCall()) return
+  if (!track.isLatest()) return
   customState.value = 'success'
 })
 ```
@@ -337,7 +339,7 @@ monitor.on('fulfill', ({ track }) => {
 ```typescript
 monitor.on('fulfill', ({ track, value }) => {
   // 只有最新调用才更新
-  if (!track.isLatestCall()) return
+  if (!track.isLatest()) return
   data.value = value
 })
 ```
@@ -392,7 +394,7 @@ export function withAddonRetryCount(): (params: {
     })
 
     monitor.on('reject', ({ track }) => {
-      if (!track.isLatestCall()) return
+      if (!track.isLatest()) return
       retryCount.value++
     })
 

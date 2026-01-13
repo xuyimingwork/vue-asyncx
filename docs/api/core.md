@@ -133,60 +133,57 @@ interface FunctionMonitor {
 
 调用追踪对象，表示单次函数调用的追踪信息。
 
+**注意**：在 `monitor` 中暴露的 `Track` 类型是受限的，不包含状态修改方法（`fulfill()` 和 `reject()`），这些方法仅在内部使用。
+
 **类型**：
 ```typescript
-type Track = {
+// 内部完整类型（tracker.ts）
+type TrackFull = {
   readonly sn: number
-  inState: (state: State) => boolean
-  canUpdate: () => boolean
-  update: () => void
+  is: (state?: TrackQueryState) => boolean
+  isLatest: (state?: TrackQueryState) => boolean
+  hasLater: (state?: TrackQueryState) => boolean
   fulfill: () => void
   reject: () => void
-  isLatestCall: () => boolean
-  isLatestUpdate: () => boolean
-  isLatestFulfill: () => boolean
-  hasLaterReject: () => boolean
   setData: (key: symbol, value?: any) => void
   getData: <V = any>(key: symbol) => V | undefined
   takeData: <V = any>(key: symbol) => V | undefined
 }
+
+// 对外暴露类型（monitor.ts）
+type Track = Pick<TrackFull, 
+  'sn' | 
+  'is' | 'isLatest' | 'hasLater' |
+  'getData' | 'setData' | 'takeData'
+>
 ```
 
 **属性**：
-- `sn`：调用序号，唯一标识每次调用
-- `inState(state)`：检查当前是否处于指定状态
-- `canUpdate()`：检查是否可以更新状态
-- `update()`：转换到更新状态
-- `fulfill()`：标记为成功完成
-- `reject()`：标记为失败
-- `isLatestCall()`：检查是否为最新调用
-- `isLatestUpdate()`：检查是否为最新的更新调用
-- `isLatestFulfill()`：检查是否为最新的成功完成调用
-- `hasLaterReject()`：检查是否有后续的失败调用
-- `setData(key, value)`：存储关联数据
+- `sn`：调用序号，唯一标识每次调用（只读）
+- `is(state?)`：检查当前是否处于指定状态
+  - `state` 可选值：`'pending'` | `'fulfilled'` | `'rejected'` | `'finished'`
+  - `'finished'` 是特殊状态，表示已完成（无论是成功还是失败）
+- `isLatest(state?)`：检查是否为最新状态
+  - 无参数：检查是否为最新的 pending 调用
+  - 有参数：检查是否为指定状态的最新调用
+- `hasLater(state)`：检查之后是否有指定状态的调用
+  - `state` 可选值：`'pending'` | `'fulfilled'` | `'rejected'` | `'finished'`
+- `setData(key, value)`：存储关联数据（使用 Symbol 作为键）
+  - `value` 为 `undefined` 时删除该键
 - `getData(key)`：获取关联数据
 - `takeData(key)`：获取并移除关联数据
 
-## STATE 常量
-
-调用状态常量。
-
-**定义**：
+**状态类型**：
 ```typescript
-export const STATE = {
-  PENDING: 0,    // 初始状态
-  UPDATING: 1,   // 更新中
-  FULFILLED: 2,  // 成功完成
-  REJECTED: 3,   // 执行失败
-  FINISHED: 4    // 查询专用，不参与状态转换
-} as const
+type TrackState = 'pending' | 'fulfilled' | 'rejected'
+type TrackQueryState = TrackState | 'finished'
 ```
 
 **状态转换规则**：
-- `PENDING` → `UPDATING`/`FULFILLED`/`REJECTED`
-- `UPDATING` → `UPDATING`/`FULFILLED`/`REJECTED`
-- `FULFILLED` → []（终态）
-- `REJECTED` → []（终态）
+- `PENDING` → `FULFILLED`/`REJECTED`
+- `FULFILLED` → []（终态，不允许转换）
+- `REJECTED` → []（终态，不允许转换）
+- `FINISHED`：查询专用状态，不参与状态转换，表示已完成（`fulfilled` 或 `rejected`）
 
 ## 事件类型
 
