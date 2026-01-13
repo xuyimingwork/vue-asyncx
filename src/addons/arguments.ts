@@ -18,12 +18,12 @@ export function withAddonArguments(): <T extends AddonTypes>(params: {
     })
 
     monitor.on('fulfill', ({ track }) => {
-      if (!track.isLatestCall()) return
+      if (!track.isLatest()) return
       _args.value = undefined
     })
 
     monitor.on('reject', ({ track }) => {
-      if (!track.isLatestCall()) return
+      if (!track.isLatest()) return
       _args.value = undefined
     })
 

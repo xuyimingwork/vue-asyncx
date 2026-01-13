@@ -1,6 +1,5 @@
+import type { Track } from "@/core/monitor"
 import { createEnhanceArgumentsHandler, type FunctionMonitor } from "@/core/monitor"
-import type { Track } from "@/core/tracker"
-import { STATE } from "@/core/tracker"
 import type { Ref, ShallowRef } from "vue"
 import { computed, ref, shallowRef } from "vue"
 import { prepareAsyncDataContext } from "./context"
@@ -92,24 +91,15 @@ export function useStateData<Data = any>(
    * @param v - 新的数据值
    * @param track - 调用追踪对象
    */
-  function update(v: any, track: Track) {
-    // 如果是更新状态但不是最新更新，忽略
-    if (track.inState(STATE.UPDATING) && !track.isLatestUpdate()) return
-    // 如果是完成状态但不是最新完成，忽略
-    if (track.inState(STATE.FULFILLED) && !track.isLatestFulfill()) return
-    
-    // 更新数据和追踪对象
-    data.value = v as Data
+  function update(value: any, track: Track) {
+    track.setData(VALUE_KEY, value)
+    if (dataTrack.value && dataTrack.value.sn > track.sn) return
+    data.value = value
     dataTrack.value = track
   }
 
   // 监听 fulfill 事件：函数成功完成时更新数据
-  monitor.on('fulfill', ({ track, value }) => {
-    // 存储返回值到追踪对象
-    track.setData(VALUE_KEY, value)
-    // 更新数据（只有最新调用才会更新）
-    update(value, track)
-  })
+  monitor.on('fulfill', ({ track, value }) => update(value, track))
 
   // 监听 init 事件：函数调用初始化时准备上下文
   monitor.on('init', ({ track }) => {
@@ -127,7 +117,7 @@ export function useStateData<Data = any>(
       getData: () => track.getData(VALUE_KEY),
       
       /**
-       * 更新数据
+       * 手动更新数据
        * 
        * @description 在函数执行过程中手动更新数据。
        * 会自动处理竟态条件，只有最新调用才能更新。
@@ -136,16 +126,11 @@ export function useStateData<Data = any>(
        * 
        * @returns 返回更新后的值
        */
-      updateData: (v: any) => {
+      updateData: (value: any) => {
         // 检查是否可以更新（只有 PENDING 或 UPDATING 状态才能更新）
-        if (!track.canUpdate()) return
-        // 标记为更新状态
-        track.update()
-        // 存储新值
-        track.setData(VALUE_KEY, v)
-        // 更新响应式数据
-        update(v, track)
-        return v
+        if (track.is('finished')) return
+        update(value, track)
+        return value
       }
     })
   })
@@ -194,12 +179,12 @@ export function useStateData<Data = any>(
     
     // 如果当前数据的调用最终结果是报错，当前数据过期
     // （当前过期数据由调用的 update 产生）
-    if (dataTrack.value.inState(STATE.REJECTED)) return true
+    if (dataTrack.value.is('rejected')) return true
     
     // 否则，当前数据的过期由之后的调用产生
     // 检查在当前调用之后是否有调用发生了报错
     // 无需检查之后调用的 update 和 fulfil 情况，因为上述二者都会更新 dataTrack.value
-    return dataTrack.value.hasLaterReject()
+    return dataTrack.value.hasLater('rejected')
   })
 
   return {

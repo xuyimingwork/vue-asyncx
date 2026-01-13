@@ -11,10 +11,20 @@
  * @internal enhance-arguments 是内部 API，仅用于兼容功能，不对外暴露
  * 
  * @module core/monitor
+ * 
+ * TODO: 由 monitor 传出的 Track 应该是对外的 Track，
+ * @/core/tracker 导入的是 InternalTrack，
+ * 要限制外部 addon 对 track 状态的更改。
  */
 
-import { Track, Tracker, createTracker } from "@/core/tracker"
+import { Track as TrackFull, Tracker, createTracker } from "@/core/tracker"
 import { BaseFunction } from "@/utils/types"
+
+export type Track = Pick<TrackFull, 
+  'sn' | 
+  'is' | 'isLatest' | 'hasLater' |
+  'getData' | 'setData' | 'takeData'
+>
 
 /**
  * 函数监控器事件映射
@@ -262,7 +272,7 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
   // 包装函数，添加事件监控
   const run = ((...args: Parameters<Fn>): ReturnType<Fn> => {
     // 创建调用追踪对象
-    const track = tracker.track()
+    const { fulfill, reject, ...track } = tracker.track()
 
     // 触发 init 事件：用于初始化/准备逻辑
     monitor.emit('init', { args, track })
@@ -292,20 +302,20 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
         result.then(
           (value) => {
             // 标记为成功完成
-            track.fulfill()
+            fulfill()
             // 触发 fulfill 事件
             monitor.emit('fulfill', { track, value })
           },
           (error) => {
             // 标记为失败
-            track.reject()
+            reject()
             // 触发 reject 事件
             monitor.emit('reject', { track, error })
           }
         )
       } else {
         // 同步函数直接标记为成功
-        track.fulfill()
+        fulfill()
         monitor.emit('fulfill', { track, value: result })
       }
       
@@ -315,7 +325,7 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
       // 触发 after 事件（在 catch 块中，reject 之前）
       monitor.emit('after', { track })
       // 标记为失败
-      track.reject()
+      reject()
       // 触发 reject 事件
       monitor.emit('reject', { track, error: e })
       throw e
