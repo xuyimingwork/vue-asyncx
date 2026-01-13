@@ -159,30 +159,39 @@ sequenceDiagram
 **核心概念**：
 - **Track**：单次调用的追踪对象，包含序号（sn）和状态
 - **Tracker**：追踪器，管理所有调用的状态
-- **状态机**：PENDING → UPDATING/FULFILLED/REJECTED
+- **状态机**：PENDING → FULFILLED/REJECTED
 
 **状态定义**：
 ```typescript
-STATE = {
-  PENDING: 0,    // 初始状态
-  UPDATING: 1,   // 更新中（用于中途更新数据）
-  FULFILLED: 2,  // 成功完成
-  REJECTED: 3,   // 执行失败
-  FINISHED: 4    // 查询专用，不参与状态转换
-}
+type TrackState = 'pending' | 'fulfilled' | 'rejected'
+type TrackQueryState = TrackState | 'finished'
 ```
 
+**状态说明**：
+- `pending`：初始状态，调用已创建但未完成
+- `fulfilled`：成功完成状态（终态）
+- `rejected`：执行失败状态（终态）
+- `finished`：查询专用状态，表示已完成（`fulfilled` 或 `rejected`），不参与状态转换
+
+**状态转换规则**：
+- `pending` → `fulfilled`/`rejected`
+- `fulfilled` → []（终态，不允许转换）
+- `rejected` → []（终态，不允许转换）
+
 **竟态处理原理**：
-1. 每次调用分配唯一序号（sn）
+1. 每次调用分配唯一序号（sn），严格递增
 2. 记录每种状态的最新序号
-3. 通过 `isLatestCall()`、`isLatestFulfill()` 等方法判断是否为最新调用
-4. 只有最新调用的状态才会更新到最终结果
+3. 通过 `isLatest(state)` 方法判断是否为最新调用
+4. 通过 `hasLater(state)` 方法判断是否有后续调用
+5. 只有最新调用的状态才会更新到最终结果
 
 **关键方法**：
-- `track()`：创建新的追踪对象
-- `isLatestCall()`：是否为最新调用
-- `isLatestFulfill()`：是否为最新成功完成
-- `hasLaterReject()`：是否有后续的失败调用
+- `track()`：创建新的追踪对象，分配唯一序号
+- `isLatest(state?)`：检查是否为最新状态
+  - 无参数：检查是否为最新的 pending 调用
+  - 有参数：检查是否为指定状态的最新调用
+- `hasLater(state)`：检查之后是否有指定状态的调用
+- `is(state?)`：检查当前是否处于指定状态
 
 #### 3.1.3 setup-pipeline.ts - 插件管道系统
 
@@ -334,7 +343,7 @@ type Addon<Method, AddonResult> = (params: {
 1. 每次调用分配唯一序号（sn）
 2. 记录每种状态的最新序号
 3. 只有最新调用的状态才会更新到最终结果
-4. 通过 `isLatestCall()` 等方法判断调用顺序
+4. 通过 `isLatest()` 等方法判断调用顺序
 
 **状态更新规则**：
 - `loading`、`error`：始终与最新调用关联
