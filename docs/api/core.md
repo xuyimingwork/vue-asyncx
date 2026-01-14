@@ -141,8 +141,6 @@ interface FunctionMonitor {
 type TrackFull = {
   readonly sn: number
   is: (state?: TrackQueryState) => boolean
-  isLatest: (state?: TrackQueryState) => boolean
-  hasLater: (state?: TrackQueryState) => boolean
   fulfill: () => void
   reject: () => void
   setData: (key: symbol, value?: any) => void
@@ -153,7 +151,7 @@ type TrackFull = {
 // 对外暴露类型（monitor.ts）
 type Track = Pick<TrackFull, 
   'sn' | 
-  'is' | 'isLatest' | 'hasLater' |
+  'is' |
   'getData' | 'setData' | 'takeData'
 >
 ```
@@ -163,15 +161,13 @@ type Track = Pick<TrackFull,
 - `is(state?)`：检查当前是否处于指定状态
   - `state` 可选值：`'pending'` | `'fulfilled'` | `'rejected'` | `'finished'`
   - `'finished'` 是特殊状态，表示已完成（无论是成功还是失败）
-- `isLatest(state?)`：检查是否为最新状态
-  - 无参数：检查是否为最新的 pending 调用
-  - 有参数：检查是否为指定状态的最新调用
-- `hasLater(state)`：检查之后是否有指定状态的调用
-  - `state` 可选值：`'pending'` | `'fulfilled'` | `'rejected'` | `'finished'`
 - `setData(key, value)`：存储关联数据（使用 Symbol 作为键）
   - `value` 为 `undefined` 时删除该键
 - `getData(key)`：获取关联数据
 - `takeData(key)`：获取并移除关联数据
+
+**竟态处理**：
+Addon 需要自行维护状态来判断是否为最新调用。通过比较 `track.sn` 和 addon 内部记录的最新 sn 来判断调用顺序。
 
 **状态类型**：
 ```typescript

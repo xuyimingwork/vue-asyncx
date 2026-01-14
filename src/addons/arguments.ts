@@ -22,6 +22,9 @@ export function withAddonArguments(): <T extends AddonTypes>(params: {
 } {
   return (({ monitor }) => {
     const _args = ref<Parameters<any>>()
+    
+    // 内部状态：记录最新的 pending sn
+    let latest = 0
 
     // 在 init 事件中建立映射
     monitor.on('init', ({ track }) => {
@@ -29,6 +32,8 @@ export function withAddonArguments(): <T extends AddonTypes>(params: {
     })
 
     monitor.on('before', ({ args, track }) => {
+      // 更新最新 pending sn
+      latest = track.sn
       const argsValue = args as Parameters<any>
       // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_ARGUMENTS）
       track.setData(ARGUMENTS_KEY, argsValue)
@@ -39,8 +44,9 @@ export function withAddonArguments(): <T extends AddonTypes>(params: {
       // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_ARGUMENTS）
       // 设置当前调用的状态，不管是否最新调用都需要设置
       track.setData(ARGUMENTS_KEY, undefined)
-      if (!track.isLatest()) return
-      // 只有最新调用才更新最终状态
+      // 如果不是最新的调用（有后续的 pending 调用），则返回
+      if (track.sn !== latest) return
+      // 这是最新的调用（没有后续的 pending 调用），清空 arguments
       _args.value = undefined
     })
 
@@ -48,8 +54,9 @@ export function withAddonArguments(): <T extends AddonTypes>(params: {
       // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_ARGUMENTS）
       // 设置当前调用的状态，不管是否最新调用都需要设置
       track.setData(ARGUMENTS_KEY, undefined)
-      if (!track.isLatest()) return
-      // 只有最新调用才更新最终状态
+      // 如果不是最新的调用（有后续的 pending 调用），则返回
+      if (track.sn !== latest) return
+      // 这是最新的调用（没有后续的 pending 调用），清空 arguments
       _args.value = undefined
     })
 

@@ -86,6 +86,9 @@ export function useStateData<Data = any>(
   
   // 存储当前数据的追踪对象（用于过期判断）
   const dataTrack = shallowRef<Track>()
+  
+  // 内部状态：记录最新的 pending sn 和 rejected sn（用于过期判断）
+  const latest = ref({ pending: 0, rejected: 0 })
 
   /**
    * 数据更新逻辑
@@ -141,6 +144,8 @@ export function useStateData<Data = any>(
   
   // 监听 before 事件：函数执行前设置上下文和初始值
   monitor.on('before', ({ track }) => {
+    // 更新最新 pending sn
+    latest.value.pending = track.sn
     // 设置初始值（从 init 移到这里）
     track.setData(VALUE_KEY, data.value)
     
@@ -150,7 +155,17 @@ export function useStateData<Data = any>(
   })
 
   // 监听 fulfill 事件：函数成功完成时更新数据
-  monitor.on('fulfill', ({ track, value }) => update(value, track))
+  monitor.on('fulfill', ({ track, value }) => {
+    update(value, track)
+  })
+
+  // 监听 reject 事件：函数失败时更新状态
+  monitor.on('reject', ({ track }) => {
+    // 如果不是更大的 sn，则返回
+    if (track.sn <= latest.value.rejected) return
+    // 更新最新 rejected sn
+    latest.value.rejected = track.sn
+  })
 
   // 监听 after 事件：函数执行后恢复上下文
   monitor.on('after', ({ track }) => {
@@ -184,8 +199,9 @@ export function useStateData<Data = any>(
    * - 无需检查之后调用的 update 和 fulfill 情况，因为上述二者都会更新 dataTrack.value
    */
   const dataExpired = computed(() => {
-    // 无数据状态，检查是否有报错信息
-    if (!dataTrack.value) return monitor.has.finished.value
+    // 无数据状态，检查是否有完成的调用（可能是失败）
+    // 如果有 rejected 调用，说明有完成的调用
+    if (!dataTrack.value) return latest.value.rejected > 0
     
     // 如果当前数据的调用最终结果是报错，当前数据过期
     // （当前过期数据由调用的 update 产生）
@@ -193,8 +209,9 @@ export function useStateData<Data = any>(
     
     // 否则，当前数据的过期由之后的调用产生
     // 检查在当前调用之后是否有调用发生了报错
+    // 通过比较 dataTrack.value.sn 和最新 rejected sn 来判断是否有后续失败
     // 无需检查之后调用的 update 和 fulfil 情况，因为上述二者都会更新 dataTrack.value
-    return dataTrack.value.hasLater('rejected')
+    return latest.value.rejected > dataTrack.value.sn
   })
 
   return {
