@@ -19,11 +19,22 @@
  * @module core/tracker
  */
 
+import { createEventBus } from "@/core/eventbus";
 import { max } from "@/utils/base";
 import { ComputedRef, Ref, computed, ref } from "vue";
 
 type TrackState = 'pending' | 'fulfilled' | 'rejected'
 type TrackQueryState = TrackState | 'finished'
+
+/**
+ * Track 事件映射
+ * 
+ * @description 定义了 track 支持的所有事件类型及其数据结构。
+ */
+type TrackEventMap = {
+  /** 数据变化事件，当 setData 被调用且已映射到共享 key 时触发 */
+  'data': { key: symbol, value: any }
+}
 
 /**
  * 调用追踪对象
@@ -53,6 +64,36 @@ export type Track = {
   getData: <V = any>(key: symbol) => V | undefined
   /** 获取并移除关联数据 */
   takeData: <V = any>(key: symbol) => V | undefined
+  /**
+   * 将私有 key 映射到共享 key
+   * 
+   * @description 将私有 key 映射到共享 key，只有映射到共享 key 的数据才会触发事件。
+   * 其他 addon 只能通过共享 key 读取数据，不能修改（因为 setData 只接受私有 key）。
+   * 
+   * @param key - 私有 key（addon 内部使用）
+   * @param sharedKey - 共享 key（其他 addon 可以读取）
+   * 
+   * @returns 如果映射成功返回 true，如果 key 已被映射或 sharedKey 已被使用返回 false
+   */
+  shareData: (key: symbol, sharedKey: symbol) => boolean
+  /**
+   * 注册事件监听器（内部使用，不暴露给外部）
+   * 
+   * @template T - 事件类型
+   * 
+   * @param event - 事件类型
+   * @param handler - 事件处理函数
+   */
+  on: <T extends keyof TrackEventMap>(event: T, handler: (data: TrackEventMap[T]) => void) => void
+  /**
+   * 移除事件监听器（内部使用，不暴露给外部）
+   * 
+   * @template T - 事件类型
+   * 
+   * @param event - 事件类型
+   * @param handler - 要移除的事件处理函数
+   */
+  off: <T extends keyof TrackEventMap>(event: T, handler: (data: TrackEventMap[T]) => void) => void
 }
 
 /**
@@ -120,6 +161,14 @@ function createTrack(
   // 关联数据存储（使用 Symbol 作为键，避免冲突）
   const data = new Map<symbol, any>()
   
+  // 创建事件总线
+  const bus = createEventBus<TrackEventMap>()
+  
+  // 私有 key 到共享 key 的映射
+  const keyToSharedMap = new Map<symbol, symbol>()
+  // 共享 key 到私有 key 的映射（用于只读保护）
+  const sharedToKeyMap = new Map<symbol, symbol>()
+  
   const self: Track = {
     /** 调用序号（只读） */
     get sn() { return sn },
@@ -180,52 +229,101 @@ function createTrack(
     },
     
     /**
-     * 存储关联数据
+     * 存储关联数据（私有 key）
      * 
-     * @description 使用 Symbol 作为键存储与本次调用关联的数据。
-     * 如果 value 为 undefined，则删除该键。
+     * @description 使用私有 key 存储数据。如果该私有 key 已映射到共享 key，
+     * 则会触发 'data' 事件（使用共享 key）。
+     * 如果传入的是共享 key，直接返回，不执行任何操作。
      * 
-     * @param key - 数据键（Symbol）
+     * @param key - 数据键（私有 key，Symbol）
      * @param value - 数据值（如果为 undefined 则删除）
      */
     setData: (key: symbol, value?: any) => {
-      if (value === undefined) return data.delete(key)
-      data.set(key, value)
+      // 如果传入的是共享 key，直接返回
+      if (sharedToKeyMap.has(key)) return
+      
+      // 根据 value 执行不同操作
+      value === undefined 
+        ? data.delete(key) 
+        : data.set(key, value)
+      
+      // 获取共享 key（如果有）
+      const sharedKey = keyToSharedMap.get(key)
+      if (sharedKey) bus.emit('data', { key: sharedKey, value })
     },
     
     /**
-     * 获取关联数据
+     * 获取关联数据（支持私有 key 和共享 key）
      * 
      * @description 根据 Symbol 键获取关联的数据。
+     * 如果传入的是共享 key，会通过映射找到对应的私有 key 来读取数据。
      * 
      * @template V - 数据类型
      * 
-     * @param key - 数据键（Symbol）
+     * @param key - 数据键（私有 key 或共享 key）
      * 
      * @returns 返回关联的数据，如果不存在返回 undefined
      */
     getData: <V = any>(key: symbol) => {
-      return data.get(key) as V | undefined
+      // 如果是共享 key，通过映射找到私有 key
+      const privateKey = sharedToKeyMap.get(key) || key
+      return data.get(privateKey) as V | undefined
     },
     
     /**
-     * 获取并移除关联数据
+     * 获取并移除关联数据（仅支持私有 key）
      * 
-     * @description 根据 Symbol 键获取关联的数据，并删除该键。
-     * 用于一次性使用的数据（如上下文恢复函数）。
+     * @description 根据私有 key 获取并删除数据。
+     * 如果传入的是共享 key，直接返回 undefined，不执行任何操作。
      * 
      * @template V - 数据类型
      * 
-     * @param key - 数据键（Symbol）
+     * @param key - 数据键（必须是私有 key）
      * 
-     * @returns 返回关联的数据，如果不存在返回 undefined
+     * @returns 返回关联的数据，如果不存在或传入的是共享 key 返回 undefined
      */
     takeData: <V = any>(key: symbol) => {
-      if (!data.has(key)) return undefined
-      const value = data.get(key) as V | undefined
-      data.delete(key)
+      // 如果传入的是共享 key，直接返回
+      if (sharedToKeyMap.has(key)) return
+      
+      // 使用 getData 获取值
+      const value = self.getData<V>(key)
+      // 使用 setData 删除数据
+      self.setData(key, undefined)
       return value
-    }
+    },
+    
+    /**
+     * 将私有 key 映射到共享 key
+     * 
+     * @description 将私有 key 映射到共享 key，只有映射到共享 key 的数据才会触发事件。
+     * 其他 addon 只能通过共享 key 读取数据，不能修改（因为 setData 只接受私有 key）。
+     * 
+     * @param key - 私有 key（addon 内部使用）
+     * @param sharedKey - 共享 key（其他 addon 可以读取）
+     * 
+     * @returns 如果映射成功返回 true，如果 key 已被映射或 sharedKey 已被使用返回 false
+     */
+    shareData(key: symbol, sharedKey: symbol): boolean {
+      // 检查私有 key 是否已被映射
+      if (keyToSharedMap.has(key)) return false
+      // 检查共享 key 是否已被使用
+      if (sharedToKeyMap.has(sharedKey)) return false
+      
+      keyToSharedMap.set(key, sharedKey)
+      sharedToKeyMap.set(sharedKey, key)
+      return true
+    },
+    
+    /**
+     * 注册事件监听器（内部使用，不暴露给外部）
+     */
+    on: bus.on,
+    
+    /**
+     * 移除事件监听器（内部使用，不暴露给外部）
+     */
+    off: bus.off
   }
   
   return self

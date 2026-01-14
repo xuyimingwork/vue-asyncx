@@ -12,18 +12,20 @@
  * 
  * @module core/monitor
  * 
- * TODO: 由 monitor 传出的 Track 应该是对外的 Track，
  * @/core/tracker 导入的是 InternalTrack，
  * 要限制外部 addon 对 track 状态的更改。
  */
 
+import { createEventBus } from "@/core/eventbus"
 import { Track as TrackFull, Tracker, createTracker } from "@/core/tracker"
 import { BaseFunction } from "@/utils/types"
 
 export type Track = Pick<TrackFull, 
   'sn' | 
   'is' | 'isLatest' | 'hasLater' |
-  'getData' | 'setData' | 'takeData'
+  'getData' | 'setData' | 'takeData' |
+  'shareData'
+  // 注意：不包含 'on' 和 'off' 方法
 >
 
 /**
@@ -34,7 +36,7 @@ export type Track = Pick<TrackFull,
 type FunctionMonitorEventMap = {
   /** 函数调用初始化事件，用于准备上下文 */
   'init': { args: any[], track: Track }
-  /** 函数执行前事件，用于观察逻辑 */
+  /** 函数执行前事件，用于观察逻辑。注：enhance-arguments 发生在 before 后 */
   'before': { args: any[], track: Track }
   /** 函数执行后事件（同步部分完成） */
   'after': { track: Track }
@@ -42,6 +44,8 @@ type FunctionMonitorEventMap = {
   'fulfill': { track: Track, value: any }
   /** 函数执行失败事件 */
   'reject': { track: Track, error: any }
+  /** track 数据变化事件，当 track 的 setData 触发 data 事件时转发 */
+  'track:data': { track: Track, key: symbol, value: any }
 }
 
 /**
@@ -123,6 +127,7 @@ interface InternalFunctionMonitor {
   emit(event: 'fulfill', data: FunctionMonitorEventMap['fulfill']): void
   emit(event: 'reject', data: FunctionMonitorEventMap['reject']): void
   emit(event: 'after', data: FunctionMonitorEventMap['after']): void
+  emit(event: 'track:data', data: FunctionMonitorEventMap['track:data']): void
 }
 
 /**
@@ -147,15 +152,15 @@ export type FunctionMonitor = Pick<InternalFunctionMonitor, 'on' | 'off' | 'use'
  * 创建基础函数监控器
  * 
  * @description 创建一个新的事件监控器实例，支持事件发布订阅机制。
- * 使用 Map 和 Set 管理事件处理器，支持多个监听器。
+ * 使用 EventBus 管理事件处理器，支持多个监听器。
  * 
  * @returns 返回基础函数监控器实例
  * 
  * @internal 内部实现，不对外暴露
  */
 function createInternalFunctionMonitor(): InternalFunctionMonitor {
-  // 使用 Map 存储每个事件类型的处理器集合
-  const handlers = new Map<keyof FunctionMonitorEventMap, Set<EventHandler<any>>>()
+  // 使用 EventBus 管理事件处理器
+  const bus = createEventBus<FunctionMonitorEventMap>()
   
   // 参数增强拦截器（特殊机制，只允许一个）
   let enhanceArgumentsInterceptor: ((data: { args: any[], track: Track }) => any[] | void) | undefined
@@ -168,24 +173,9 @@ function createInternalFunctionMonitor(): InternalFunctionMonitor {
       /* v8 ignore else -- @preserve enhance-arguments 是唯一情况 */
       if (event === 'enhance-arguments') return enhanceArgumentsInterceptor
     },
-    on<T extends keyof FunctionMonitorEventMap>(event: T, handler: EventHandler<T>) {
-      // 如果事件类型不存在，创建新的 Set
-      const set = handlers.get(event)
-      if (!set) handlers.set(event, new Set())
-      // 添加处理器到 Set
-      handlers.get(event).add(handler)
-    },
-    off<T extends keyof FunctionMonitorEventMap>(event: T, handler: EventHandler<T>) {
-      // 从 Set 中移除处理器
-      handlers.get(event)?.delete(handler)
-    },
-    emit<T extends keyof FunctionMonitorEventMap>(
-      event: T,
-      data: FunctionMonitorEventMap[T]
-    ): void {
-      // 触发所有注册的处理器
-      handlers.get(event)?.forEach(h => h(data))
-    }
+    on: bus.on,
+    off: bus.off,
+    emit: bus.emit
   }
 
   return monitor
@@ -272,10 +262,17 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
   // 包装函数，添加事件监控
   const run = ((...args: Parameters<Fn>): ReturnType<Fn> => {
     // 创建调用追踪对象
-    const { fulfill, reject, ...track } = tracker.track()
+    // 将 on/off 解构出来，track 对象不包含这些方法（符合 Track 类型定义）
+    const { fulfill, reject, on, off, ...track } = tracker.track()
 
     // 触发 init 事件：用于初始化/准备逻辑
+    // 注意：此时 monitor 还未注册 track 的监听，所以 init 阶段的 setData 不会触发 track:data 事件
     monitor.emit('init', { args, track })
+
+    // 在 init 之后注册监听，开始转发 track 的 data 事件
+    on('data', ({ key, value }) => {
+      monitor.emit('track:data', { track, key, value })
+    })
 
     // 触发 before 事件：用于执行前观察逻辑
     monitor.emit('before', { args, track })

@@ -6,6 +6,11 @@ import { prepareAsyncDataContext } from "./context"
 import { normalizeEnhancedArguments } from "./enhance"
 
 /**
+ * 共享 key：供其他 addon 读取 data 状态
+ */
+export const TRACK_ADDON_DATA: symbol = Symbol('vue-asyncx:addon:data')
+
+/**
  * 创建响应式数据状态管理器
  * 
  * @description 该函数创建一个响应式的数据状态管理器，用于追踪异步函数的返回值。
@@ -100,13 +105,10 @@ export function useStateData<Data = any>(
     dataTrack.value = track
   }
 
-  // 监听 fulfill 事件：函数成功完成时更新数据
-  monitor.on('fulfill', ({ track, value }) => update(value, track))
-
   // 监听 init 事件：函数调用初始化时准备上下文
   monitor.on('init', ({ track }) => {
-    // 设置初始值（替换 setup interceptor）
-    track.setData(VALUE_KEY, data.value)
+    // 建立映射：将私有 key 映射到共享 key
+    track.shareData(VALUE_KEY, TRACK_ADDON_DATA)
     
     // 创建上下文对象，提供 getData 和 updateData 方法
     // 该上下文可以通过 getAsyncDataContext 获取，用于在函数执行过程中访问和更新数据
@@ -137,12 +139,18 @@ export function useStateData<Data = any>(
     })
   })
   
-  // 监听 before 事件：函数执行前设置上下文
+  // 监听 before 事件：函数执行前设置上下文和初始值
   monitor.on('before', ({ track }) => {
+    // 设置初始值（从 init 移到这里）
+    track.setData(VALUE_KEY, data.value)
+    
     // 初始化函数隐式执行上下文
     // 将上下文设置到全局，使得 getAsyncDataContext 可以获取
     track.setData(RESTORE_KEY, prepareAsyncDataContext(track.getData(CONTEXT_KEY)!))
   })
+
+  // 监听 fulfill 事件：函数成功完成时更新数据
+  monitor.on('fulfill', ({ track, value }) => update(value, track))
 
   // 监听 after 事件：函数执行后恢复上下文
   monitor.on('after', ({ track }) => {
