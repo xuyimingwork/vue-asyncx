@@ -1,4 +1,4 @@
-import type { FunctionMonitor } from "@/core/monitor"
+import type { FunctionMonitor, Track } from "@/core/monitor"
 import type { Ref } from "vue"
 import { ref } from "vue"
 
@@ -12,6 +12,39 @@ export const TRACK_ADDON_ERROR: symbol = Symbol('vue-asyncx:addon:error')
  */
 const ERROR_KEY: symbol = Symbol('error')
 
+/**
+ * 定义状态 error 管理器
+ * 
+ * @description 接收 set 函数，返回 update 函数用于更新外部的 error 状态
+ * 
+ * @param options - 配置选项
+ * @param options.set - 设置 error 状态的函数
+ * 
+ * @returns 返回包含 update 函数的对象
+ */
+export function defineStateError({  
+  set
+}: { 
+  set: (value: any) => void
+}): { 
+  update: (track: Track) => void 
+} {
+  // 内部状态：记录最新的 pending sn
+  let latest = 0
+
+  return {
+    update(track: Track) {
+      // 如果 track.sn > latest，更新 latest
+      if (track.sn > latest) latest = track.sn
+      // 如果 track.sn !== latest，说明不是最新的调用，直接返回
+      if (track.sn !== latest) return
+      // 现在 track.sn === latest，根据 track 的状态调用 set
+      if (track.is('pending')) return set(undefined)
+      if (track.is('rejected')) return set(track.getData(ERROR_KEY))
+    }
+  }
+}
+
 export function withAddonError(): (params: { 
   monitor: FunctionMonitor
 }) => {
@@ -20,8 +53,10 @@ export function withAddonError(): (params: {
   return (({ monitor }) => {
     const error = ref()
     
-    // 内部状态：记录最新的 pending sn
-    let latest = 0
+    // 使用 defineStateError 创建状态管理器
+    const { update } = defineStateError({
+      set: (value) => { error.value = value }
+    })
 
     // 在 init 事件中建立映射
     monitor.on('init', ({ track }) => {
@@ -29,22 +64,16 @@ export function withAddonError(): (params: {
     })
 
     monitor.on('before', ({ track }) => {
-      // 更新最新 pending sn
-      latest = track.sn
       // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_ERROR）
       track.setData(ERROR_KEY, undefined)
-      // 清除 error（新调用开始时清除错误状态）
-      error.value = undefined
+      update(track)
     })
 
     monitor.on('reject', ({ track, error: err }) => {
       // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_ERROR）
       // 设置当前调用的状态，不管是否最新调用都需要设置
       track.setData(ERROR_KEY, err)
-      // 如果不是最新的调用（有后续的 pending 调用），则返回
-      if (track.sn !== latest) return
-      // 这是最新的调用（没有后续的 pending 调用），更新 error
-      error.value = err
+      update(track)
     })
 
     return {
