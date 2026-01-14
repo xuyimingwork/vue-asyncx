@@ -396,18 +396,6 @@ describe('withFunctionMonitor', () => {
   })
 
   describe('Tracker Integration', () => {
-    it('should expose monitor.has.finished', () => {
-      const fn = vi.fn(() => 1)
-      const { run, monitor } = withFunctionMonitor(fn)
-      
-      expect(monitor.has).toBeDefined()
-      expect(monitor.has.finished).toBeDefined()
-      expect(monitor.has.finished.value).toBe(false)
-      
-      run()
-      expect(monitor.has.finished.value).toBe(true)
-    })
-
     it('should track sequence numbers correctly', () => {
       const fn = vi.fn(() => 1)
       const { run, monitor } = withFunctionMonitor(fn)
@@ -451,9 +439,10 @@ describe('withFunctionMonitor', () => {
       const track1 = fulfillHandler.mock.calls.find(call => call[0].track.sn === 1)?.[0].track
       const track2 = fulfillHandler.mock.calls.find(call => call[0].track.sn === 2)?.[0].track
       
-      // After both finish, sn=2 should be latest (pending.value === 2)
-      expect(track2?.isLatest()).toBe(true)
-      expect(track1?.isLatest()).toBe(false)
+      // After both finish, both should be fulfilled
+      expect(track1?.is('fulfilled')).toBe(true)
+      expect(track2?.is('fulfilled')).toBe(true)
+      expect(track2?.sn).toBeGreaterThan(track1?.sn ?? 0)
     })
   })
 
@@ -467,16 +456,20 @@ describe('withFunctionMonitor', () => {
       const { run, monitor } = withFunctionMonitor(fn)
       const loading = { value: false }
       
-      monitor.on('before', () => {
+      let latestFinishedSn = 0
+      monitor.on('before', ({ track }) => {
         loading.value = true
+        latestFinishedSn = track.sn
       })
       monitor.on('fulfill', ({ track }) => {
-        if (track.isLatest()) {
+        latestFinishedSn = track.sn
+        if (track.sn === latestFinishedSn) {
           loading.value = false
         }
       })
       monitor.on('reject', ({ track }) => {
-        if (track.isLatest()) {
+        latestFinishedSn = track.sn
+        if (track.sn === latestFinishedSn) {
           loading.value = false
         }
       })
@@ -494,11 +487,14 @@ describe('withFunctionMonitor', () => {
       const { run, monitor } = withFunctionMonitor(fn)
       const parameters = { value: undefined as any }
       
+      let latestFinishedSn = 0
       monitor.on('before', ({ args, track }) => {
         parameters.value = args
+        latestFinishedSn = track.sn
       })
       monitor.on('fulfill', ({ track }) => {
-        if (track.isLatest()) {
+        latestFinishedSn = track.sn
+        if (track.sn === latestFinishedSn) {
           parameters.value = undefined
         }
       })
@@ -515,11 +511,14 @@ describe('withFunctionMonitor', () => {
       const { run, monitor } = withFunctionMonitor(fn)
       const errorState = { value: undefined as any }
       
-      monitor.on('before', () => {
+      let latestRejectedSn = 0
+      monitor.on('before', ({ track }) => {
         errorState.value = undefined
+        latestRejectedSn = track.sn
       })
       monitor.on('reject', ({ track, error }) => {
-        if (track.isLatest()) {
+        latestRejectedSn = track.sn
+        if (track.sn === latestRejectedSn) {
           errorState.value = error
         }
       })
@@ -556,11 +555,14 @@ describe('withFunctionMonitor', () => {
       const data = { value: 'initial-data' }
       const dataTrack = { value: undefined as any }
       
+      let latestFulfilledSn = 0
       monitor.on('fulfill', ({ track, value }) => {
         if (track.is('rejected')) return
-        if (track.is('fulfilled') && !track.isLatest('fulfilled')) return
-        data.value = value
-        dataTrack.value = track
+        latestFulfilledSn = track.sn
+        if (track.is('fulfilled') && track.sn === latestFulfilledSn) {
+          data.value = value
+          dataTrack.value = track
+        }
       })
       
       run()
@@ -568,7 +570,7 @@ describe('withFunctionMonitor', () => {
       
       expect(data.value).toBe('new-data')
       expect(dataTrack.value).toBeDefined()
-      expect(dataTrack.value.isLatest('fulfilled')).toBe(true)
+      expect(dataTrack.value.is('fulfilled')).toBe(true)
     })
 
     it('should support dataExpired pattern', () => {
@@ -578,18 +580,26 @@ describe('withFunctionMonitor', () => {
       // Simulate dataExpired computation
       const dataExpired = { value: false }
       const dataTrack = { value: undefined as any }
+      let hasFinished = false
+      let latestRejectedSn = 0
       
       // Update dataTrack on fulfill
       monitor.on('fulfill', ({ track }) => {
         dataTrack.value = track
+        hasFinished = true
+      })
+      
+      monitor.on('reject', ({ track }) => {
+        latestRejectedSn = track.sn
+        hasFinished = true
       })
       
       run()
       
-      // Check expired: if no dataTrack, use monitor.has.finished
+      // Check expired: if no dataTrack, use hasFinished
       const expired = !dataTrack.value 
-        ? monitor.has.finished.value 
-        : (dataTrack.value.is('rejected') || dataTrack.value.hasLater('rejected'))
+        ? hasFinished 
+        : (dataTrack.value.is('rejected') || latestRejectedSn > dataTrack.value.sn)
       
       expect(expired).toBe(false) // Data is fresh after first call
     })

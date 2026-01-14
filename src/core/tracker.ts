@@ -12,16 +12,12 @@
  * ## 竟态处理原理
  * 
  * 1. 每次调用分配唯一序号（sn）
- * 2. 记录每种状态的最新序号
- * 3. 只有最新调用的状态才会更新到最终结果
- * 4. 通过 isLatest()、hasLater() 等方法判断调用顺序
+ * 2. 需要的 addon 自行维护状态，通过比较 sn 来判断调用顺序
  * 
  * @module core/tracker
  */
 
 import { createEventBus } from "@/core/eventbus";
-import { max } from "@/utils/base";
-import { ComputedRef, Ref, computed, ref } from "vue";
 
 type TrackState = 'pending' | 'fulfilled' | 'rejected'
 type TrackQueryState = TrackState | 'finished'
@@ -48,10 +44,6 @@ export type Track = {
 
   /** 检查当前是否处于指定状态 */
   is: (state?: TrackQueryState) => boolean
-  /* 检测当前是否为最新状态 */
-  isLatest: (state?: TrackQueryState) => boolean
-  /* 检测之后是否有指定状态的调用 */
-  hasLater: (state?: TrackQueryState) => boolean
 
   /** 标记为成功 */
   fulfill: () => void
@@ -99,16 +91,11 @@ export type Track = {
 /**
  * 调用追踪器
  * 
- * @description 管理所有函数调用的追踪状态，提供创建追踪对象和查询状态的能力。
+ * @description 管理所有函数调用的追踪状态，提供创建追踪对象的能力。
  */
 export type Tracker = {
   /** 创建新的调用追踪对象 */
-  track: () => Track,
-  /** 调用状态查询 */
-  has: {
-    /** 是否已有完成的调用（成功或失败） */
-    finished: ComputedRef<boolean>
-  }
+  track: () => Track
 }
 
 /**
@@ -132,9 +119,7 @@ function allowTransition(
 }
 
 type InnerTracker = {
-  sn: () => number
-  get: (state: TrackQueryState) => number
-  set: (state: Exclude<TrackState, 'pending'>, sn: number) => boolean
+  sn: number
 }
 
 /**
@@ -153,7 +138,7 @@ function createTrack(
   tracker: InnerTracker
 ): Track {
   // 获取调用序号（唯一标识）
-  const sn = tracker.sn()
+  const sn = tracker.sn
   
   // 当前状态（初始为 PENDING）
   let state: TrackState = 'pending'
@@ -186,23 +171,6 @@ function createTrack(
       if (target === 'finished') return (state === 'fulfilled' || state === 'rejected')
       return target === state
     },
-
-    isLatest(state) {
-      if (!state) return tracker.get('pending') === sn
-      return self.is(state) && tracker.get(state) === sn
-    },
-
-    /**
-     * 检查是否有后续的失败调用
-     * 
-     * @description 用于判断在当前调用之后是否有失败的调用。
-     * 用于数据过期判断：如果后续有失败调用，当前数据可能过期。
-     * 
-     * @returns 如果有后续失败调用返回 true，否则返回 false
-     */
-    hasLater(state) {
-      return tracker.get(state) > sn
-    },
     
     /**
      * 转换到成功完成状态
@@ -213,7 +181,6 @@ function createTrack(
     fulfill: () => {
       if (!allowTransition(state, 'fulfilled')) return
       state = 'fulfilled'
-      tracker.set('fulfilled', sn)
     },
     
     /**
@@ -225,7 +192,6 @@ function createTrack(
     reject: () => {
       if (!allowTransition(state, 'rejected')) return
       state = 'rejected'
-      tracker.set('rejected', sn)
     },
     
     /**
@@ -334,8 +300,8 @@ function createTrack(
  * 
  * @description 创建一个新的调用追踪器实例，用于追踪异步函数调用的生命周期并处理竟态条件。
  * 
- * 追踪器通过序号（sn）管理所有调用，记录每种状态的最新序号。
- * 只有最新调用的状态才会更新到最终结果，从而解决竟态条件问题。
+ * 追踪器通过序号（sn）管理所有调用，为每次调用分配唯一序号。
+ * 需要的 addon 可以自行维护状态，通过比较 sn 来判断调用顺序。
  * 
  * @returns 返回调用追踪器实例
  * 
@@ -348,36 +314,11 @@ function createTrack(
  * 
  * track1.fulfill() // 标记 track1 成功完成
  * track2.reject()  // 标记 track2 失败
- * 
- * // track2 是最新调用，即使 track1 成功，最终状态也是失败
  * ```
  */
 export function createTracker(): Tracker {
-  // 记录【最新的】不同状态的序号
-  // 使用响应式引用，确保状态变化可以被追踪
-  const pending = ref<number>(0)    // 最新的 PENDING 序号
-  const fulfilled = ref<number>(0)  // 最新的 FULFILLED 序号
-  const rejected = ref<number>(0)   // 最新的 REJECTED 序号
-  
-  // 计算是否有完成的调用（无论是成功还是失败）
-  const finished = computed(() => max(fulfilled.value, rejected.value))
-  
-  /**
-   * 记录状态序号
-   * 
-   * @description 如果新的序号大于当前序号，则更新并返回 true；否则返回 false。
-   * 这确保了只有更新的状态才会被记录。
-   * 
-   * @param sn - 新的序号
-   * @param latest - 当前最新的序号引用
-   * 
-   * @returns 如果成功记录返回 true，否则返回 false
-   */
-  const record = (sn: number, latest: Ref<number>): boolean => {
-    if (latest.value >= sn) return false
-    latest.value = sn
-    return true
-  }
+  // 当前序号计数器
+  let sn = 0
 
   return {
     /**
@@ -391,58 +332,10 @@ export function createTracker(): Tracker {
       /**
        * 生成新的调用序号
        * 
-       * @description 每次调用递增 pending 序号，确保每个调用都有唯一序号。
+       * @description 每次调用递增序号，确保每个调用都有唯一序号。
        */
-      sn: () => ++pending.value,
-      
-      /**
-       * 获取指定状态的最新序号
-       * 
-       * @param state - 状态类型
-       * 
-       * @returns 返回该状态的最新序号
-       */
-      get: (state: TrackQueryState) => {
-        if (state === 'pending') return pending.value
-        if (state === 'fulfilled') return fulfilled.value
-        if (state === 'rejected')  return rejected.value
-        /* v8 ignore else -- @preserve */
-        if (state === 'finished') return max(fulfilled.value, rejected.value)
-        /* v8 ignore next -- @preserve */
-        return 0
-      },
-      
-      /**
-       * 设置指定状态的最新序号
-       * 
-       * @description 如果新的序号大于当前序号，则更新并返回 true。
-       * 
-       * @param state - 状态类型
-       * @param sn - 新的序号
-       * 
-       * @returns 如果成功更新返回 true，否则返回 false
-       */
-      set: (state: Exclude<TrackState, 'pending'>, sn: number) => {
-        if (state === 'fulfilled') return record(sn, fulfilled)
-        /* v8 ignore else -- @preserve */
-        if (state === 'rejected') return record(sn, rejected)
-        /* v8 ignore next -- @preserve */
-        return false
-      }
-    }),
-    
-    /**
-     * 调用状态查询
-     */
-    has: {
-      /**
-       * 是否已有完成的调用
-       * 
-       * @description 检查是否至少有一个调用已经完成（无论是成功还是失败）。
-       * 用于判断是否有历史调用记录。
-       */
-      finished: computed(() => finished.value > 0),
-    }
+      sn: ++sn
+    })
   }
 }
 

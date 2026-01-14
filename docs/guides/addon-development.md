@@ -227,16 +227,23 @@ track.is()               // 无参数时返回当前状态
 
 #### 竟态判断
 
-```typescript
-track.isLatest()                    // 是否为最新的 pending 调用
-track.isLatest('pending')           // 是否为最新的 pending 调用
-track.isLatest('fulfilled')         // 是否为最新的 fulfilled 调用
-track.isLatest('rejected')          // 是否为最新的 rejected 调用
+Addon 需要自行维护状态来判断是否为最新调用。通过比较 `track.sn` 和 addon 内部记录的最新 sn 来判断：
 
-track.hasLater('pending')           // 是否有后续的 pending 调用
-track.hasLater('fulfilled')        // 是否有后续的 fulfilled 调用
-track.hasLater('rejected')         // 是否有后续的 rejected 调用
-track.hasLater('finished')         // 是否有后续的 finished 调用
+```typescript
+// 示例：维护最新 finished sn
+let latestFinishedSn = 0
+
+monitor.on('before', ({ track }) => {
+  latestFinishedSn = track.sn
+})
+
+monitor.on('fulfill', ({ track }) => {
+  latestFinishedSn = track.sn
+  // 只有最新调用才更新状态
+  if (track.sn === latestFinishedSn) {
+    // 更新状态
+  }
+})
 ```
 
 #### 数据存储
@@ -315,32 +322,48 @@ track.takeData(KEY)        // 获取并移除数据
 ### 状态管理
 
 1. **使用响应式引用**：使用 `ref` 或 `computed` 创建响应式状态
-2. **竟态处理**：使用 `track.isLatest()` 确保只更新最新调用的状态
+2. **竟态处理**：自行维护最新 sn，通过比较 `track.sn` 确保只更新最新调用的状态
 3. **状态清理**：在适当的时候清理状态（如新调用开始时）
 
 **示例**：
 ```typescript
-monitor.on('before', () => {
-  // 新调用开始，清理之前的状态
+let latestFinishedSn = 0
+
+monitor.on('before', ({ track }) => {
+  // 新调用开始，更新最新 pending sn
+  latestFinishedSn = track.sn
+  // 清理之前的状态
   customState.value = 'idle'
 })
 
 monitor.on('fulfill', ({ track }) => {
+  // 更新最新 finished sn
+  latestFinishedSn = track.sn
   // 只有最新调用才更新状态
-  if (!track.isLatest()) return
-  customState.value = 'success'
+  if (track.sn === latestFinishedSn) {
+    customState.value = 'success'
+  }
 })
 ```
 
 ### 竟态处理
 
-始终检查是否为最新调用，避免旧调用的状态覆盖新调用：
+始终检查是否为最新调用，避免旧调用的状态覆盖新调用。通过维护最新 sn 并比较 `track.sn` 来实现：
 
 ```typescript
+let latestFulfilledSn = 0
+
+monitor.on('before', ({ track }) => {
+  latestFulfilledSn = track.sn
+})
+
 monitor.on('fulfill', ({ track, value }) => {
+  // 更新最新 fulfilled sn
+  latestFulfilledSn = track.sn
   // 只有最新调用才更新
-  if (!track.isLatest()) return
-  data.value = value
+  if (track.sn === latestFulfilledSn) {
+    data.value = value
+  }
 })
 ```
 

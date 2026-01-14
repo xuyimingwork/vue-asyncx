@@ -22,7 +22,7 @@ import { BaseFunction } from "@/utils/types"
 
 export type Track = Pick<TrackFull, 
   'sn' | 
-  'is' | 'isLatest' | 'hasLater' |
+  'is' |
   'getData' | 'setData' | 'takeData' |
   'shareData'
   // 注意：不包含 'on' 和 'off' 方法
@@ -133,20 +133,9 @@ interface InternalFunctionMonitor {
 /**
  * 函数监控器接口
  * 
- * @description 扩展了基础监控器，添加了调用追踪能力。
- * 提供 `has.finished` 属性，用于查询是否已有完成的调用。
+ * @description 提供函数执行生命周期的事件监控能力。
  */
-export type FunctionMonitor = Pick<InternalFunctionMonitor, 'on' | 'off' | 'use'> & {
-  /**
-   * 调用追踪状态
-   */
-  has: {
-    /**
-     * 是否已有完成的调用（成功或失败）
-     */
-    finished: Tracker['has']['finished']
-  }
-}
+export type FunctionMonitor = Pick<InternalFunctionMonitor, 'on' | 'off' | 'use'>
 
 /**
  * 创建基础函数监控器
@@ -184,10 +173,7 @@ function createInternalFunctionMonitor(): InternalFunctionMonitor {
 function createFunctionMonitor(monitor: InternalFunctionMonitor, tracker: Tracker): FunctionMonitor {
   const { on, off, use } = monitor
   return {
-    on, off, use,
-    has: {
-      finished: tracker.has.finished
-    }
+    on, off, use
   }
 }
 
