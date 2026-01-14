@@ -1,6 +1,6 @@
 import type { Track } from "@/core/monitor"
 import { createEnhanceArgumentsHandler, type FunctionMonitor } from "@/core/monitor"
-import type { Ref, ShallowRef } from "vue"
+import type { ComputedRef, Ref, ShallowRef } from "vue"
 import { computed, ref, shallowRef } from "vue"
 import { prepareAsyncDataContext } from "./context"
 import { normalizeEnhancedArguments } from "./enhance"
@@ -9,6 +9,68 @@ import { normalizeEnhancedArguments } from "./enhance"
  * 共享 key：供其他 addon 读取 data 状态
  */
 export const TRACK_ADDON_DATA: symbol = Symbol('vue-asyncx:addon:data')
+
+/**
+ * 私有 key：addon 内部使用
+ */
+const VALUE_KEY = Symbol('value')
+
+/**
+ * 定义状态 data 管理器
+ * 
+ * @description 接收 set/get 函数，返回 update 函数和 dataExpired 计算属性
+ * 
+ * @param options - 配置选项
+ * @param options.set - 设置 data 状态的函数
+ * @param options.get - 获取当前 data 状态的函数
+ * 
+ * @returns 返回包含 update 函数和 dataExpired 计算属性的对象
+ */
+export function defineStateData({  
+  set
+}: { 
+  set: (value: any) => void
+}): { 
+  update: (track: Track) => void
+  dataExpired: ComputedRef<boolean>
+} {
+  // 内部状态：记录最新的 pending sn 和 rejected sn（用于过期判断）
+  const latest = ref({ pending: 0, rejected: 0 })
+  
+  // 存储当前数据的追踪对象（用于过期判断）
+  const dataTrack = shallowRef<Track>()
+
+  return {
+    update(track: Track) {
+      // 如果 track.sn > latest.pending，更新 latest.pending
+      if (track.sn > latest.value.pending) latest.value.pending = track.sn
+
+      // 记录报错情况，用于 dataExpired 计算
+      if (track.is('rejected')) {
+        // rejected 状态：更新 latest.rejected
+        if (track.sn <= latest.value.rejected) return
+        latest.value.rejected = track.sn
+        return
+      }
+      
+      // 更新数据场景
+      if (dataTrack.value && dataTrack.value.sn > track.sn) return
+      set(track.getData(VALUE_KEY))
+      dataTrack.value = track
+      return
+    },
+    dataExpired: computed(() => {
+      // 无数据状态，检查是否有完成的调用（可能是失败）
+      if (!dataTrack.value) return latest.value.rejected > 0
+      
+      // 如果当前数据的调用最终结果是报错，当前数据过期
+      if (dataTrack.value.is('rejected')) return true
+      
+      // 检查在当前调用之后是否有调用发生了报错
+      return latest.value.rejected > dataTrack.value.sn
+    })
+  }
+}
 
 /**
  * 创建响应式数据状态管理器
@@ -73,7 +135,6 @@ export function useStateData<Data = any>(
   dataExpired: Ref<boolean>
 } {
   // 使用 Symbol 作为数据键，避免冲突
-  const VALUE_KEY = Symbol('value')      // 存储函数返回值
   const CONTEXT_KEY = Symbol('context')  // 存储上下文对象
   const RESTORE_KEY = Symbol('restore')  // 存储上下文恢复函数
 
@@ -84,34 +145,18 @@ export function useStateData<Data = any>(
     ? shallowRef<Data>(initialData) 
     : ref<Data>(initialData)) as Ref<Data> | ShallowRef<Data>
   
-  // 存储当前数据的追踪对象（用于过期判断）
-  const dataTrack = shallowRef<Track>()
-  
-  // 内部状态：记录最新的 pending sn 和 rejected sn（用于过期判断）
-  const latest = ref({ pending: 0, rejected: 0 })
-
-  /**
-   * 数据更新逻辑
-   * 
-   * @description 更新数据值，但只接受最新调用的更新。
-   * 竟态处理：通过序号（sn）比较确保只有最新调用的数据才会更新。
-   * - 如果当前已有数据且其序号大于本次调用的序号，则忽略本次更新
-   * - 这确保了即使多个调用同时更新数据，也只有最新的调用会生效
-   * 
-   * @param value - 新的数据值
-   * @param track - 调用追踪对象
-   */
-  function update(value: any, track: Track) {
-    track.setData(VALUE_KEY, value)
-    if (dataTrack.value && dataTrack.value.sn > track.sn) return
-    data.value = value
-    dataTrack.value = track
-  }
+  // 使用 defineStateData 创建状态管理器
+  const { update, dataExpired } = defineStateData({
+    set: (value) => { data.value = value }
+  })
 
   // 监听 init 事件：函数调用初始化时准备上下文
   monitor.on('init', ({ track }) => {
     // 建立映射：将私有 key 映射到共享 key
     track.shareData(VALUE_KEY, TRACK_ADDON_DATA)
+
+    // 设置初始值到 VALUE_KEY（初始值应该属于 track 的原生属性）
+    track.setData(VALUE_KEY, data.value)
     
     // 创建上下文对象，提供 getData 和 updateData 方法
     // 该上下文可以通过 getAsyncDataContext 获取，用于在函数执行过程中访问和更新数据
@@ -136,7 +181,10 @@ export function useStateData<Data = any>(
       updateData: (value: any) => {
         // 只有在函数未完成时才能更新（finished 表示已 fulfill 或 reject）
         if (track.is('finished')) return
-        update(value, track)
+        // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_DATA）
+        track.setData(VALUE_KEY, value)
+        // 调用 update 函数处理竟态条件并更新数据
+        update(track)
         return value
       }
     })
@@ -144,11 +192,6 @@ export function useStateData<Data = any>(
   
   // 监听 before 事件：函数执行前设置上下文和初始值
   monitor.on('before', ({ track }) => {
-    // 更新最新 pending sn
-    latest.value.pending = track.sn
-    // 设置初始值（从 init 移到这里）
-    track.setData(VALUE_KEY, data.value)
-    
     // 初始化函数隐式执行上下文
     // 将上下文设置到全局，使得 getAsyncDataContext 可以获取
     track.setData(RESTORE_KEY, prepareAsyncDataContext(track.getData(CONTEXT_KEY)!))
@@ -156,15 +199,14 @@ export function useStateData<Data = any>(
 
   // 监听 fulfill 事件：函数成功完成时更新数据
   monitor.on('fulfill', ({ track, value }) => {
-    update(value, track)
+    // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_DATA）
+    track.setData(VALUE_KEY, value)
+    update(track)
   })
 
   // 监听 reject 事件：函数失败时更新状态
   monitor.on('reject', ({ track }) => {
-    // 如果不是更大的 sn，则返回
-    if (track.sn <= latest.value.rejected) return
-    // 更新最新 rejected sn
-    latest.value.rejected = track.sn
+    update(track)
   })
 
   // 监听 after 事件：函数执行后恢复上下文
@@ -182,37 +224,6 @@ export function useStateData<Data = any>(
       return normalizeEnhancedArguments(args, track.takeData(CONTEXT_KEY)!)
     }))
   }
-
-  /**
-   * 计算数据是否过期
-   * 
-   * @description 判断当前数据是否可能过期。
-   * 
-   * 数据过期的场景：
-   * 1. 无数据状态，但已有完成的调用（可能是失败）
-   * 2. 当前数据的调用最终结果是报错
-   * 3. 在当前数据之后有调用发生了报错
-   * 
-   * 过期判断逻辑：
-   * - 如果当前数据对应的调用失败，数据过期
-   * - 如果当前数据之后有调用失败，数据过期（因为最新调用失败，当前数据不是最新的）
-   * - 无需检查之后调用的 update 和 fulfill 情况，因为上述二者都会更新 dataTrack.value
-   */
-  const dataExpired = computed(() => {
-    // 无数据状态，检查是否有完成的调用（可能是失败）
-    // 如果有 rejected 调用，说明有完成的调用
-    if (!dataTrack.value) return latest.value.rejected > 0
-    
-    // 如果当前数据的调用最终结果是报错，当前数据过期
-    // （当前过期数据由调用的 update 产生）
-    if (dataTrack.value.is('rejected')) return true
-    
-    // 否则，当前数据的过期由之后的调用产生
-    // 检查在当前调用之后是否有调用发生了报错
-    // 通过比较 dataTrack.value.sn 和最新 rejected sn 来判断是否有后续失败
-    // 无需检查之后调用的 update 和 fulfil 情况，因为上述二者都会更新 dataTrack.value
-    return latest.value.rejected > dataTrack.value.sn
-  })
 
   return {
     data,

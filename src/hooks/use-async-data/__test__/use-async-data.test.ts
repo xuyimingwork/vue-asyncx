@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, test, vi } from 'vitest'
 import { getAsyncDataContext, unFirstArgumentEnhanced, useAsyncData } from '@/hooks/use-async-data/use-async-data'
-import { isReactive } from 'vue'
 import { debounce, upperFirst } from 'es-toolkit'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+import { isReactive } from 'vue'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 afterEach(() => vi.useRealTimers())
@@ -497,6 +497,24 @@ describe('useAsyncData', () => {
       expect(data.value).toBe(20)
       await vi.runAllTimersAsync()
       expect(data.value).toBe(30)
+    })
+
+    test('should update data to undefined when call updateData with undefined and has initialData', async () => {
+      vi.useFakeTimers()
+      const { queryData, data } = useAsyncData('data', async function (): Promise<string> {
+        const { updateData } = getAsyncDataContext()
+        await wait(50)
+        updateData(undefined)
+        await wait(50)
+        return 'final'
+      }, { initialData: 'initial' })
+
+      expect(data.value).toBe('initial')
+      queryData()
+      await vi.advanceTimersByTimeAsync(50)
+      expect(data.value).toBeUndefined()
+      await vi.runAllTimersAsync()
+      expect(data.value).toBe('final')
     })
 
     test('should not update data when call updateData after async function return', async () => {

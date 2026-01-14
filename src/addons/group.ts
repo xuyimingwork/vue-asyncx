@@ -1,40 +1,28 @@
-import type { FunctionMonitor } from "@/core/monitor"
-import { computed, reactive } from "vue"
-import { TRACK_ADDON_ARGUMENTS } from "./arguments"
-import { TRACK_ADDON_DATA } from "./data"
-import { TRACK_ADDON_ERROR } from "./error"
-import { TRACK_ADDON_LOADING } from "./loading"
+import { defineStateData } from "@/addons/data/state"
+import type { FunctionMonitor, Track } from "@/core/monitor"
+import { computed, reactive, ref } from "vue"
+import { defineStateArguments } from "./arguments"
+import { defineStateError } from "./error"
+import { defineStateLoading } from "./loading"
+
+const GROUP_UPDATE_HANDLER = Symbol('vue-asyncx:group:update-handler')
 
 /**
- * 私有 key：存储 group key（用于 track:data 事件中识别）
- */
-const GROUP_KEY = Symbol('vue-asyncx:group:key')
-
-/**
- * 内部 Group 类型（包含 sn）
- */
-type InnerGroup = {
-  loading: boolean
-  error: any
-  arguments: any
-  data: any
-  sn: number
-}
-
-/**
- * Group 类型（对外返回，不包含 sn）
+ * 内部 Group 类型
  */
 type Group = {
   loading: boolean
   error: any
   arguments: any
+  argumentFirst: any
   data: any
+  dataExpired: any
 }
 
 /**
  * Groups 类型
  */
-type Groups = Record<string | number, InnerGroup>
+type Groups = Record<string | number, Group>
 
 /**
  * withAddonGroup 配置
@@ -54,13 +42,14 @@ export interface WithAddonGroupConfig {
  * 
  * @returns 默认状态对象
  */
-function createDefaultGroupState(): InnerGroup {
+function createDefaultGroupState(): Group {
   return {
     loading: false,
     error: undefined,
     arguments: undefined,
+    argumentFirst: undefined,
     data: undefined,
-    sn: 0
+    dataExpired: false
   }
 }
 
@@ -99,80 +88,65 @@ function createDefaultGroupState(): InnerGroup {
 export function withAddonGroup(config: WithAddonGroupConfig) {
   return (({ monitor }: { monitor: FunctionMonitor }) => {
     const { by } = config
-    
+
     // 内部保存 groups，用于追踪状态
     const groups = reactive<Groups>({})
-    
-    /**
-     * 统一更新 group 状态
-     * 
-     * @param key - group key
-     * @param updates - 要更新的状态（包含 sn 和可选的属性值）
-     * @description 如果 updates.sn 大于当前 sn，则直接 assign 所有更新
-     */
-    function updateGroup(key: string | number, updates: Partial<InnerGroup> & { sn: number }): void {
-      // 初始化状态（如果不存在）
-      if (!groups[key]) {
-        groups[key] = createDefaultGroupState()
-      }
-      
-      const currentSn = groups[key].sn
-      // 如果 sn 更小，直接返回
-      if (updates.sn < currentSn) return
-      
-      // 如果 sn 大于等于当前 sn，直接赋值
-      groups[key] = { ...groups[key], ...updates }
-    }
-    
+    const updates = new Map<string | number, (track: Track) => void>()
+
     // 在 init 事件中存储 key 和 track.sn（提前到 init 阶段，避免时序问题）
     monitor.on('init', ({ args, track }) => {
       const key = by(args)
-      
-      // 存储 group key 到 track 中（供 track:data 事件使用）
-      track.setData(GROUP_KEY, key)
-      
-      // 更新 sn
-      updateGroup(key, { sn: track.sn })
+      if (!groups[key]) {
+        const group = ref(createDefaultGroupState())
+        const { update: updateLoading } = defineStateLoading({
+          set: (v) => group.value.loading = v
+        })
+        const {
+          update: updateArguments,
+          argumentFirst
+        } = defineStateArguments({
+          get: () => group.value.arguments,
+          set: (v) => group.value.arguments = v
+        })
+        group.value.argumentFirst = argumentFirst
+        const { update: updateError } = defineStateError({
+          set: (v) => group.value.error = v
+        })
+        const {
+          update: updateData,
+          dataExpired
+        } = defineStateData({
+          set: (v) => group.value.data = v
+        })
+        group.value.dataExpired = dataExpired
+        groups[key] = group as any
+        updates.set(key, (track) => {
+          updateArguments(track)
+          updateLoading(track)
+          updateError(track)
+          updateData(track)
+        })
+      }
+
+      track.setData(GROUP_UPDATE_HANDLER, updates.get(key))
     })
-    
-    // 共享 key 到 property 的映射
-    const keyToPropertyMap = new Map<symbol, 'loading' | 'error' | 'arguments' | 'data'>([
-      [TRACK_ADDON_LOADING, 'loading'],
-      [TRACK_ADDON_ERROR, 'error'],
-      [TRACK_ADDON_ARGUMENTS, 'arguments'],
-      [TRACK_ADDON_DATA, 'data']
-    ])
-    
+
     // 监听所有 'track:data' 事件，自动同步到 groups
     // 注意：只监听共享 keys，私有 keys 不会触发事件
     monitor.on('track:data', ({ track, key, value }) => {
-      const groupKey = track.getData<string | number>(GROUP_KEY)
-      if (groupKey === undefined) return
-      
-      const property = keyToPropertyMap.get(key)
-      if (!property) return
-      
-      updateGroup(groupKey, {
-        sn: track.sn,
-        [property]: value
-      })
+      const update = track.getData(GROUP_UPDATE_HANDLER)
+      update(track)
     })
-    
-    // 创建 computed，返回 Proxy
-    const groupComputed = computed(() => {
-      return new Proxy({} as Record<string | number, Group>, {
+
+    return {
+      __name__Group: computed(() => new Proxy({} as Record<string | number, Group>, {
         get(target, p: string | symbol) {
           // 过滤掉 symbol，只处理 string | number
           if (typeof p === 'symbol') return undefined
           const key = p as string | number
-          
-          // 解构排除 sn，如果没有则使用默认值
-          const { sn, ...group } = groups[key] || createDefaultGroupState()
-          return group
+          return groups[key] || createDefaultGroupState()
         }
-      })
-    })
-    
-    return { __name__Group: groupComputed }
+      }))
+    }
   }) as any
 }

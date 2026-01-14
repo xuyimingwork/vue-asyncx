@@ -1,4 +1,4 @@
-import type { FunctionMonitor } from "@/core/monitor"
+import type { FunctionMonitor, Track } from "@/core/monitor"
 import { Ref, ref } from "vue"
 
 /**
@@ -11,6 +11,40 @@ export const TRACK_ADDON_LOADING: symbol = Symbol('vue-asyncx:addon:loading')
  */
 const LOADING_KEY: symbol = Symbol('loading')
 
+/**
+ * 定义状态 loading 管理器
+ * 
+ * @description 接收 get/set 函数，返回 update 函数用于更新外部的 loading 状态
+ * 
+ * @param options - 配置选项
+ * @param options.get - 获取当前 loading 状态的函数
+ * @param options.set - 设置 loading 状态的函数
+ * 
+ * @returns 返回包含 update 函数的对象
+ */
+export function defineStateLoading({  
+  set 
+}: { 
+  set: (value: boolean) => void 
+}): { 
+  update: (track: Track) => void 
+} {
+  // 内部状态：记录最新的 pending sn
+  let latest = 0
+
+  return {
+    update(track: Track) {
+      // 如果 track.sn > latest，更新 latest
+      if (track.sn > latest) latest = track.sn
+      // 如果 track.sn !== latest，说明不是最新的调用，直接返回
+      if (track.sn !== latest) return
+      // 现在 track.sn === latest，根据 track 的状态调用 set
+      if (track.is('pending')) return set(true)
+      return set(false)
+    }
+  }
+}
+
 export function withAddonLoading(): (params: { 
   monitor: FunctionMonitor
 }) => {
@@ -19,8 +53,10 @@ export function withAddonLoading(): (params: {
   return (({ monitor }: { monitor: FunctionMonitor }) => {
     const loading = ref(false)
     
-    // 内部状态：记录最新的 pending sn
-    let latest = 0
+    // 使用 defineStateLoading 创建状态管理器
+    const { update } = defineStateLoading({
+      set: (value) => { loading.value = value }
+    })
 
     // 在 init 事件中建立映射
     monitor.on('init', ({ track }) => {
@@ -28,31 +64,23 @@ export function withAddonLoading(): (params: {
     })
 
     monitor.on('before', ({ track }) => {
-      // 更新最新 pending sn
-      latest = track.sn
       // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_LOADING）
       track.setData(LOADING_KEY, true)
-      loading.value = true
+      update(track)
     })
 
     monitor.on('fulfill', ({ track }) => {
       // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_LOADING）
       // 设置当前调用的状态，不管是否最新调用都需要设置
       track.setData(LOADING_KEY, false)
-      // 如果不是最新的调用（有后续的 pending 调用），则返回
-      if (track.sn !== latest) return
-      // 这是最新的调用（没有后续的 pending 调用），设置 loading 为 false
-      loading.value = false
+      update(track)
     })
 
     monitor.on('reject', ({ track }) => {
       // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_LOADING）
       // 设置当前调用的状态，不管是否最新调用都需要设置
       track.setData(LOADING_KEY, false)
-      // 如果不是最新的调用（有后续的 pending 调用），则返回
-      if (track.sn !== latest) return
-      // 这是最新的调用（没有后续的 pending 调用），设置 loading 为 false
-      loading.value = false
+      update(track)
     })
 
     return {
