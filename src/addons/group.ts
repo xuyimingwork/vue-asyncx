@@ -1,5 +1,7 @@
+import { AddonTypes } from "@/addons/types"
 import { defineStateData } from "@/addons/data/state"
 import type { FunctionMonitor, Track } from "@/core/monitor"
+import type { ComputedRef } from "vue"
 import { computed, reactive, ref } from "vue"
 import { defineStateArguments } from "./arguments"
 import { defineStateError } from "./error"
@@ -17,6 +19,18 @@ type Group = {
   argumentFirst: any
   data: any
   dataExpired: any
+}
+
+/**
+ * Group 类型（基于 Method 类型）
+ */
+type GroupType<M extends (...args: any[]) => any> = {
+  loading: boolean
+  error: any
+  arguments: Parameters<M> | undefined
+  argumentFirst: Parameters<M>['0'] | undefined
+  data: Awaited<ReturnType<M>> | undefined
+  dataExpired: boolean
 }
 
 /**
@@ -85,7 +99,12 @@ function createDefaultGroupState(): Group {
  * </button>
  * ```
  */
-export function withAddonGroup(config: WithAddonGroupConfig) {
+export function withAddonGroup(config: WithAddonGroupConfig): <T extends AddonTypes>(params: { 
+  monitor: FunctionMonitor,
+  _types: T
+}) => {
+  __name__Group: ComputedRef<Record<string | number, GroupType<T['Method']>>>
+} {
   return (({ monitor }: { monitor: FunctionMonitor }) => {
     const { by } = config
 
@@ -145,7 +164,7 @@ export function withAddonGroup(config: WithAddonGroupConfig) {
           const key = p as string | number
           return groups[key] || createDefaultGroupState()
         }
-      }))
+      })) as ComputedRef<Record<string | number, GroupType<any>>>
     }
   }) as any
 }
