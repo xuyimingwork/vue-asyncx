@@ -142,10 +142,14 @@ sequenceDiagram
 - `after`：函数执行后（同步部分完成）
 - `fulfill`：函数成功完成
 - `reject`：函数执行失败
+- `track:data`：track 数据变化事件，当 track 的 `setData` 触发 data 事件时转发
+  - 只有映射到共享 key 的数据才会触发此事件
+  - 用于 addon 监听状态变化（如 `RUN_LOADING`、`RUN_ERROR`、`RUN_ARGUMENTS`、`RUN_DATA`）
 
 **设计要点**：
 - 使用 `Map` 和 `Set` 管理事件处理器，支持多个监听器
 - 事件顺序：`init` → `before` → `after` → `fulfill`/`reject`
+- `track:data` 事件在 `setData` 调用时触发，与上述事件并行
 
 **内部实现细节**：
 - `enhance-arguments` 是内部 API，仅用于兼容功能（如已废弃的 `enhanceFirstArgument`），不对外暴露
@@ -240,20 +244,27 @@ type Addon<Method, AddonResult> = (params: {
 #### 3.2.2 内置插件说明
 
 1. **withAddonLoading**：管理加载状态
-   - 监听 `before`、`fulfill`、`reject` 事件
+   - 监听 `track:data` 事件，当 `RUN_LOADING` 变化时更新状态
+   - 通过 `defineStateLoading` 管理状态，自动处理竟态条件
    - 返回 `{ __name__Loading: Ref<boolean> }`
 
 2. **withAddonError**：管理错误状态
-   - 监听 `before`、`reject` 事件
+   - 监听 `track:data` 事件，当 `RUN_ERROR` 变化时更新状态
+   - 通过 `defineStateError` 管理状态，自动处理竟态条件
    - 返回 `{ __name__Error: Ref<any> }`
 
 3. **withAddonArguments**：追踪函数参数
-   - 监听 `before`、`fulfill`、`reject` 事件
+   - 监听 `track:data` 事件，当 `RUN_ARGUMENTS` 变化时更新状态
+   - 通过 `defineStateArguments` 管理状态，自动处理竟态条件
    - 返回 `{ __name__Arguments: ComputedRef, __name__ArgumentFirst: ComputedRef }`
 
 4. **withAddonData**：管理数据状态（高级 Addon）
    - 阶段一：注册事件监听，创建响应式数据
-   - 阶段二：返回数据对象
+   - 监听 `init` 事件：准备上下文
+   - 监听 `before` 事件：设置上下文到全局
+   - 监听 `track:data` 事件：当 `RUN_DATA` 或 `RUN_ERROR` 变化时更新状态
+   - 监听 `after` 事件：恢复上下文
+   - 通过 `defineStateData` 管理状态，自动处理竟态条件
    - 支持中途更新数据（通过 `getAsyncDataContext`）
    - 返回 `{ __name__: Ref, __name__Expired: Ref<boolean> }`
 
@@ -334,10 +345,10 @@ type Addon<Method, AddonResult> = (params: {
 **问题**：快速连续调用异步函数时，后发起的请求可能先返回，导致数据混乱。
 
 **解决方案**：
-1. 每次调用分配唯一序号（sn）
-2. 记录每种状态的最新序号
-3. 只有最新调用的状态才会更新到最终结果
-4. 通过 `isLatest()` 等方法判断调用顺序
+1. 每次调用分配唯一序号（sn），严格递增
+2. Addon 自行维护状态，记录最新的序号（latest）
+3. 通过比较 `track.sn` 和 `latest` 来判断调用顺序
+4. 只有最新调用的状态才会更新到最终结果
 
 **状态更新规则**：
 - `loading`、`error`：始终与最新调用关联

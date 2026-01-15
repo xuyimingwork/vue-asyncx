@@ -53,19 +53,22 @@ function withAddonLoading(): (params: {
 } {
   return (({ monitor }) => {
     const loading = ref(false)
+    
+    // 内部状态：记录最新的 pending sn
+    let latest = 0
 
-    monitor.on('before', () => {
-      loading.value = true
-    })
-
-    monitor.on('fulfill', ({ track }) => {
-      if (!track.isLatest()) return
-      loading.value = false
-    })
-
-    monitor.on('reject', ({ track }) => {
-      if (!track.isLatest()) return
-      loading.value = false
+    // 监听 track:data 事件，当 RUN_LOADING 变化时更新状态
+    monitor.on('track:data', ({ track }) => {
+      // 如果 track.sn > latest，更新 latest
+      if (track.sn > latest) latest = track.sn
+      // 如果 track.sn !== latest，说明不是最新的调用，直接返回
+      if (track.sn !== latest) return
+      // 现在 track.sn === latest，根据 track 的状态调用 set
+      if (track.is('pending')) {
+        loading.value = true
+      } else {
+        loading.value = false
+      }
     })
 
     return {
@@ -411,14 +414,22 @@ export function withAddonRetryCount(): (params: {
 } {
   return (({ monitor }) => {
     const retryCount = ref(0)
+    
+    // 内部状态：记录最新的 pending sn
+    let latest = 0
 
-    monitor.on('before', () => {
-      retryCount.value = 0
-    })
-
-    monitor.on('reject', ({ track }) => {
-      if (!track.isLatest()) return
-      retryCount.value++
+    monitor.on('track:data', ({ track }) => {
+      // 如果 track.sn > latest，更新 latest
+      if (track.sn > latest) latest = track.sn
+      // 如果 track.sn !== latest，说明不是最新的调用，直接返回
+      if (track.sn !== latest) return
+      
+      // 根据 track 的状态更新 retryCount
+      if (track.is('pending')) {
+        retryCount.value = 0
+      } else if (track.is('rejected')) {
+        retryCount.value++
+      }
     })
 
     return {

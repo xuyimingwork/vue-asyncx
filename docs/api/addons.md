@@ -27,9 +27,9 @@ Addon 是 Vue-AsyncX 的插件系统，用于扩展 `useAsync` 和 `useAsyncData
 
 ### 实现逻辑
 
-- 监听 `before` 事件：设置 `loading.value = true`
-- 监听 `fulfill` 事件：如果是最新调用，设置 `loading.value = false`
-- 监听 `reject` 事件：如果是最新调用，设置 `loading.value = false`
+- 监听 `track:data` 事件：当 `RUN_LOADING` 变化时更新状态
+- 通过 `defineStateLoading` 管理状态，自动处理竟态条件
+- 只有最新调用的状态才会更新到最终结果
 
 ### 使用示例
 
@@ -54,8 +54,10 @@ console.log(submitLoading.value) // true
 
 ### 实现逻辑
 
-- 监听 `before` 事件：重置 `error.value = undefined`
-- 监听 `reject` 事件：如果是最新调用，设置 `error.value = error`
+- 监听 `track:data` 事件：当 `RUN_ERROR` 变化时更新状态
+- 通过 `defineStateError` 管理状态，自动处理竟态条件
+- 在 `pending` 状态时重置错误，在 `rejected` 状态时设置错误
+- 只有最新调用的状态才会更新到最终结果
 
 ### 使用示例
 
@@ -83,9 +85,11 @@ try {
 
 ### 实现逻辑
 
-- 监听 `before` 事件：存储参数
-- 监听 `fulfill` 事件：如果是最新调用，清空参数
-- 监听 `reject` 事件：如果是最新调用，清空参数
+- 监听 `track:data` 事件：当 `RUN_ARGUMENTS` 变化时更新状态
+- 通过 `defineStateArguments` 管理状态，自动处理竟态条件
+- 在 `pending` 状态时存储参数，在 `fulfilled` 或 `rejected` 状态时清空参数
+- 只有最新调用的状态才会更新到最终结果
+- `argumentFirst` 通过 `computed` 自动计算首个参数
 
 ### 使用示例
 
@@ -111,19 +115,26 @@ queryUser('user123', { include: 'profile' })
 
 ### 实现逻辑
 
-- 监听 `init` 事件：准备上下文
-- 监听 `before` 事件：设置上下文
-- 监听 `after` 事件：恢复上下文
-- 监听 `fulfill` 事件：更新数据（仅最新调用）
-- 计算 `dataExpired`：判断数据是否过期
+- 监听 `init` 事件：准备上下文，设置初始值到 `RUN_DATA_KEY`
+- 监听 `before` 事件：设置上下文到全局，使得 `getAsyncDataContext` 可以获取
+- 监听 `track:data` 事件：当 `RUN_DATA` 或 `RUN_ERROR` 变化时更新状态
+  - 通过 `defineStateData` 管理状态，自动处理竟态条件
+  - 支持在函数执行过程中手动更新数据（通过 `getAsyncDataContext`）
+- 监听 `after` 事件：恢复上下文（移除全局上下文）
+- 计算 `dataExpired`：通过 `computed` 自动判断数据是否过期
+  - 无数据状态，但已有完成的调用（可能是失败）
+  - 当前数据对应的调用最终结果是报错
+  - 在当前数据之后有调用发生了报错
 
 ### 数据过期机制
 
-数据在以下情况下会被标记为过期：
+数据在以下情况下会被标记为过期（通过 `dataExpired` 计算属性自动判断）：
 
-1. 无数据状态，但已有完成的调用（可能是失败）
-2. 当前数据对应的调用最终结果是报错
-3. 在当前数据之后有调用发生了报错
+1. **无数据状态**：如果当前没有数据，但已有完成的调用（可能是失败），则标记为过期
+2. **数据对应的调用失败**：如果当前数据对应的调用最终结果是报错，则标记为过期
+3. **后续调用失败**：如果在当前数据之后有调用发生了报错，则标记为过期
+
+过期机制的目的是标识数据可能不是最新的，帮助开发者了解数据状态。
 
 ### 使用示例
 
