@@ -1,16 +1,7 @@
 import type { FunctionMonitor, Track } from "@/core/monitor"
+import { RUN_ERROR } from "@/core/monitor"
 import type { Ref } from "vue"
 import { ref } from "vue"
-
-/**
- * 共享 key：供其他 addon 读取 error 状态
- */
-export const TRACK_ADDON_ERROR: symbol = Symbol('vue-asyncx:addon:error')
-
-/**
- * 私有 key：addon 内部使用
- */
-const ERROR_KEY: symbol = Symbol('error')
 
 /**
  * 定义状态 error 管理器
@@ -40,7 +31,7 @@ export function defineStateError({
       if (track.sn !== latest) return
       // 现在 track.sn === latest，根据 track 的状态调用 set
       if (track.is('pending')) return set(undefined)
-      if (track.is('rejected')) return set(track.getData(ERROR_KEY))
+      if (track.is('rejected')) return set(track.getData(RUN_ERROR))
     }
   }
 }
@@ -58,23 +49,8 @@ export function withAddonError(): (params: {
       set: (value) => { error.value = value }
     })
 
-    // 在 init 事件中建立映射
-    monitor.on('init', ({ track }) => {
-      track.shareData(ERROR_KEY, TRACK_ADDON_ERROR)
-    })
-
-    monitor.on('before', ({ track }) => {
-      // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_ERROR）
-      track.setData(ERROR_KEY, undefined)
-      update(track)
-    })
-
-    monitor.on('reject', ({ track, error: err }) => {
-      // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_ERROR）
-      // 设置当前调用的状态，不管是否最新调用都需要设置
-      track.setData(ERROR_KEY, err)
-      update(track)
-    })
+    // 监听 track:data 事件，当 RUN_ERROR 变化时更新状态
+    monitor.on('track:data', ({ track }) => update(track))
 
     return {
       __name__Error: error,

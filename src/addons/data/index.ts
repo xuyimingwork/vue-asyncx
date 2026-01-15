@@ -1,9 +1,10 @@
 import { AddonTypes } from "@/addons/types"
+import { RUN_DATA } from "@/core/monitor"
 import type { Ref, ShallowRef } from "vue"
-import { TRACK_ADDON_DATA, useStateData } from "./state"
+import { useStateData } from "./state"
 
-// 重新导出 TRACK_ADDON_DATA，供其他 addon 使用
-export { TRACK_ADDON_DATA }
+// 重新导出 RUN_DATA，供其他 addon 使用
+export { RUN_DATA }
 
 export function withAddonData<Config extends { 
   type?: 'function' | 'data'

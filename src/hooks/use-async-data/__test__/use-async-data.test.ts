@@ -799,6 +799,35 @@ describe('useAsyncData', () => {
       await vi.runAllTimersAsync()
       expect(data.value).toBe('4-final')
     })
+
+    test('should ignore earlier call updateData when later call updateData to initial value first', async () => {
+      vi.useFakeTimers()
+      const { queryData, data } = useAsyncData('data', async (value: string, delay: number, delay2: number) => {
+        const { updateData } = getAsyncDataContext()
+        await wait(delay)
+        updateData(value)
+        await wait(delay2)
+        return value
+      }, { initialData: 'initial' })
+
+      // p1: 前面的请求 (sn=1)，延迟 100ms 后 updateData 为 'p1-update'
+      queryData('p1-update', 100, 10)
+      // p2: 后面的请求 (sn=2)，延迟 50ms 后 updateData 为初始值 'initial'
+      queryData('initial', 50, 100)
+
+      // p2 先执行 updateData，更新为初始值
+      await vi.advanceTimersByTimeAsync(50)
+      expect(data.value).toBe('initial') // p2 更新为初始值
+
+      // p1 后执行 updateData，应该无效（因为 p2 的 sn 更大，即使 p2 更新的是初始值）
+      await vi.advanceTimersByTimeAsync(50)
+      // 正确的行为：p1 的 updateData 应该被忽略，因为 p2 的 sn 更大
+      expect(data.value).toBe('initial') // 应该是 p2 的值，p1 的 updateData 无效
+
+      // 所有请求完成
+      await vi.runAllTimersAsync()
+      expect(data.value).toBe('initial') // 最终是 p2 的值
+    })
   })
 
   describe('Setup Function', () => {

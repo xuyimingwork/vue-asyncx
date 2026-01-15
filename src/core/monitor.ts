@@ -29,6 +29,29 @@ export type Track = Pick<TrackFull,
 >
 
 /**
+ * 核心状态公共 key：供其他 addon 读取状态
+ */
+export const RUN_ARGUMENTS: symbol = Symbol('vue-asyncx:run:arguments')
+export const RUN_ERROR: symbol = Symbol('vue-asyncx:run:error')
+export const RUN_LOADING: symbol = Symbol('vue-asyncx:run:loading')
+export const RUN_DATA: symbol = Symbol('vue-asyncx:run:data')
+export const RUN_DATA_UPDATED: symbol = Symbol('vue-asyncx:run:data-updated')
+
+/**
+ * 核心状态私有 key：monitor 内部使用
+ */
+const RUN_ARGUMENTS_KEY: symbol = Symbol('vue-asyncx:run:arguments:key')
+const RUN_ERROR_KEY: symbol = Symbol('vue-asyncx:run:error:key')
+const RUN_LOADING_KEY: symbol = Symbol('vue-asyncx:run:loading:key')
+const RUN_DATA_KEY: symbol = Symbol('vue-asyncx:run:data:key')
+const RUN_DATA_UPDATED_KEY: symbol = Symbol('vue-asyncx:run:data-updated:key')
+
+/**
+ * 导出 RUN_DATA_KEY：允许 withAddonData 直接设值
+ */
+export { RUN_DATA_KEY }
+
+/**
  * 函数监控器事件映射
  * 
  * @description 定义了所有可监听的事件类型及其数据结构。
@@ -255,12 +278,26 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
     // 注意：此时 monitor 还未注册 track 的监听，所以 init 阶段的 setData 不会触发 track:data 事件
     monitor.emit('init', { args, track })
 
+    // 建立所有映射（私有 key → 公共 key）
+    track.shareData(RUN_ARGUMENTS_KEY, RUN_ARGUMENTS)
+    track.shareData(RUN_ERROR_KEY, RUN_ERROR)
+    track.shareData(RUN_LOADING_KEY, RUN_LOADING)
+    track.shareData(RUN_DATA_KEY, RUN_DATA)
+    track.shareData(RUN_DATA_UPDATED_KEY, RUN_DATA_UPDATED)
+
     // 在 init 之后注册监听，开始转发 track 的 data 事件
     on('data', ({ key, value }) => {
+      // RUN_DATA_UPDATED 不会触发事件，只是起单纯记录作用
+      if (key === RUN_DATA_UPDATED) return
+      if (key === RUN_DATA) track.setData(RUN_DATA_UPDATED_KEY, true)
       monitor.emit('track:data', { track, key, value })
     })
 
-    // 触发 before 事件：用于执行前观察逻辑
+    // 在 emit('before') 之前设置状态
+    track.setData(RUN_ARGUMENTS_KEY, args)
+    track.setData(RUN_LOADING_KEY, true)
+
+    // 触发 before 事件：用于执行前观察逻辑（此时状态已设置好，addon 可以读取）
     monitor.emit('before', { args, track })
 
     // 调用参数增强拦截器转换参数（对插件透明）
@@ -284,21 +321,33 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
       if (result instanceof Promise) {
         result.then(
           (value) => {
-            // 标记为成功完成
+            // 标记为成功完成（先更新 track 状态）
             fulfill()
+            // 在 emit('fulfill') 之前设置状态（此时 track 状态已更新为 fulfilled）
+            track.setData(RUN_LOADING_KEY, false)
+            track.setData(RUN_DATA_KEY, value)
+            track.setData(RUN_ARGUMENTS_KEY, undefined)
             // 触发 fulfill 事件
             monitor.emit('fulfill', { track, value })
           },
           (error) => {
-            // 标记为失败
+            // 标记为失败（先更新 track 状态）
             reject()
+            // 在 emit('reject') 之前设置状态（此时 track 状态已更新为 rejected）
+            track.setData(RUN_LOADING_KEY, false)
+            track.setData(RUN_ERROR_KEY, error)
+            track.setData(RUN_ARGUMENTS_KEY, undefined)
             // 触发 reject 事件
             monitor.emit('reject', { track, error })
           }
         )
       } else {
-        // 同步函数直接标记为成功
+        // 同步函数直接标记为成功（先更新 track 状态）
         fulfill()
+        // 在 emit('fulfill') 之前设置状态（此时 track 状态已更新为 fulfilled）
+        track.setData(RUN_LOADING_KEY, false)
+        track.setData(RUN_DATA_KEY, result)
+        track.setData(RUN_ARGUMENTS_KEY, undefined)
         monitor.emit('fulfill', { track, value: result })
       }
       
@@ -307,8 +356,12 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
       // 同步函数抛出异常
       // 触发 after 事件（在 catch 块中，reject 之前）
       monitor.emit('after', { track })
-      // 标记为失败
+      // 标记为失败（先更新 track 状态）
       reject()
+      // 在 emit('reject') 之前设置状态（此时 track 状态已更新为 rejected）
+      track.setData(RUN_LOADING_KEY, false)
+      track.setData(RUN_ERROR_KEY, e)
+      track.setData(RUN_ARGUMENTS_KEY, undefined)
       // 触发 reject 事件
       monitor.emit('reject', { track, error: e })
       throw e

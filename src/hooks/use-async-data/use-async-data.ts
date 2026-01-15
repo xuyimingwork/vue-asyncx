@@ -14,7 +14,8 @@ export const useAsyncData: UseAsyncData = function useAsyncData(...args: any[]):
       withAddonData({
         ...options,
         type: 'data'
-      })
+      }),
+      ...(options?.addons || [])
     ])
   })
 }
