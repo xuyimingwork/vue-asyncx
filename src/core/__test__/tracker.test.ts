@@ -218,6 +218,48 @@ describe('createTracker', () => {
       expect(t.takeData(KEY)).toBeUndefined()
       expect(t.getData(KEY)).toBeUndefined()
     })
+
+    it('should ignore setData when passing shared key', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      const PRIVATE_KEY = Symbol('private')
+      const SHARED_KEY = Symbol('shared')
+      
+      // 建立映射
+      t.shareData(PRIVATE_KEY, SHARED_KEY)
+      
+      // 使用私有 key 设置数据
+      t.setData(PRIVATE_KEY, 'value')
+      expect(t.getData(PRIVATE_KEY)).toBe('value')
+      expect(t.getData(SHARED_KEY)).toBe('value')
+      
+      // 尝试使用共享 key 设置数据，应该被忽略
+      t.setData(SHARED_KEY, 'should-be-ignored')
+      expect(t.getData(PRIVATE_KEY)).toBe('value') // 值不变
+      expect(t.getData(SHARED_KEY)).toBe('value') // 值不变
+    })
+
+    it('should return undefined when takeData receives shared key', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      const PRIVATE_KEY = Symbol('private')
+      const SHARED_KEY = Symbol('shared')
+      
+      // 建立映射
+      t.shareData(PRIVATE_KEY, SHARED_KEY)
+      
+      // 使用私有 key 设置数据
+      t.setData(PRIVATE_KEY, 'value')
+      expect(t.getData(PRIVATE_KEY)).toBe('value')
+      
+      // 尝试使用共享 key 获取并删除数据，应该返回 undefined
+      expect(t.takeData(SHARED_KEY)).toBeUndefined()
+      expect(t.getData(PRIVATE_KEY)).toBe('value') // 数据仍然存在
+      
+      // 使用私有 key 可以正常获取并删除
+      expect(t.takeData(PRIVATE_KEY)).toBe('value')
+      expect(t.getData(PRIVATE_KEY)).toBeUndefined()
+    })
   })
 
   // ============================================================================
@@ -389,6 +431,88 @@ describe('createTracker', () => {
       expect(t2.sn).toBeGreaterThan(t1.sn)
       expect(t2.is('fulfilled')).toBe(true)
       expect(t1.is('fulfilled')).toBe(true)
+    })
+  })
+
+  // ============================================================================
+  // SHARED DATA MAPPING
+  // ============================================================================
+  describe('shared data mapping', () => {
+    it('should successfully map private key to shared key', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      const PRIVATE_KEY = Symbol('private')
+      const SHARED_KEY = Symbol('shared')
+      
+      const result = t.shareData(PRIVATE_KEY, SHARED_KEY)
+      expect(result).toBe(true)
+      
+      // 使用私有 key 设置数据
+      t.setData(PRIVATE_KEY, 'value')
+      
+      // 可以通过私有 key 和共享 key 读取数据
+      expect(t.getData(PRIVATE_KEY)).toBe('value')
+      expect(t.getData(SHARED_KEY)).toBe('value')
+    })
+
+    it('should return false when private key is already mapped', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      const PRIVATE_KEY = Symbol('private')
+      const SHARED_KEY1 = Symbol('shared1')
+      const SHARED_KEY2 = Symbol('shared2')
+      
+      // 第一次映射成功
+      expect(t.shareData(PRIVATE_KEY, SHARED_KEY1)).toBe(true)
+      
+      // 尝试再次映射同一个私有 key，应该失败
+      expect(t.shareData(PRIVATE_KEY, SHARED_KEY2)).toBe(false)
+      
+      // 原始映射仍然有效
+      t.setData(PRIVATE_KEY, 'value')
+      expect(t.getData(SHARED_KEY1)).toBe('value')
+      expect(t.getData(SHARED_KEY2)).toBeUndefined() // 第二个映射未成功
+    })
+
+    it('should return false when shared key is already used', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      const PRIVATE_KEY1 = Symbol('private1')
+      const PRIVATE_KEY2 = Symbol('private2')
+      const SHARED_KEY = Symbol('shared')
+      
+      // 第一次映射成功
+      expect(t.shareData(PRIVATE_KEY1, SHARED_KEY)).toBe(true)
+      
+      // 尝试使用已被使用的共享 key，应该失败
+      expect(t.shareData(PRIVATE_KEY2, SHARED_KEY)).toBe(false)
+      
+      // 原始映射仍然有效
+      t.setData(PRIVATE_KEY1, 'value1')
+      t.setData(PRIVATE_KEY2, 'value2')
+      expect(t.getData(SHARED_KEY)).toBe('value1') // 仍然是第一个私有 key 的值
+      expect(t.getData(PRIVATE_KEY2)).toBe('value2') // 第二个私有 key 的数据存在，但未映射
+    })
+
+    it('should allow multiple different mappings', () => {
+      const tracker = createTracker()
+      const t = tracker.track()
+      const PRIVATE_KEY1 = Symbol('private1')
+      const PRIVATE_KEY2 = Symbol('private2')
+      const SHARED_KEY1 = Symbol('shared1')
+      const SHARED_KEY2 = Symbol('shared2')
+      
+      // 两个不同的映射都应该成功
+      expect(t.shareData(PRIVATE_KEY1, SHARED_KEY1)).toBe(true)
+      expect(t.shareData(PRIVATE_KEY2, SHARED_KEY2)).toBe(true)
+      
+      // 设置不同的值
+      t.setData(PRIVATE_KEY1, 'value1')
+      t.setData(PRIVATE_KEY2, 'value2')
+      
+      // 每个映射独立工作
+      expect(t.getData(SHARED_KEY1)).toBe('value1')
+      expect(t.getData(SHARED_KEY2)).toBe('value2')
     })
   })
 })

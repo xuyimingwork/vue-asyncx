@@ -1,19 +1,9 @@
 import type { Track } from "@/core/monitor"
-import { createEnhanceArgumentsHandler, type FunctionMonitor } from "@/core/monitor"
+import { createEnhanceArgumentsHandler, type FunctionMonitor, RUN_DATA, RUN_DATA_KEY, RUN_DATA_UPDATED } from "@/core/monitor"
 import type { ComputedRef, Ref, ShallowRef } from "vue"
 import { computed, ref, shallowRef } from "vue"
 import { prepareAsyncDataContext } from "./context"
 import { normalizeEnhancedArguments } from "./enhance"
-
-/**
- * 共享 key：供其他 addon 读取 data 状态
- */
-export const TRACK_ADDON_DATA: symbol = Symbol('vue-asyncx:addon:data')
-
-/**
- * 私有 key：addon 内部使用
- */
-const VALUE_KEY = Symbol('value')
 
 /**
  * 定义状态 data 管理器
@@ -54,8 +44,12 @@ export function defineStateData({
       }
       
       // 更新数据场景
+      // 如果是旧的调用，忽略
       if (dataTrack.value && dataTrack.value.sn > track.sn) return
-      set(track.getData(VALUE_KEY))
+      // 是新的调用，但是还未更新数据，忽略
+      if (!track.getData(RUN_DATA_UPDATED)) return
+      // 新的调用、新的数据，执行更新数据流程
+      set(track.getData(RUN_DATA))
       dataTrack.value = track
       return
     },
@@ -152,11 +146,8 @@ export function useStateData<Data = any>(
 
   // 监听 init 事件：函数调用初始化时准备上下文
   monitor.on('init', ({ track }) => {
-    // 建立映射：将私有 key 映射到共享 key
-    track.shareData(VALUE_KEY, TRACK_ADDON_DATA)
-
-    // 设置初始值到 VALUE_KEY（初始值应该属于 track 的原生属性）
-    track.setData(VALUE_KEY, data.value)
+    // 设置初始值到 RUN_DATA_KEY
+    track.setData(RUN_DATA_KEY, data.value)
     
     // 创建上下文对象，提供 getData 和 updateData 方法
     // 该上下文可以通过 getAsyncDataContext 获取，用于在函数执行过程中访问和更新数据
@@ -166,7 +157,7 @@ export function useStateData<Data = any>(
        * 
        * @description 从追踪对象中获取存储的数据值。
        */
-      getData: () => track.getData(VALUE_KEY),
+      getData: () => track.getData(RUN_DATA),
       
       /**
        * 手动更新数据
@@ -181,8 +172,8 @@ export function useStateData<Data = any>(
       updateData: (value: any) => {
         // 只有在函数未完成时才能更新（finished 表示已 fulfill 或 reject）
         if (track.is('finished')) return
-        // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_DATA）
-        track.setData(VALUE_KEY, value)
+        // 使用 RUN_DATA_KEY 设置数据（会触发事件，使用共享 key RUN_DATA）
+        track.setData(RUN_DATA_KEY, value)
         // 调用 update 函数处理竟态条件并更新数据
         update(track)
         return value
@@ -197,15 +188,11 @@ export function useStateData<Data = any>(
     track.setData(RESTORE_KEY, prepareAsyncDataContext(track.getData(CONTEXT_KEY)!))
   })
 
-  // 监听 fulfill 事件：函数成功完成时更新数据
-  monitor.on('fulfill', ({ track, value }) => {
-    // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_DATA）
-    track.setData(VALUE_KEY, value)
-    update(track)
-  })
-
-  // 监听 reject 事件：函数失败时更新状态
-  monitor.on('reject', ({ track }) => {
+  // 监听 track:data 事件，当 RUN_DATA 或 RUN_ERROR 变化时更新状态
+  // RUN_ERROR 变化时需要更新 latest.value.rejected，用于 dataExpired 计算
+  monitor.on('track:data', ({ track, key }) => {
+    // why comment this line cause error?
+    // if (key !== RUN_DATA && key !== RUN_ERROR) return
     update(track)
   })
 

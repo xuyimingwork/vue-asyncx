@@ -1,10 +1,11 @@
 import type { UseAsyncOptions, UseAsyncResult } from "@/hooks/use-async/types";
 import type { BaseFunction, NonEmptyString, Simplify } from "@/utils/types";
 import type { Ref, ShallowRef } from "vue";
+import type { Addons } from '@/addons/types';
 
 type UseAsyncDataNameDefault = 'data'
 
-export interface UseAsyncDataOptions<Fn extends BaseFunction, Shallow extends boolean> extends UseAsyncOptions<Fn> {
+export interface UseAsyncDataOptions<Fn extends BaseFunction, Shallow extends boolean, AddonResults extends any[] = any[]> extends UseAsyncOptions<Fn, Addons<Fn, AddonResults>> {
   initialData?: Awaited<ReturnType<Fn>>,
   shallow?: Shallow,
   /**
@@ -16,8 +17,9 @@ export interface UseAsyncDataOptions<Fn extends BaseFunction, Shallow extends bo
 export type UseAsyncDataResult<
   Fn extends BaseFunction,
   Name extends string,
-  Shallow extends boolean = false
-> = Simplify<UseAsyncResult<Fn, `query${Capitalize<(NonEmptyString<Name, UseAsyncDataNameDefault>)>}`> 
+  Shallow extends boolean = false,
+  AddonResults extends any[] = any[]
+> = Simplify<UseAsyncResult<Fn, `query${Capitalize<(NonEmptyString<Name, UseAsyncDataNameDefault>)>}`, AddonResults> 
   & { 
   [K in (NonEmptyString<Name, UseAsyncDataNameDefault>)]: Shallow extends true 
     ? ShallowRef<Awaited<ReturnType<Fn>>> 
@@ -44,20 +46,22 @@ export interface UseAsyncData {
   <
     Data = any,
     Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
-    Shallow extends boolean = false
+    Shallow extends boolean = false,
+    AddonResults extends any[] = any[]
   >(
     fn: Fn, 
-    options?: UseAsyncDataOptions<Fn, Shallow>
-  ): UseAsyncDataResult<Fn, UseAsyncDataNameDefault, Shallow>;
+    options?: UseAsyncDataOptions<Fn, Shallow, AddonResults>
+  ): UseAsyncDataResult<Fn, UseAsyncDataNameDefault, Shallow, AddonResults>;
   <
     Data = any,
     Fn extends (...args: any) => Data | Promise<Data> | PromiseLike<Data> = (...args: any) => Data | Promise<Data> | PromiseLike<Data>,
     DataName extends string = string,
-    Shallow extends boolean = false
+    Shallow extends boolean = false,
+    AddonResults extends any[] = any[]
   >(
     name: DataName, 
     fn: Fn, 
-    options?: UseAsyncDataOptions<Fn, Shallow>
-  ): UseAsyncDataResult<Fn, DataName, Shallow>
+    options?: UseAsyncDataOptions<Fn, Shallow, AddonResults>
+  ): UseAsyncDataResult<Fn, DataName, Shallow, AddonResults>
 }
 

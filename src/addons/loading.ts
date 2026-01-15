@@ -2,16 +2,6 @@ import type { FunctionMonitor, Track } from "@/core/monitor"
 import { Ref, ref } from "vue"
 
 /**
- * 共享 key：供其他 addon 读取 loading 状态
- */
-export const TRACK_ADDON_LOADING: symbol = Symbol('vue-asyncx:addon:loading')
-
-/**
- * 私有 key：addon 内部使用
- */
-const LOADING_KEY: symbol = Symbol('loading')
-
-/**
  * 定义状态 loading 管理器
  * 
  * @description 接收 get/set 函数，返回 update 函数用于更新外部的 loading 状态
@@ -58,30 +48,8 @@ export function withAddonLoading(): (params: {
       set: (value) => { loading.value = value }
     })
 
-    // 在 init 事件中建立映射
-    monitor.on('init', ({ track }) => {
-      track.shareData(LOADING_KEY, TRACK_ADDON_LOADING)
-    })
-
-    monitor.on('before', ({ track }) => {
-      // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_LOADING）
-      track.setData(LOADING_KEY, true)
-      update(track)
-    })
-
-    monitor.on('fulfill', ({ track }) => {
-      // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_LOADING）
-      // 设置当前调用的状态，不管是否最新调用都需要设置
-      track.setData(LOADING_KEY, false)
-      update(track)
-    })
-
-    monitor.on('reject', ({ track }) => {
-      // 使用私有 key 设置数据（会触发事件，使用共享 key TRACK_ADDON_LOADING）
-      // 设置当前调用的状态，不管是否最新调用都需要设置
-      track.setData(LOADING_KEY, false)
-      update(track)
-    })
+    // 监听 track:data 事件，当 RUN_LOADING 变化时更新状态
+    monitor.on('track:data', ({ track }) => update(track))
 
     return {
       __name__Loading: loading,
