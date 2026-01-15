@@ -95,7 +95,7 @@ export function withAddonGroup(config: WithAddonGroupConfig) {
 
     // 在 init 事件中存储 key 和 track.sn（提前到 init 阶段，避免时序问题）
     monitor.on('init', ({ args, track }) => {
-      const key = by(args)
+      const key = String(by(args))
       if (!groups[key]) {
         const group = ref(createDefaultGroupState())
         const { update: updateLoading } = defineStateLoading({
@@ -127,7 +127,6 @@ export function withAddonGroup(config: WithAddonGroupConfig) {
           updateData(track)
         })
       }
-
       track.setData(GROUP_UPDATE_HANDLER, updates.get(key))
     })
 
