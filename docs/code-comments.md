@@ -554,16 +554,19 @@ if (duplicates.length) {
 }
 
 // 只有最新调用的状态才会更新到最终结果
-if (!track.isLatest()) return
+// 内部状态：记录最新的 pending sn
+let latest = 0
+if (track.sn > latest) latest = track.sn
+if (track.sn !== latest) return
 ```
 
 ### 算法说明注释
 
 ```typescript
 // 竟态处理算法：
-// 1. 每次调用分配唯一序号（sn）
-// 2. 记录每种状态的最新序号
-// 3. 通过 isLatest() 判断是否为最新调用
+// 1. 每次调用分配唯一序号（sn），严格递增
+// 2. Addon 自行维护状态，记录最新的序号（latest）
+// 3. 通过比较 track.sn 和 latest 判断是否为最新调用
 // 4. 只有最新调用的状态才会更新
 ```
 
@@ -612,7 +615,8 @@ const sn = tracker.sn()
 
 // ✅ 好的注释（提供上下文）
 // 检查是否为最新调用，只有最新调用的状态才会更新到最终结果
-if (!track.isLatest()) return
+// 通过比较 track.sn 和 latest 判断调用顺序
+if (track.sn !== latest) return
 ```
 
 ## 九、检查清单
