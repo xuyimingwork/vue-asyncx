@@ -19,7 +19,7 @@ function withMethodAddon() {
 }
 
 // Helper function to create test setup
-function createTestSetup(fn: Function, by: (args: any[]) => string | number) {
+function createTestSetup(fn: BaseFunction, by: (args: any[]) => string | number) {
   return setupFunctionPipeline({
     fn,
     addons: [

@@ -2,6 +2,7 @@ import type { FunctionMonitor, Track } from "@/core/monitor"
 import { RUN_ERROR } from "@/core/monitor"
 import type { Ref } from "vue"
 import { ref } from "vue"
+import { createLatestHandler } from "./utils/latest-handler"
 
 /**
  * 定义状态 error 管理器
@@ -20,20 +21,13 @@ export function defineStateError({
 }): { 
   update: (track: Track) => void 
 } {
-  // 内部状态：记录最新的 pending sn
-  let latest = 0
+  const update = createLatestHandler((track, isLatest) => {
+    if (!isLatest) return
+    if (track.is('pending')) return set(undefined)
+    if (track.is('rejected')) return set(track.getData(RUN_ERROR))
+  })
 
-  return {
-    update(track: Track) {
-      // 如果 track.sn > latest，更新 latest
-      if (track.sn > latest) latest = track.sn
-      // 如果 track.sn !== latest，说明不是最新的调用，直接返回
-      if (track.sn !== latest) return
-      // 现在 track.sn === latest，根据 track 的状态调用 set
-      if (track.is('pending')) return set(undefined)
-      if (track.is('rejected')) return set(track.getData(RUN_ERROR))
-    }
-  }
+  return { update }
 }
 
 export function withAddonError(): (params: { 
