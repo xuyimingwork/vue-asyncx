@@ -1,5 +1,5 @@
-import { AddonTypes } from "@/addons/types"
 import { defineStateData } from "@/addons/data/state"
+import { AddonTypes } from "@/addons/types"
 import type { FunctionMonitor, Track } from "@/core/monitor"
 import type { ComputedRef } from "vue"
 import { computed, reactive, ref } from "vue"
@@ -149,9 +149,8 @@ export function withAddonGroup(config: WithAddonGroupConfig): <T extends AddonTy
       track.setData(GROUP_UPDATE_HANDLER, updates.get(key))
     })
 
-    // 监听所有 'track:data' 事件，自动同步到 groups
-    // 注意：只监听共享 keys，私有 keys 不会触发事件
-    monitor.on('track:data', ({ track, key, value }) => {
+    // 监听所有 'track:updated' 事件，自动同步到 groups
+    monitor.on('track:updated', ({ track }) => {
       const update = track.getData(GROUP_UPDATE_HANDLER)
       update(track)
     })

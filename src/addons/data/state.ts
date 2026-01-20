@@ -1,5 +1,5 @@
 import type { Track } from "@/core/monitor"
-import { createEnhanceArgumentsHandler, type FunctionMonitor, RUN_DATA, RUN_DATA_KEY, RUN_DATA_UPDATED } from "@/core/monitor"
+import { createEnhanceArgumentsHandler, type FunctionMonitor, RUN_DATA, RUN_DATA_UPDATED } from "@/core/monitor"
 import type { ComputedRef, Ref, ShallowRef } from "vue"
 import { computed, ref, shallowRef } from "vue"
 import { prepareAsyncDataContext } from "./context"
@@ -146,8 +146,8 @@ export function useStateData<Data = any>(
 
   // 监听 init 事件：函数调用初始化时准备上下文
   monitor.on('init', ({ track }) => {
-    // 设置初始值到 RUN_DATA_KEY
-    track.setData(RUN_DATA_KEY, data.value)
+    // 设置初始值到 RUN_DATA
+    track.setData(RUN_DATA, data.value)
     
     // 创建上下文对象，提供 getData 和 updateData 方法
     // 该上下文可以通过 getAsyncDataContext 获取，用于在函数执行过程中访问和更新数据
@@ -172,9 +172,7 @@ export function useStateData<Data = any>(
       updateData: (value: any) => {
         // 只有在函数未完成时才能更新（finished 表示已 fulfill 或 reject）
         if (track.is('finished')) return
-        // 使用 RUN_DATA_KEY 设置数据（会触发事件，使用共享 key RUN_DATA）
-        track.setData(RUN_DATA_KEY, value)
-        // 调用 update 函数处理竟态条件并更新数据
+        track.setData(RUN_DATA, value)
         update(track)
         return value
       }
@@ -188,9 +186,9 @@ export function useStateData<Data = any>(
     track.setData(RESTORE_KEY, prepareAsyncDataContext(track.getData(CONTEXT_KEY)!))
   })
 
-  // 监听 track:data 事件，当 RUN_DATA 或 RUN_ERROR 变化时更新状态
+  // 监听 track:updated 事件，当 RUN_DATA 或 RUN_ERROR 变化时更新状态
   // RUN_ERROR 变化时需要更新 latest.value.rejected，用于 dataExpired 计算
-  monitor.on('track:data', ({ track, key }) => {
+  monitor.on('track:updated', ({ track }) => {
     // why comment this line cause error?
     // if (key !== RUN_DATA && key !== RUN_ERROR) return
     update(track)
