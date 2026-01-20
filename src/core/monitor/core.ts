@@ -5,8 +5,8 @@
  */
 
 import { createEventBus } from "@/core/eventbus"
-import type { InternalFunctionMonitor, Track, FunctionMonitorEventMap } from "./types"
 import { ENHANCE_ARGUMENTS_HANDLER } from "./enhance-arguments"
+import type { FunctionMonitorEventMap, InternalFunctionMonitor, Track } from "./types"
 
 /**
  * 创建基础函数监控器
