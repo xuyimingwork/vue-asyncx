@@ -308,12 +308,12 @@ REJECTED → []（终态，不允许转换）
 #### 问题 1：Addon 状态未更新
 
 **可能原因**：
-- 未监听正确的事件（应监听 `track:data` 事件）
+- 未监听正确的事件（应监听 `track:updated` 事件）
 - 未正确处理竟态条件（应通过比较 `track.sn` 和 `latest` 判断）
 - 状态合并失败
 
 **排查步骤**：
-1. 检查事件监听是否正确（应监听 `track:data` 事件，而不是 `before`、`fulfill`、`reject`）
+1. 检查事件监听是否正确（应监听 `track:updated` 事件，而不是 `before`、`fulfill`、`reject`）
 2. 检查竟态处理逻辑（应维护 `latest` 状态，通过比较 `track.sn` 判断）
 3. 检查状态合并逻辑
 
