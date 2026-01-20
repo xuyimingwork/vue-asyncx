@@ -42,8 +42,8 @@ export function withAddonLoading(): (params: {
       set: (value) => { loading.value = value }
     })
 
-    // 监听 track:data 事件，当 RUN_LOADING 变化时更新状态
-    monitor.on('track:data', ({ track }) => update(track))
+    // 监听 track:updated 事件，当 RUN_LOADING 变化时更新状态
+    monitor.on('track:updated', ({ track }) => update(track))
 
     return {
       __name__Loading: loading,
