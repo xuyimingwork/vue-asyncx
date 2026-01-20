@@ -142,14 +142,14 @@ sequenceDiagram
 - `after`：函数执行后（同步部分完成）
 - `fulfill`：函数成功完成
 - `reject`：函数执行失败
-- `track:data`：track 数据变化事件，当 track 的 `setData` 触发 data 事件时转发
-  - 只有映射到共享 key 的数据才会触发此事件
+- `track:updated`：track 数据变化事件，当 track 的 `setData` 被调用且 track 已激活时触发
   - 用于 addon 监听状态变化（如 `RUN_LOADING`、`RUN_ERROR`、`RUN_ARGUMENTS`、`RUN_DATA`）
+  - 在 track 未激活（`init` 之前）时不会触发
 
 **设计要点**：
 - 使用 `Map` 和 `Set` 管理事件处理器，支持多个监听器
 - 事件顺序：`init` → `before` → `after` → `fulfill`/`reject`
-- `track:data` 事件在 `setData` 调用时触发，与上述事件并行
+- `track:updated` 事件在 `setData` 调用且 track 已激活时触发，与上述事件并行
 
 **内部实现细节**：
 - `enhance-arguments` 是内部 API，仅用于兼容功能（如已废弃的 `enhanceFirstArgument`），不对外暴露
@@ -184,8 +184,9 @@ type TrackQueryState = TrackState | 'finished'
 
 **竟态处理原理**：
 1. 每次调用分配唯一序号（sn），严格递增
-2. 需要的 addon 自行维护状态，通过比较 sn 来判断调用顺序
-3. 只有最新调用的状态才会更新到最终结果
+2. Addon 自行维护状态，记录最新的序号（latest）
+3. 通过比较 `track.sn` 和 `latest` 来判断调用顺序
+4. 只有最新调用的状态才会更新到最终结果
 
 **关键方法**：
 - `track()`：创建新的追踪对象，分配唯一序号
@@ -244,17 +245,17 @@ type Addon<Method, AddonResult> = (params: {
 #### 3.2.2 内置插件说明
 
 1. **withAddonLoading**：管理加载状态
-   - 监听 `track:data` 事件，当 `RUN_LOADING` 变化时更新状态
+   - 监听 `track:updated` 事件，当 `RUN_LOADING` 变化时更新状态
    - 通过 `defineStateLoading` 管理状态，自动处理竟态条件
    - 返回 `{ __name__Loading: Ref<boolean> }`
 
 2. **withAddonError**：管理错误状态
-   - 监听 `track:data` 事件，当 `RUN_ERROR` 变化时更新状态
+   - 监听 `track:updated` 事件，当 `RUN_ERROR` 变化时更新状态
    - 通过 `defineStateError` 管理状态，自动处理竟态条件
    - 返回 `{ __name__Error: Ref<any> }`
 
 3. **withAddonArguments**：追踪函数参数
-   - 监听 `track:data` 事件，当 `RUN_ARGUMENTS` 变化时更新状态
+   - 监听 `track:updated` 事件，当 `RUN_ARGUMENTS` 变化时更新状态
    - 通过 `defineStateArguments` 管理状态，自动处理竟态条件
    - 返回 `{ __name__Arguments: ComputedRef, __name__ArgumentFirst: ComputedRef }`
 
@@ -262,9 +263,10 @@ type Addon<Method, AddonResult> = (params: {
    - 阶段一：注册事件监听，创建响应式数据
    - 监听 `init` 事件：准备上下文
    - 监听 `before` 事件：设置上下文到全局
-   - 监听 `track:data` 事件：当 `RUN_DATA` 或 `RUN_ERROR` 变化时更新状态
+   - 监听 `track:updated` 事件：当 `RUN_DATA` 或 `RUN_ERROR` 变化时更新状态
    - 监听 `after` 事件：恢复上下文
    - 通过 `defineStateData` 管理状态，自动处理竟态条件
+   - 使用 `RUN_DATA_UPDATED` 标记数据是否已更新，确保只有已更新的数据才会被应用
    - 支持中途更新数据（通过 `getAsyncDataContext`）
    - 返回 `{ __name__: Ref, __name__Expired: Ref<boolean> }`
 

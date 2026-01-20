@@ -46,6 +46,10 @@ Vue-AsyncX 提供了多个内置 Addon：
 
 **示例**：
 ```typescript
+import type { FunctionMonitor } from "@/core/monitor"
+import { Ref, ref } from "vue"
+import { defineStateLoading } from "@/addons/loading"
+
 function withAddonLoading(): (params: { 
   monitor: FunctionMonitor
 }) => {
@@ -54,22 +58,13 @@ function withAddonLoading(): (params: {
   return (({ monitor }) => {
     const loading = ref(false)
     
-    // 内部状态：记录最新的 pending sn
-    let latest = 0
-
-    // 监听 track:data 事件，当 RUN_LOADING 变化时更新状态
-    monitor.on('track:data', ({ track }) => {
-      // 如果 track.sn > latest，更新 latest
-      if (track.sn > latest) latest = track.sn
-      // 如果 track.sn !== latest，说明不是最新的调用，直接返回
-      if (track.sn !== latest) return
-      // 现在 track.sn === latest，根据 track 的状态调用 set
-      if (track.is('pending')) {
-        loading.value = true
-      } else {
-        loading.value = false
-      }
+    // 使用 defineStateLoading 简化竟态处理
+    const { update } = defineStateLoading({
+      set: (value) => { loading.value = value }
     })
+
+    // 监听 track:updated 事件，当 RUN_LOADING 变化时更新状态
+    monitor.on('track:updated', ({ track }) => update(track))
 
     return {
       __name__Loading: loading,
@@ -216,7 +211,7 @@ monitor.off('before', handler)
 
 ### Track API
 
-**注意**：在 Addon 中使用的 `Track` 类型是受限的，不包含状态修改方法（`fulfill()` 和 `reject()`）。这些方法仅在内部使用，外部 Addon 无法修改调用状态。
+**注意**：在 Addon 中使用的 `Track` 类型是受限的，不包含状态修改方法（`fulfill()` 和 `reject()`）。这些方法仅在内部使用，外部 Addon 无法修改调用状态。`setData` 方法也受到权限限制，某些 key（如 `RUN_ARGUMENTS`、`RUN_ERROR`、`RUN_LOADING`、`RUN_DATA_UPDATED`）是只读的。
 
 #### 状态检查
 
@@ -254,10 +249,15 @@ monitor.on('fulfill', ({ track }) => {
 ```typescript
 const KEY = Symbol('key')
 
-track.setData(KEY, value)  // 存储数据
+track.setData(KEY, value)  // 存储数据（受权限限制）
 track.getData(KEY)         // 获取数据
-track.takeData(KEY)        // 获取并移除数据
+track.takeData(KEY)        // 获取并移除数据（会经过权限检查）
 ```
+
+**权限限制**：
+- `RUN_ARGUMENTS`、`RUN_ERROR`、`RUN_LOADING`、`RUN_DATA_UPDATED` 是只读的（monitor 专用）
+- `RUN_DATA` 只能在 `pending` 状态下写入
+- 其他自定义 key 可以正常读写
 
 ### 事件类型说明
 
@@ -351,7 +351,25 @@ monitor.on('fulfill', ({ track }) => {
 
 ### 竟态处理
 
-始终检查是否为最新调用，避免旧调用的状态覆盖新调用。通过维护最新 sn 并比较 `track.sn` 来实现：
+始终检查是否为最新调用，避免旧调用的状态覆盖新调用。推荐使用 `track:updated` 事件和 `createLatestHandler` 工具函数来简化竟态处理：
+
+```typescript
+import { createLatestHandler } from '@/addons/utils/latest-handler'
+
+const update = createLatestHandler((track, isLatest) => {
+  if (!isLatest) return
+  // 只有最新调用才会执行这里的逻辑
+  if (track.is('pending')) {
+    // 处理 pending 状态
+  } else if (track.is('fulfilled')) {
+    // 处理 fulfilled 状态
+  }
+})
+
+monitor.on('track:updated', ({ track }) => update(track))
+```
+
+也可以手动维护最新 sn 并比较 `track.sn`：
 
 ```typescript
 let latestFulfilledSn = 0
@@ -418,7 +436,7 @@ export function withAddonRetryCount(): (params: {
     // 内部状态：记录最新的 pending sn
     let latest = 0
 
-    monitor.on('track:data', ({ track }) => {
+    monitor.on('track:updated', ({ track }) => {
       // 如果 track.sn > latest，更新 latest
       if (track.sn > latest) latest = track.sn
       // 如果 track.sn !== latest，说明不是最新的调用，直接返回

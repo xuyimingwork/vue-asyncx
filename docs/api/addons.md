@@ -27,7 +27,7 @@ Addon 是 Vue-AsyncX 的插件系统，用于扩展 `useAsync` 和 `useAsyncData
 
 ### 实现逻辑
 
-- 监听 `track:data` 事件：当 `RUN_LOADING` 变化时更新状态
+- 监听 `track:updated` 事件：当 `RUN_LOADING` 变化时更新状态
 - 通过 `defineStateLoading` 管理状态，自动处理竟态条件
 - 只有最新调用的状态才会更新到最终结果
 
@@ -54,7 +54,7 @@ console.log(submitLoading.value) // true
 
 ### 实现逻辑
 
-- 监听 `track:data` 事件：当 `RUN_ERROR` 变化时更新状态
+- 监听 `track:updated` 事件：当 `RUN_ERROR` 变化时更新状态
 - 通过 `defineStateError` 管理状态，自动处理竟态条件
 - 在 `pending` 状态时重置错误，在 `rejected` 状态时设置错误
 - 只有最新调用的状态才会更新到最终结果
@@ -85,7 +85,7 @@ try {
 
 ### 实现逻辑
 
-- 监听 `track:data` 事件：当 `RUN_ARGUMENTS` 变化时更新状态
+- 监听 `track:updated` 事件：当 `RUN_ARGUMENTS` 变化时更新状态
 - 通过 `defineStateArguments` 管理状态，自动处理竟态条件
 - 在 `pending` 状态时存储参数，在 `fulfilled` 或 `rejected` 状态时清空参数
 - 只有最新调用的状态才会更新到最终结果
@@ -115,11 +115,12 @@ queryUser('user123', { include: 'profile' })
 
 ### 实现逻辑
 
-- 监听 `init` 事件：准备上下文，设置初始值到 `RUN_DATA_KEY`
+- 监听 `init` 事件：准备上下文，设置初始值到 `RUN_DATA`
 - 监听 `before` 事件：设置上下文到全局，使得 `getAsyncDataContext` 可以获取
-- 监听 `track:data` 事件：当 `RUN_DATA` 或 `RUN_ERROR` 变化时更新状态
+- 监听 `track:updated` 事件：当 `RUN_DATA` 或 `RUN_ERROR` 变化时更新状态
   - 通过 `defineStateData` 管理状态，自动处理竟态条件
   - 支持在函数执行过程中手动更新数据（通过 `getAsyncDataContext`）
+  - 使用 `RUN_DATA_UPDATED` 标记数据是否已更新，确保只有已更新的数据才会被应用
 - 监听 `after` 事件：恢复上下文（移除全局上下文）
 - 计算 `dataExpired`：通过 `computed` 自动判断数据是否过期
   - 无数据状态，但已有完成的调用（可能是失败）
@@ -214,6 +215,7 @@ function getAsyncDataContext(): {
 - 只在函数执行的同步部分可用
 - 在异步回调中会返回 `null`
 - `getData` 和 `updateData` 内部已自动处理竟态条件
+- `updateData` 只能在函数未完成时调用（`finished` 状态前）
 
 **使用示例**：
 ```typescript

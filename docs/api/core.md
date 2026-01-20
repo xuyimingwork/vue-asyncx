@@ -141,9 +141,10 @@ type TrackFull = {
 type Track = Pick<TrackFull, 
   'sn' | 
   'is' |
-  'getData' | 'setData' | 'takeData' |
-  'shareData'
->
+  'getData' | 'setData'
+> & {
+  takeData: <V = any>(key: symbol) => V | undefined
+}
 ```
 
 **属性**：
@@ -153,12 +154,10 @@ type Track = Pick<TrackFull,
   - `'finished'` 是特殊状态，表示已完成（无论是成功还是失败）
 - `setData(key, value)`：存储关联数据（使用 Symbol 作为键）
   - `value` 为 `undefined` 时删除该键
-  - 只能使用私有 key，不能使用共享 key
-- `getData(key)`：获取关联数据（支持私有 key 和共享 key）
-- `takeData(key)`：获取并移除关联数据（仅支持私有 key）
-- `shareData(key, sharedKey)`：将私有 key 映射到共享 key
-  - 只有映射到共享 key 的数据才会触发 `track:data` 事件
-  - 其他 addon 只能通过共享 key 读取数据，不能修改
+  - 受权限限制：`RUN_ARGUMENTS`、`RUN_ERROR`、`RUN_LOADING`、`RUN_DATA_UPDATED` 是只读的（monitor 专用）
+  - `RUN_DATA` 只能在 `pending` 状态下写入
+- `getData(key)`：获取关联数据
+- `takeData(key)`：获取并移除关联数据（由 monitor 实现，会经过权限检查）
 
 **竟态处理**：
 Addon 需要自行维护状态来判断是否为最新调用。通过比较 `track.sn` 和 addon 内部记录的最新 sn 来判断调用顺序。
@@ -189,7 +188,7 @@ type FunctionMonitorEventMap = {
   'after': { track: Track }
   'fulfill': { track: Track, value: any }
   'reject': { track: Track, error: any }
-  'track:data': { track: Track, key: symbol, value: any }
+  'track:updated': { track: Track }
 }
 ```
 
@@ -199,14 +198,14 @@ type FunctionMonitorEventMap = {
 - `after`：函数执行后（同步部分完成）
 - `fulfill`：函数成功完成
 - `reject`：函数执行失败
-- `track:data`：track 数据变化事件，当 track 的 `setData` 触发 data 事件时转发
-  - 只有映射到共享 key 的数据才会触发此事件
+- `track:updated`：track 数据变化事件，当 track 的 `setData` 被调用且 track 已激活时触发
   - 用于 addon 监听状态变化（如 `RUN_LOADING`、`RUN_ERROR`、`RUN_ARGUMENTS`、`RUN_DATA`）
+  - 在 track 未激活（`init` 之前）时不会触发
 
 **事件顺序**：
 ```
 init → before → after → fulfill/reject
-track:data（在 setData 调用时触发，与上述事件并行）
+track:updated（在 setData 调用且 track 已激活时触发，与上述事件并行）
 ```
 
 **注意**：`enhance-arguments` 是内部实现细节，用于兼容功能，不对外暴露。
