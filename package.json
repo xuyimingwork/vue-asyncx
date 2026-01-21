@@ -1,7 +1,7 @@
 {
   "name": "vue-asyncx",
   "version": "1.9.1",
-  "description": "优雅好用的 Vue3 异步函数/数据管理工具",
+  "description": "让异步像写诗的 Vue 3 组合式工具",
   "type": "module",
   "types": "dist/vue-asyncx.d.ts",
   "files": [
