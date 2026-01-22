@@ -106,6 +106,7 @@ export function withAddonGroup(config: WithAddonGroupConfig): <T extends AddonTy
   __name__Group: ComputedRef<Record<string | number, GroupType<T['Method']>>>
 } {
   return (({ monitor }: { monitor: FunctionMonitor }) => {
+    const DEFAULT_GROUP = createDefaultGroupState()
     const { by } = config
 
     // 内部保存 groups，用于追踪状态
@@ -161,7 +162,7 @@ export function withAddonGroup(config: WithAddonGroupConfig): <T extends AddonTy
           // 过滤掉 symbol，只处理 string | number
           if (typeof p === 'symbol') return undefined
           const key = p as string | number
-          return groups[key] || createDefaultGroupState()
+          return groups[key] || DEFAULT_GROUP
         }
       })) as ComputedRef<Record<string | number, GroupType<any>>>
     }
