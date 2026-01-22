@@ -1,3 +1,8 @@
+## 1.10.0
+- 功能：支持 addon 
+- 功能：支持 withAddonGroup
+- 重构：底层函数执行机制
+
 ## 1.9.1
 - 修复：options.setup、options.watchOptions.handlerCreator 报错时告警提示
 - 修复：getData 竟态安全
