@@ -1,4 +1,4 @@
-# Vue-AsyncX 架构设计文档
+# vue-asyncx 架构设计文档
 
 ## 一、概述
 
@@ -304,8 +304,8 @@ type Addon<Method, AddonResult> = (params: {
 
 **返回属性**：
 - `useAsync` 的所有属性
-- `{name}`：数据（Ref）
-- `{name}Expired`：数据是否过期（Ref<boolean>）
+- `{name}`：数据（`Ref`）
+- `{name}Expired`：数据是否过期（`Ref<boolean>`）
 
 **数据过期机制**：
 - 当最新调用失败，但之前调用成功时，数据标记为过期
