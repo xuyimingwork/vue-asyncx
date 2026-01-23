@@ -22,7 +22,10 @@
     "test:unit": "vitest",
     "test:unit:coverage": "vitest run --coverage",
     "test": "pnpm run test:unit",
-    "prepublish": "pnpm run build"
+    "prepublish": "pnpm run build",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "keywords": [
     "vue",
@@ -51,7 +54,8 @@
     "typescript": "^5.9.3",
     "vite": "^8.0.0-beta.7",
     "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.0.14"
+    "vitest": "^4.0.14",
+    "vitepress": "^1.6.3"
   },
   "peerDependencies": {
     "vue": ">=3.0.0"

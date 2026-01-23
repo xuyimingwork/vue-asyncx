@@ -2,3 +2,5 @@ node_modules
 dist
 coverage
 .VSCodeCounter
+docs/.vitepress/dist
+docs/.vitepress/cache

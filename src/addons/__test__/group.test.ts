@@ -19,11 +19,11 @@ function withMethodAddon() {
 }
 
 // Helper function to create test setup
-function createTestSetup(fn: BaseFunction, by: (args: any[]) => string | number) {
+function createTestSetup(fn: BaseFunction, key: (args: any[]) => string | number) {
   return setupFunctionPipeline({
     fn,
     addons: [
-      withAddonGroup({ by }),
+      withAddonGroup({ key }),
       withAddonData(),
       withAddonLoading(),
       withAddonError(),
@@ -37,27 +37,6 @@ describe('withAddonGroup', () => {
   afterEach(() => vi.useRealTimers())
 
   describe('Group Creation and Access', () => {
-    it('should return default state when accessing non-existent key', () => {
-      const fn = vi.fn(() => ({ id: 1 }))
-      
-      const result = setupFunctionPipeline({
-        fn,
-        addons: [withAddonGroup({ by: () => 'fixed' }), withMethodAddon()]
-      })
-
-      const group = result.__name__Group.value
-      const nonExistentKey = group['non-existent']
-      
-      expect(nonExistentKey).toEqual({
-        loading: false,
-        error: undefined,
-        arguments: undefined,
-        argumentFirst: undefined,
-        data: undefined,
-        dataExpired: false
-      })
-    })
-
     it('should create group on first call', async () => {
       vi.useFakeTimers()
       const fn = vi.fn(async (id: number) => {
@@ -70,8 +49,7 @@ describe('withAddonGroup', () => {
 
       // Before call, group should exist but with default state
       const group = result.__name__Group.value
-      expect(group['fixed']).toBeDefined()
-      expect(group['fixed'].loading).toBe(false)
+      expect(group['fixed']).toBeUndefined()
 
       // Make a call
       method(1)
@@ -90,7 +68,7 @@ describe('withAddonGroup', () => {
       
       const result = setupFunctionPipeline({
         fn,
-        addons: [withAddonGroup({ by: () => 'fixed' }), withMethodAddon()]
+        addons: [withAddonGroup({ key: () => 'fixed' }), withMethodAddon()]
       })
 
       const group = result.__name__Group.value
@@ -115,7 +93,7 @@ describe('withAddonGroup', () => {
 
       // Initially both should be false
       expect(result.__name__Loading.value).toBe(false)
-      expect(group['fixed'].loading).toBe(false)
+      expect(group['fixed']).toBeUndefined()
 
       // Start call
       method(1)
@@ -306,7 +284,7 @@ describe('withAddonGroup', () => {
         fn,
         addons: [
           withAddonGroup({ 
-            by: (args) => args[0] ?? 'default' 
+            key: (args) => args[0] ?? 'default' 
           }), 
           withMethodAddon()
         ]
@@ -365,7 +343,7 @@ describe('withAddonGroup', () => {
         fn,
         addons: [
           withAddonGroup({ 
-            by: () => '' 
+            key: () => '' 
           }), 
           withMethodAddon()
         ]

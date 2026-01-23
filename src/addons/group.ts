@@ -7,7 +7,7 @@ import { defineStateArguments } from "./arguments"
 import { defineStateError } from "./error"
 import { defineStateLoading } from "./loading"
 
-const GROUP_UPDATE_HANDLER = Symbol('vue-asyncx:group:update-handler')
+const GROUP_KEY = Symbol('vue-asyncx:group:key')
 
 /**
  * 内部 Group 类型
@@ -48,7 +48,7 @@ export interface WithAddonGroupConfig {
    * @param args - 函数调用参数
    * @returns group key（string 或 number）
    */
-  by: (args: any[]) => string | number
+  key: (args: any[]) => string | number
 }
 
 /**
@@ -70,12 +70,11 @@ function createDefaultGroupState(): Group {
 /**
  * withAddonGroup addon
  * 
- * @description 用于支持"并行、同源、同语义操作"场景，通过 key 分组管理状态。
+ * @description 用于支持"并行、同源、同语义操作"场景，通过 by 分组管理状态。
  * 
  * 核心特性：
- * - 不使用可选链：`group[key].loading` 而不是 `group[key]?.loading`
  * - 固定属性：`group[key]` 始终包含 `loading`、`error`、`arguments`、`data`
- * - 直接值：`group[key].loading` 是 `boolean`，不是 `Ref<boolean>`
+ * - 直接值：`group[key]?.loading` 是 `boolean`，不是 `Ref<boolean>`
  * - 自动同步：所有 addon 的 setData 操作自动同步到 group
  * - 竟态处理：只有最新调用的状态才会更新到 group
  * 
@@ -90,9 +89,9 @@ function createDefaultGroupState(): Group {
  *   addons: [withAddonGroup({ by: (args) => args[0] })]
  * })
  * 
- * // 模板中使用（不需要可选链）
+ * // 模板中使用
  * <button 
- *   :loading="confirmGroup[item.id].loading" 
+ *   :loading="confirmGroup[item.id]?.loading" 
  *   @click="confirm(item.id)"
  * >
  *   确认
@@ -106,8 +105,7 @@ export function withAddonGroup(config: WithAddonGroupConfig): <T extends AddonTy
   __name__Group: ComputedRef<Record<string | number, GroupType<T['Method']>>>
 } {
   return (({ monitor }: { monitor: FunctionMonitor }) => {
-    const DEFAULT_GROUP = createDefaultGroupState()
-    const { by } = config
+    const { key: getKey } = config
 
     // 内部保存 groups，用于追踪状态
     const groups = reactive<Groups>({})
@@ -115,56 +113,48 @@ export function withAddonGroup(config: WithAddonGroupConfig): <T extends AddonTy
 
     // 在 init 事件中存储 key 和 track.sn（提前到 init 阶段，避免时序问题）
     monitor.on('init', ({ args, track }) => {
-      const key = String(by(args))
-      if (!groups[key]) {
-        const group = ref(createDefaultGroupState())
-        const { update: updateLoading } = defineStateLoading({
-          set: (v) => group.value.loading = v
-        })
-        const {
-          update: updateArguments,
-          argumentFirst
-        } = defineStateArguments({
-          get: () => group.value.arguments,
-          set: (v) => group.value.arguments = v
-        })
-        group.value.argumentFirst = argumentFirst
-        const { update: updateError } = defineStateError({
-          set: (v) => group.value.error = v
-        })
-        const {
-          update: updateData,
-          dataExpired
-        } = defineStateData({
-          set: (v) => group.value.data = v
-        })
-        group.value.dataExpired = dataExpired
-        groups[key] = group as any
-        updates.set(key, (track) => {
-          updateArguments(track)
-          updateLoading(track)
-          updateError(track)
-          updateData(track)
-        })
-      }
-      track.setData(GROUP_UPDATE_HANDLER, updates.get(key))
+      const key = String(getKey(args))
+      track.setData(GROUP_KEY, key)
+      if (groups[key]) return
+      const group = ref(createDefaultGroupState())
+      const { update: updateLoading } = defineStateLoading({
+        set: (v) => group.value.loading = v
+      })
+      const {
+        update: updateArguments,
+        argumentFirst
+      } = defineStateArguments({
+        get: () => group.value.arguments,
+        set: (v) => group.value.arguments = v
+      })
+      group.value.argumentFirst = argumentFirst
+      const { update: updateError } = defineStateError({
+        set: (v) => group.value.error = v
+      })
+      const {
+        update: updateData,
+        dataExpired
+      } = defineStateData({
+        set: (v) => group.value.data = v
+      })
+      group.value.dataExpired = dataExpired
+      groups[key] = group as any
+      updates.set(key, (track) => {
+        updateArguments(track)
+        updateLoading(track)
+        updateError(track)
+        updateData(track)
+      })
     })
 
     // 监听所有 'track:updated' 事件，自动同步到 groups
     monitor.on('track:updated', ({ track }) => {
-      const update = track.getData(GROUP_UPDATE_HANDLER)
-      update(track)
+      const key = track.getData(GROUP_KEY)
+      updates.get(key)(track)
     })
 
     return {
-      __name__Group: computed(() => new Proxy({} as Record<string | number, Group>, {
-        get(target, p: string | symbol) {
-          // 过滤掉 symbol，只处理 string | number
-          if (typeof p === 'symbol') return undefined
-          const key = p as string | number
-          return groups[key] || DEFAULT_GROUP
-        }
-      })) as ComputedRef<Record<string | number, GroupType<any>>>
+      __name__Group: computed(() => groups)
     }
   }) as any
 }
