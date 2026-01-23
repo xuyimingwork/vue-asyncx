@@ -335,5 +335,5 @@ const { queryData } = useAsyncData('data', async (id) => {
 
 ---
 
-**更多信息**：参考 [README.md](../../README.md) 和 [架构文档](../architecture.md)。
+**更多信息**：参考 [架构文档](../architecture.md)。
 

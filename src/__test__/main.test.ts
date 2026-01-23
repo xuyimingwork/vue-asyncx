@@ -1,12 +1,20 @@
+import * as main from '@/main'
 import { describe, expect, test } from "vitest"
-import { getAsyncDataContext, unFirstArgumentEnhanced, useAsync, useAsyncData, useAsyncFunction } from '@/main'
+
+const exposed = {
+  useAsync: "function",
+  useAsyncData: "function",
+  useAsyncFunction: "function",
+  
+  unFirstArgumentEnhanced: "function",
+  getAsyncDataContext: "function",
+
+  withAddonGroup: "function",
+}
 
 describe('main', () => {
   test('should exports useAsync, useAsyncData, getAsyncDataContext, unFirstArgumentEnhanced, useAsyncFunction', () => {
-    expect(typeof useAsync === 'function').toBe(true)
-    expect(typeof useAsyncData === 'function').toBe(true)
-    expect(typeof getAsyncDataContext === 'function').toBe(true)
-    expect(typeof unFirstArgumentEnhanced === 'function').toBe(true)
-    expect(typeof useAsyncFunction === 'function').toBe(true)
+    expect(Object.keys(main).length).toBe(Object.keys(exposed).length)
+    Object.keys(exposed).forEach(key => expect(typeof main[key] === exposed[key]).toBe(true))
   })
 })
