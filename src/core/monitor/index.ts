@@ -79,7 +79,7 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
   const monitor = createInternalFunctionMonitor()
 
   // 包装函数，添加事件监控
-  const run = ((...args: Parameters<Fn>): ReturnType<Fn> => {
+  function run(...args: Parameters<Fn>): ReturnType<Fn> {
     // 创建 track 相关对象
     const { fulfill, reject, inactivate, init, setData, track } = createTrack(monitor, tracker)
 
@@ -117,7 +117,7 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
 
     try {
       // 执行原函数
-      const result = fn(...transformedArgs)
+      const result = fn.apply(this, transformedArgs)
       
       // 触发 after 事件：函数调用后，完成前
       monitor.emit('after', { track })
@@ -142,10 +142,13 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
       finish('reject', undefined, e)
       throw e
     }
-  }) as Fn
+  }
+
+  run.prototype = fn.prototype;
+  Object.setPrototypeOf(run, fn);
 
   return { 
-    run, 
+    run: run as any, 
     monitor: {
       on: monitor.on,
       off: monitor.off,

@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, test, vi } from 'vitest'
-import { nextTick, reactive, ref } from 'vue'
 import { useAsync, useAsyncFunction } from '@/hooks/use-async/use-async'
 import { debounce } from 'es-toolkit'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+import { nextTick, reactive, ref } from 'vue'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -87,6 +87,59 @@ describe('useAsync', () => {
         expect(spy).toBeCalledWith(null, undefined, obj, arr)
       })
 
+      test('should wrap constructor function and support new', () => {
+        // ts 构造函数写法，this 位于首位
+        function Person(this: any, name: string) {
+          this.name = name
+        }
+        const { method } = useAsync(Person)
+        expect(method).toBeTypeOf('function')
+        const instance = new (method as any)('alice')
+        expect(instance).toHaveProperty('name', 'alice')
+        expect(instance.constructor).toBe(Person)
+        expect(instance).toBeInstanceOf(Person)
+      })
+
+      test('should correctly handle instanceof checks for wrapped constructors', () => {
+        function Animal(this: any, species: string) {
+          this.species = species
+        }
+        function Dog(this: any, name: string) {
+          Animal.call(this, 'dog')
+          this.name = name
+        }
+        Dog.prototype = Object.create(Animal.prototype)
+        Dog.prototype.constructor = Dog
+
+        const { method: createAnimal } = useAsync(Animal)
+        const { method: createDog } = useAsync(Dog)
+
+        const animal = new (createAnimal as any)('cat')
+        const dog1 = new (createDog as any)('Rex')
+        const dog2 = new (createDog as any)('Max')
+
+        // 基本 instanceof 检查
+        expect(animal).toBeInstanceOf(Animal)
+        expect(animal).not.toBeInstanceOf(Dog)
+        expect(dog1).toBeInstanceOf(Dog)
+        expect(dog2).toBeInstanceOf(Dog)
+
+        // 继承链 instanceof 检查
+        expect(dog1).toBeInstanceOf(Animal)
+        expect(dog2).toBeInstanceOf(Animal)
+
+        // 多个实例的 instanceof 检查
+        expect(dog1 instanceof Dog).toBe(true)
+        expect(dog1 instanceof Animal).toBe(true)
+        expect(dog2 instanceof Dog).toBe(true)
+        expect(dog2 instanceof Animal).toBe(true)
+
+        // 验证原型链
+        expect(Object.getPrototypeOf(dog1)).toBe(Dog.prototype)
+        expect(Object.getPrototypeOf(dog2)).toBe(Dog.prototype)
+        expect(Object.getPrototypeOf(Dog.prototype)).toBe(Animal.prototype)
+      })
+
       test('should return independent values for each call even after a rejected call', async () => {
         const { method } = useAsync(async (type: string) => {
           if (type === 'err') throw new Error('fail')
@@ -95,6 +148,26 @@ describe('useAsync', () => {
         await expect(method('err')).rejects.toThrow()
         const result = await method('ok')
         expect(result).toBe('result-ok') // 必须是原始返回值，不能是 undefined 或错误值
+      })
+
+      test('should preserve custom properties on the wrapped function when the original has them', () => {
+        const fn = Object.assign((a: number, b: number) => a + b, {
+          version: '1.0',
+          meta: { author: 'test' },
+        })
+        const { method } = useAsync(fn)
+        expect(method).toBeTypeOf('function')
+        expect(method(1, 2)).toBe(3)
+        expect(method).toHaveProperty('version', '1.0')
+        expect(method).toHaveProperty('meta', { author: 'test' })
+      })
+
+      test('should preserve custom properties on async wrapped function', async () => {
+        const fn = Object.assign(async (x: number) => x * 2, { id: 'double' })
+        const { method } = useAsync(fn)
+        expect(method).toBeTypeOf('function')
+        await expect(method(3)).resolves.toBe(6)
+        expect(method).toHaveProperty('id', 'double')
       })
     })
 
