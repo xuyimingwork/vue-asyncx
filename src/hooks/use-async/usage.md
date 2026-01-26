@@ -15,9 +15,9 @@ const {
 confirm()
 ```
 
-## 定义函数名称
+## 函数名称自定义
 
-`useAsync` 的第一个参数用于定义函数和关联变量的名称
+`useAsync` 会根据传入的名称派生函数、关联状态的名称。
 
 ```ts
 const {
@@ -201,10 +201,10 @@ const {
 | 属性                     | 描述                            | 类型             | 默认值    |
 | ------------------------ | ------------------------------- | ---------------- | --------- |
 | {name}                   | 包装后的异步函数                | Function         | -         |
-| {name}Loading            | 异步函数执行时的加载状态        | Ref<boolean>     | false     |
-| {name}Arguments          | 异步函数执行时的传入的参数列表  | ComputedRef<any[]> | []        |
-| {name}ArgumentFirst      | {name}Arguments 的首个参数      | ComputedRef<any> | undefined |
-| {name}Error              | 异步函数执行时的异常            | Ref<any>         | undefined |
+| {name}Loading            | 异步函数执行时的加载状态        | `Ref<boolean>`     | false     |
+| {name}Arguments          | 异步函数执行时的传入的参数列表  | `ComputedRef<any[]>` | []        |
+| {name}ArgumentFirst      | {name}Arguments 的首个参数      | `ComputedRef<any>` | undefined |
+| {name}Error              | 异步函数执行时的异常            | `Ref<any>`         | undefined |
 
 ### 配置
 

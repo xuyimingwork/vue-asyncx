@@ -319,12 +319,12 @@ queryUser('user2')  // 调用 B（最后发起的调用）=> 较快，先结束�
 
 | 属性                     | 描述                            | 类型             | 默认值    |
 | ------------------------ | ------------------------------- | ---------------- | --------- |
-| {name}                   | 异步函数的返回数据              | Ref<any> \| ShallowRef<any> | undefined |
-| query{Name}Loading       | 异步函数执行时的加载状态        | Ref<boolean>          | false     |
-| query{Name}Arguments     | 异步函数执行时的传入的参数列表  | ComputedRef<any[]>      | []        |
-| query{Name}ArgumentFirst | 异步函数执行时的传入的首个参数 | ComputedRef<any>        | undefined |
-| query{Name}Error         | 异步函数执行时的异常            | Ref<any>               | undefined |
-| {name}Expired            | 数据是否过期             | Ref<boolean>          | false     |
+| {name}                   | 异步函数的返回数据              | `Ref<any>` \| `ShallowRef<any>` | undefined |
+| query{Name}Loading       | 异步函数执行时的加载状态        | `Ref<boolean>`          | false     |
+| query{Name}Arguments     | 异步函数执行时的传入的参数列表  | `ComputedRef<any[]>`      | []        |
+| query{Name}ArgumentFirst | 异步函数执行时的传入的首个参数 | `ComputedRef<any>`        | undefined |
+| query{Name}Error         | 异步函数执行时的异常            | `Ref<any>`               | undefined |
+| {name}Expired            | 数据是否过期             | `Ref<boolean>`          | false     |
 
 #### 配置
 
@@ -346,10 +346,10 @@ queryUser('user2')  // 调用 B（最后发起的调用）=> 较快，先结束�
 | 属性                     | 描述                            | 类型             | 默认值    |
 | ------------------------ | ------------------------------- | ---------------- | --------- |
 | {name}                   | 包装后的异步函数                | Function         | -         |
-| {name}Loading            | 异步函数执行时的加载状态        | Ref<boolean>     | false     |
-| {name}Arguments          | 异步函数执行时的传入的参数列表  | ComputedRef<any[]> | []        |
-| {name}ArgumentFirst      | {name}Arguments 的首个参数      | ComputedRef<any> | undefined |
-| {name}Error              | 异步函数执行时的异常            | Ref<any>         | undefined |
+| {name}Loading            | 异步函数执行时的加载状态        | `Ref<boolean>`     | false     |
+| {name}Arguments          | 异步函数执行时的传入的参数列表  | `ComputedRef<any[]>` | []        |
+| {name}ArgumentFirst      | {name}Arguments 的首个参数      | `ComputedRef<any>` | undefined |
+| {name}Error              | 异步函数执行时的异常            | `Ref<any>`         | undefined |
 
 #### 配置
 
