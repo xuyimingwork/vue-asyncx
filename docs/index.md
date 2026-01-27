@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Vue Asyncx
-  text: 让异步像写诗的 Vue 3 组合式工具库
+  text: 让异步像写诗的 <br />Vue 3 组合式工具库
   tagline: 不重复、有语义<br />天然防竞态、自由可扩展 
   actions:
     - theme: brand
@@ -15,15 +15,27 @@ hero:
 
 features:
   - icon: ✨
-    title: 不重复
-    details: 自动管理关联状态，减少 40% 冗余代码
+    title: 极致精简
+    details: 消灭 40% 以上的重复代码，状态自动管理，只留纯粹业务逻辑
   - icon: 📝
-    title: 有语义
-    details: 语义化 API 设计，代码即文档，提升协作效率与可维护性
+    title: 命名约定
+    details: 自动生成关联变量名，代码自文档化，团队协作更轻松
   - icon: 🛡️
-    title: 天然防竞态
-    details: 内置并发控制，时刻保障数据与视图的一致性
+    title: 竞态免疫
+    details: 零配置竞态条件防护，根除高频请求下的脏数据
   - icon: 🔧
-    title: 自由可扩展
-    details: 灵活的插件系统和自定义机制，按需扩展，满足个性化需求
+    title: 自由扩展
+    details: 插件化架构，按需扩展，满足个性化需求
+  - icon: 📘
+    title: 类型完备
+    details: 源码全量 TypeScript 编写，丝滑类型推导+智能补全
+  - icon: 🧪
+    title: 测试完备
+    details: 100% 测试覆盖率，300+ 用例严苛打磨
+  - icon: 📦
+    title: 纯净无依
+    details: 零第三方依赖，项目轻量、纯净、可控
+  - icon: 🌳
+    title: 按需加载
+    details: 完美支持 Tree-shaking，每一 KB 都物尽其用
 ---

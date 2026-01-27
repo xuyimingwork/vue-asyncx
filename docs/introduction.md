@@ -1,72 +1,74 @@
-# Vue 3 异步工具库
+# 简介
+
+## Vue Asyncx 是什么
+
+专注 Vue 3 异步操作的组合式工具库
 
 让异步像写诗：不重复、有语义，天然防竞态、自由可扩展
 
-![](./compare.png)
+![](./demo-basic.gif)
 
-## 特性
+> 30s，异步数据、请求、请求状态，统统搞定
 
-- 异步相关样板代码减少40%+
-- 关联状态变量自动命名、风格统一
-- 竟态条件自动处理
-- 完整 TS 类型支持
-- 100% 单测覆盖率，200+ 测试用例
+## 极致精简
 
-## 安装
+消灭 40% 以上的重复代码，状态自动管理，只留纯粹业务逻辑
 
-```console
-pnpm i vue-asyncx
-```
+![](./compare-code.png)
 
-## 快速开始
+## 命名约定
 
-### useAsyncData (异步数据管理)
+对比 `useAsyncState`，在常见的列表页面、多种请求场景，提供强一致性命名风格。
 
-需要使用异步数据 `user` 时，调用 `useAsyncData` 传入数据名和数据获取函数即可。`useAsyncData` 会自动处理与异步函数相关的 `data`, `loading`, `arguments`, `error` 等状态。
+看命名知业务，代码自文档化，可读性+、效率+，前端架构最爱。
 
-```ts
-import { getUserApi } from './api'
-import { useAsyncData } from 'vue-asyncx'
+![](./compare-naming.png)
 
-const { 
-  user, 
-  queryUserLoading,
-  queryUser, 
-} = useAsyncData('user', getUserApi) // 代码即注释：使用异步数据 user
-
-queryUser('Mike')
-```
-
-### useAsync (异步函数管理)
-
-当不需要异步数据，只关注异步函数的执行状态时：调用 `useAsync` 传入函数名和异步函数即可。`useAsync` 会自动处理与该异步函数相关的 `loading`, `arguments`, `error` 等状态。
-
-```ts
-import { submitApi } from './api'
-import { useAsync } from 'vue-asyncx'
-
-const { 
-  submit, 
-  submitLoading,
-  submitError,
-} = useAsync('submit', submitApi) // 代码即注释：使用异步函数 submit
-
-// 表单提交
-action="@click="submit(formData)"
-```
-
-## 设计哲学：约定带来效率
-
-与 [`useRequest`](https://ahooks.js.org/hooks/use-request/index) 返回固定的 `data`、`loading`、`error` 不同，`useAsyncData` 将关联的函数、变量统一命名：
-
-- `user`：由异步函数更新的数据 `data`
-- `queryUser`：更新 `user` 的异步函数
-- `queryUserLoading`：调用 `queryUser` 时的 `loading` 状态
-
-刚接触可能有些不习惯，但这种方式带来可读性和效率的双重提升，在大型项目、多人团队中尤为明显。
-
-代码中看到 `queryUserLoading` 变量，就知道它和 `user` 变量以及 `queryUser` 函数有关。
+变量名自动提示，无记忆负担，无效率下降。
 
 ![](./vscode-hint.png)
 
-并且这一切，都可以自动提示。
+> 约定优于配置，约定带来效率
+
+## 竞态免疫
+
+考虑到竞态控制，哪怕最简单的实现，也让代码量瞬间提升。而使用 `useAsyncData`，代码无需任何改动
+
+![](./compare-racing.png)
+
+## 自由扩展
+
+`vue-asyncx` 采用插件化架构，可以通过插件轻松拓展能力。
+
+比如，处理请求分组场景。
+
+![](./demo-addon-group.gif)
+
+```ts
+const { 
+  confirm, 
+  confirmLoading, 
+  confirmError, 
+  confirmGroup // 分组数据
+} = useAsync('confirm', confirmApi, {
+  addons: [withAddonGroup({ key: (args) => args[0] })]
+});
+```
+
+```html
+<div v-for="item in items" :key="item.id" class="item">
+  <div class="item-info">
+    <div class="item-name">{{ item.name }}</div>
+  </div>
+  <button
+    class="btn-confirm"
+    :class="{ loading: confirmGroup[item.id]?.loading }"
+    :disabled="confirmGroup[item.id]?.loading"
+    @click="confirm(item.id)"
+  >
+    {{ confirmGroup[item.id]?.loading ? '确认中...' : '确认' }}
+  </button>
+</div>
+```
+
+并且，哪怕是分组的状态，也是处在竞态防护下的！

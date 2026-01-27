@@ -137,7 +137,12 @@
           { id: 4, name: '项目 D' },
         ]);
 
-        const { confirm, confirmLoading, confirmError, confirmGroup } = useAsync('confirm', confirmApi, {
+        const { 
+          confirm, 
+          confirmLoading, 
+          confirmError, 
+          confirmGroup // 分组数据
+        } = useAsync('confirm', confirmApi, {
           addons: [withAddonGroup({ key: (args) => args[0] })]
         });
 
@@ -173,10 +178,7 @@
           <div class="item-list">
             <div v-for="item in items" :key="item.id" class="item">
               <div class="item-info">
-                <div class="item-name">{{ item.name }}{{ confirmGroup[item.id]?.argumentFirst }}</div>
-                <div class="item-status" :class="getStatus(item.id).class">
-                  {{ getStatus(item.id).text }}
-                </div>
+                <div class="item-name">{{ item.name }}</div>
               </div>
               <button
                 class="btn-confirm"
