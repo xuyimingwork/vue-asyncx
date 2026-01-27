@@ -4,7 +4,7 @@
 
 ![](./docs/compare-code.png)
 
-官方文档：[Vue Asyncx](https://xuyimingwork.github.io/vue-asyncx/introduction.html)
+官方文档：[Vue Asyncx](https://xuyimingwork.github.io/vue-asyncx/)
 
 ## 特性
 
