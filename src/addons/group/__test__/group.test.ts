@@ -699,23 +699,19 @@ describe('withAddonGroup', () => {
       expect(group['1']).toBeDefined()
       expect(group['2']).toBeDefined()
 
-      // Switch to scope2 - should trigger auto-clear after debounce
+      // Switch to scope2 - should trigger immediate auto-clear
       const p3 = method(3, 'scope2')
       await vi.runAllTimersAsync()
       await p3
 
-      // Wait for debounce (100ms)
-      await vi.advanceTimersByTimeAsync(150)
-      await Promise.resolve()
-
-      // Groups from scope1 should be cleared, scope2 group should exist
+      // Groups from scope1 should be cleared immediately, scope2 group should exist
       expect(group['1']).toBeUndefined()
       expect(group['2']).toBeUndefined()
       expect(group['3']).toBeDefined()
       expect(group['3'].data).toEqual({ id: 3, name: 'User 3' })
     })
 
-    it('should handle debounce for scope auto-clear', async () => {
+    it('should immediately clear groups when scope changes', async () => {
       vi.useFakeTimers()
       const fn = vi.fn(async (id: number) => {
         await new Promise(resolve => setTimeout(resolve, 10))
@@ -741,7 +737,6 @@ describe('withAddonGroup', () => {
 
       // Create group with scope1
       const p1 = method(1, 'scope1')
-      // Only advance enough time for the function to complete (10ms), not debounce
       await vi.advanceTimersByTimeAsync(10)
       await p1
 
@@ -749,35 +744,19 @@ describe('withAddonGroup', () => {
       expect(group['1']).toBeDefined()
       expect(group['1'].data).toEqual({ id: 1, name: 'User 1' })
 
-      // Switch to scope2 - this triggers clearAuto with debounce (100ms)
-      // The clearAuto is debounced, so it won't execute immediately
+      // Switch to scope2 - this triggers immediate auto-clear
       const p2 = method(2, 'scope2')
       
-      // Immediately check (before async completes) - group['1'] should still exist
+      // After switching scope, scope1 group should be cleared immediately
+      await Promise.resolve() // Wait for watch to execute
       group = result.__name__Group.value
-      expect(group['1']).toBeDefined()
+      expect(group['1']).toBeUndefined()
+      expect(group['2']).toBeDefined()
       
-      // Only advance enough time for the function to complete (10ms), not debounce (100ms)
       await vi.advanceTimersByTimeAsync(10)
       await p2
 
-      // After async operations complete, check again before debounce timeout
-      // The debounce should not have executed yet (needs 100ms total from when clearAuto was called)
-      group = result.__name__Group.value
-      expect(group['1']).toBeDefined()
-      expect(group['2']).toBeDefined()
-
-      // Advance time but not enough to trigger debounce (50ms < 100ms)
-      await vi.advanceTimersByTimeAsync(50)
-      await Promise.resolve()
-      
-      group = result.__name__Group.value
-      expect(group['1']).toBeDefined()
-
-      // After debounce timeout (additional 50ms to reach 100ms total), scope1 group should be cleared
-      await vi.advanceTimersByTimeAsync(50)
-      await Promise.resolve()
-
+      // Verify final state
       group = result.__name__Group.value
       expect(group['1']).toBeUndefined()
       expect(group['2']).toBeDefined()
@@ -818,10 +797,8 @@ describe('withAddonGroup', () => {
       await vi.runAllTimersAsync()
       await p2
 
-      // Wait for debounce to clear scope1
-      await vi.advanceTimersByTimeAsync(150)
+      // Scope1 should be cleared immediately when switching to scope2
       await Promise.resolve()
-
       expect(group['1']).toBeUndefined() // scope1 cleared
       expect(group['2']).toBeDefined()   // scope2 exists
 
@@ -829,10 +806,8 @@ describe('withAddonGroup', () => {
       await vi.runAllTimersAsync()
       await p3
 
-      // Wait for debounce to clear scope2
-      await vi.advanceTimersByTimeAsync(150)
+      // Scope2 should be cleared immediately when switching to scope3
       await Promise.resolve()
-
       expect(group['1']).toBeUndefined() // scope1 cleared
       expect(group['2']).toBeUndefined()   // scope2 cleared
       expect(group['3']).toBeDefined()     // scope3 exists
@@ -901,122 +876,11 @@ describe('withAddonGroup', () => {
       await vi.runAllTimersAsync()
       await p2
 
-      // Wait for debounce to potentially clear other scopes
-      await vi.advanceTimersByTimeAsync(150)
-      await Promise.resolve()
-
       // Since key is the same ('1'), the group object remains, but scope is now scope2
       // The group data should be from the latest call (scope2)
+      await Promise.resolve()
       expect(group['1']).toBeDefined()
       expect(group['1'].data).toEqual({ id: 1, name: 'User 1' })
-    })
-
-    it('should respect custom clearAutoDelay', async () => {
-      vi.useFakeTimers()
-      const fn = vi.fn(async (id: number) => {
-        await new Promise(resolve => setTimeout(resolve, 10))
-        return { id, name: `User ${id}` }
-      })
-
-      const result = setupFunctionPipeline({
-        fn,
-        addons: [
-          withAddonGroup({ 
-            key: (args) => args[0] as string,
-            scope: (args) => args[1] as string,
-            clearAutoDelay: 200 // Custom delay
-          }),
-          withAddonData(),
-          withAddonLoading(),
-          withAddonError(),
-          withAddonArguments(),
-          withMethodAddon()
-        ]
-      })
-
-      const method = result.method as any
-
-      // Create group with scope1
-      const p1 = method(1, 'scope1')
-      await vi.advanceTimersByTimeAsync(10)
-      await p1
-
-      let group = result.__name__Group.value
-      expect(group['1']).toBeDefined()
-
-      // Switch to scope2
-      const p2 = method(2, 'scope2')
-      await vi.advanceTimersByTimeAsync(10)
-      await p2
-
-      // Before custom debounce timeout (200ms), scope1 group should still exist
-      await vi.advanceTimersByTimeAsync(150)
-      await Promise.resolve()
-      
-      group = result.__name__Group.value
-      expect(group['1']).toBeDefined()
-
-      // After custom debounce timeout (200ms), scope1 group should be cleared
-      await vi.advanceTimersByTimeAsync(60)
-      await Promise.resolve()
-
-      group = result.__name__Group.value
-      expect(group['1']).toBeUndefined()
-      expect(group['2']).toBeDefined()
-    })
-
-    it('should use default clearAutoDelay when not specified', async () => {
-      vi.useFakeTimers()
-      const fn = vi.fn(async (id: number) => {
-        await new Promise(resolve => setTimeout(resolve, 10))
-        return { id, name: `User ${id}` }
-      })
-
-      const result = setupFunctionPipeline({
-        fn,
-        addons: [
-          withAddonGroup({ 
-            key: (args) => args[0] as string,
-            scope: (args) => args[1] as string
-            // clearAutoDelay not specified, should use default 100ms
-          }),
-          withAddonData(),
-          withAddonLoading(),
-          withAddonError(),
-          withAddonArguments(),
-          withMethodAddon()
-        ]
-      })
-
-      const method = result.method as any
-
-      // Create group with scope1
-      const p1 = method(1, 'scope1')
-      await vi.advanceTimersByTimeAsync(10)
-      await p1
-
-      let group = result.__name__Group.value
-      expect(group['1']).toBeDefined()
-
-      // Switch to scope2
-      const p2 = method(2, 'scope2')
-      await vi.advanceTimersByTimeAsync(10)
-      await p2
-
-      // Before default debounce timeout (100ms), scope1 group should still exist
-      await vi.advanceTimersByTimeAsync(50)
-      await Promise.resolve()
-      
-      group = result.__name__Group.value
-      expect(group['1']).toBeDefined()
-
-      // After default debounce timeout (100ms), scope1 group should be cleared
-      await vi.advanceTimersByTimeAsync(60)
-      await Promise.resolve()
-
-      group = result.__name__Group.value
-      expect(group['1']).toBeUndefined()
-      expect(group['2']).toBeDefined()
     })
   })
 })
