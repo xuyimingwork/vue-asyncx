@@ -1,18 +1,16 @@
-# 快速上手
-
 ## 安装
 
 使用你喜欢的包管理器安装 `vue-asyncx`：
 
 ```bash
+# pnpm
+pnpm install vue-asyncx
+
 # npm
 npm install vue-asyncx
 
 # yarn
 yarn add vue-asyncx
-
-# pnpm
-pnpm install vue-asyncx
 ```
 
 ## useAsync - 异步函数管理
