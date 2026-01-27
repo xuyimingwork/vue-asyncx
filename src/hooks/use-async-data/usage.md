@@ -18,7 +18,7 @@ const {
 queryUser()
 ```
 
-- `user` 是当前的数据状态
+- `user` 是当前数据
 - `queryUser` 是触发数据更新的查询函数
 - `queryUserLoading` 表示查询函数调用的加载状态
 
