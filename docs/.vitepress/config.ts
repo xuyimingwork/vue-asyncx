@@ -61,5 +61,10 @@ export default defineConfig({
     'src/hooks/use-async-data/usage.md': 'hooks/use-async-data.md',
     // addons
     'src/addons/group/usage.md': 'addons/group.md',
+  },
+
+  vite: {
+    // 忽略根路径下的配置文件
+    configFile: false
   }
 })

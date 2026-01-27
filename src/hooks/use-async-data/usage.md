@@ -43,6 +43,8 @@ queryUser()
 除数据状态外，`useAsyncData` 还会派生 query 函数、loading、arguments、error、expired 等状态（见 [API](#api)）。
 
 > 命名规则：内部将 `{name}` 转为 `query{Name}` 传给 `useAsync`，例如 `user` → `queryUser`。
+> 
+> 这种方式可以带来代码可读性上的巨大提升，详细设计见：[命名约定](/introduction)
 
 ## 数据状态
 

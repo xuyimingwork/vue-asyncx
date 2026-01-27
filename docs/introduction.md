@@ -70,10 +70,3 @@ action="@click="submit(formData)"
 ![](./vscode-hint.png)
 
 并且这一切，都可以自动提示。
-
-## 更多文档
-
-- [快速上手](/quick-start) - 快速开始使用
-- [API 参考](/api/hooks) - 查看完整的 API 文档
-- [开发指南](/guides/addon-development) - 了解如何开发自定义 Addon
-- [架构文档](/architecture) - 深入了解内部实现
