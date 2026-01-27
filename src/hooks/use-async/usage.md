@@ -1,6 +1,8 @@
-## useAsync
+# useAsync
 
 `useAsync` 用于封装异步函数，并提供关联的 loading、error、arguments 等响应式状态。
+
+> 如果需要展示异步操作的结果，比如调用 `queryUser` 并展示 `user` 数据，建议使用 [`useAsyncData`](/hooks/use-async-data.md)
 
 ## 基本用法
 
@@ -200,11 +202,11 @@ const {
 
 | 属性                     | 描述                            | 类型             | 默认值    |
 | ------------------------ | ------------------------------- | ---------------- | --------- |
-| {name}                   | 包装后的异步函数                | Function         | -         |
-| {name}Loading            | 异步函数执行时的加载状态        | `Ref<boolean>`     | false     |
-| {name}Arguments          | 异步函数执行时的传入的参数列表  | `ComputedRef<any[]>` | []        |
-| {name}ArgumentFirst      | {name}Arguments 的首个参数      | `ComputedRef<any>` | undefined |
-| {name}Error              | 异步函数执行时的异常            | `Ref<any>`         | undefined |
+| `{name}`                   | 包装后的异步函数                | `Function`         | -         |
+| `{name}Loading`            | 异步函数执行时的加载状态        | `Ref<boolean>`     | `false`     |
+| `{name}Arguments`          | 异步函数执行时的传入的参数列表  | `ComputedRef<any[]>` | `undefined`        |
+| `{name}ArgumentFirst`      | 参数列表 `query{Name}Arguments` 的首个值      | `ComputedRef<any>` | `undefined` |
+| `{name}Error`              | 异步函数执行时的异常            | `Ref<any>`         | `undefined` |
 
 ### 配置
 
@@ -212,6 +214,6 @@ const {
 | --------------------------- | ----------------------------------------------------- | ------------------------------------------------------- | --------- |
 | immediate                   | 是否立即执行                                          | boolean                                                 | false     |
 | watch                       | 传入 vue watch 的侦听数据源，发生变动时执行 `handler` | 与 vue WatchSource 一致                                 | -         |
-| watchOptions                | 传入 vue watch 的配置项                               | 支持全部 vue WatchOptions，另有 `handlerCreator` 配置项 | -         |
+| watchOptions                | 传入 vue watch 的配置项                               | 支持全部 Vue WatchOptions，另有 `handlerCreator` 配置项 | -         |
 | watchOptions.handlerCreator | 自定义传入 `watch` 的 `handler`                       | `(fn: Fn) => WatchCallback`                             | -         |
 | setup                       | 转换函数或执行其它初始化操作                          | `(fn: Fn) => ((...args: any) => any) \\| void`           | -         |

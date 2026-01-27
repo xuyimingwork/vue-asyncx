@@ -2,7 +2,6 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   srcDir: '../',
-  srcExclude: ['**/README.md'],
 
   base: '/vue-asyncx/',
   lang: 'zh-CN',
@@ -11,7 +10,7 @@ export default defineConfig({
   
   themeConfig: {
     nav: [
-      { text: '指南', link: '/' },
+      { text: '指南', link: '/introduction' },
     ],
     
     sidebar: {
@@ -19,21 +18,21 @@ export default defineConfig({
         {
           text: '开始',
           items: [
-            { text: '简介' },
-            { text: '快速上手' },
+            { text: '简介', link: '/introduction' },
+            { text: '快速上手', link: '/quick-start' },
           ]
         },
         {
           text: '组合式函数',
           items: [
-            { text: 'useAsync 使用异步函数', link: '/hooks/use-async.html' },
-            { text: 'useAsyncData 使用异步数据', link: '/hooks/use-async-data.html' },
+            { text: 'useAsync 使用异步函数', link: '/hooks/use-async' },
+            { text: 'useAsyncData 使用异步数据', link: '/hooks/use-async-data' },
           ]
         },
         {
           text: '插件',
           items: [
-            { text: 'withAddonGroup 调用分组' },
+            { text: 'withAddonGroup 调用分组', link: '/addons/group' },
           ]
         },
       ]
@@ -54,6 +53,13 @@ export default defineConfig({
   },
 
   rewrites: {
-    'src/hooks/:hook/usage.md': 'hooks/:hook.html'
+    'docs/index.md': 'index.md',
+    'docs/introduction.md': 'introduction.md',
+    'docs/quick-start.md': 'quick-start.md',
+    // hooks
+    'src/hooks/use-async/usage.md': 'hooks/use-async.md',
+    'src/hooks/use-async-data/usage.md': 'hooks/use-async-data.md',
+    // addons
+    'src/addons/group/usage.md': 'addons/group.md',
   }
 })

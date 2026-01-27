@@ -1,6 +1,8 @@
-## useAsyncData
+# useAsyncData
 
 `useAsyncData` 用于管理异步数据，自动关联数据、查询函数、查询函数的状态等相关内容，提供响应式数据更新。
+
+> 如果不需要展示异步数据，只是执行 confirm、submit 等异步操作，建议使用 [`useAsync`](/hooks/use-async.md)
 
 ## 基本用法
 
@@ -286,11 +288,12 @@ queryUser('user3') // 成功，user.value 更新，userExpired.value 为 false
 
 ## useAsync vs useAsyncData
 
-- useAsync：关注“动作”的执行过程
-- useAsyncData：关注“数据”的获取与生命周期
+- [`useAsync`](/hooks/use-async.md)：关注“动作”的执行过程
+- [`useAsyncData`](/hooks/use-async-data.md)：关注“数据”的获取与生命周期
 
-如果你只关心“什么时候执行”，使用 useAsync  
-如果你需要“保存和更新返回的数据”，使用 useAsyncData
+如果你关心“执行什么动作”，使用 [`useAsync`](/hooks/use-async.md)
+
+如果你需要“保存和更新返回的数据”，使用 [`useAsyncData`](/hooks/use-async-data.md)
 
 ## API
 
@@ -298,13 +301,13 @@ queryUser('user3') // 成功，user.value 更新，userExpired.value 为 false
 
 | 属性                     | 描述                            | 类型             | 默认值    |
 | ------------------------ | ------------------------------- | ---------------- | --------- |
-| {name}                   | 异步函数的返回数据              | `Ref<Data>` \| `ShallowRef<Data>` | undefined |
-| query{Name}              | 包装后的异步函数                | Function         | -         |
-| query{Name}Loading       | 异步函数执行时的加载状态        | `Ref<boolean>`     | false     |
-| query{Name}Arguments     | 异步函数执行时的传入的参数列表  | `ComputedRef<any[]>` | []        |
-| query{Name}ArgumentFirst | query{Name}Arguments 的首个参数 | `ComputedRef<any>` | undefined |
-| query{Name}Error         | 异步函数执行时的异常            | `Ref<any>`         | undefined |
-| {name}Expired            | 数据是否过期                    | `Ref<boolean>`     | false     |
+| `{name}`                   | 异步函数的返回数据              | `Ref<Data>` \| `ShallowRef<Data>` | `undefined` |
+| `query{Name}`              | 包装后的异步函数                | `Function`         | -         |
+| `query{Name}Loading`       | 异步函数执行时的加载状态        | `Ref<boolean>`     | `false`     |
+| `query{Name}Arguments`     | 异步函数执行时的传入的参数列表  | `ComputedRef<any[]>` | `undefined`        |
+| `query{Name}ArgumentFirst` | 参数列表 `query{Name}Arguments` 的首个值 | `ComputedRef<any>` | `undefined` |
+| `query{Name}Error`         | 异步函数执行时的异常            | `Ref<any>`         | `undefined` |
+| `{name}Expired`            | 数据是否过期                    | `Ref<boolean>`     | `false`     |
 
 ### 配置
 
@@ -313,7 +316,7 @@ queryUser('user3') // 成功，user.value 更新，userExpired.value 为 false
 | initialData                 | data 的初始值                                          | `Awaited<ReturnType<Fn>>`                                 | undefined |
 | shallow                     | 使用 `shallowRef` 保存 data，否则 `ref`                | boolean                                                 | false     |
 | immediate                   | 是否立即执行                                          | boolean                                                 | false     |
-| watch                       | 传入 vue watch 的侦听数据源，发生变动时执行 `handler` | 与 vue WatchSource 一致                                 | -         |
+| watch                       | 传入 vue watch 的侦听数据源，发生变动时执行 `handler` | 与 Vue WatchSource 一致                                 | -         |
 | watchOptions                | 传入 vue watch 的配置项                               | 支持全部 vue WatchOptions，另有 `handlerCreator` 配置项 | -         |
 | watchOptions.handlerCreator | 自定义传入 `watch` 的 `handler`                       | `(fn: Fn) => WatchCallback`                             | -         |
 | setup                       | 转换函数或执行其它初始化操作                          | `(fn: Fn) => ((...args: any) => any) \| void`           | -         |
