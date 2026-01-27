@@ -1,16 +1,16 @@
-Vue 3 异步工具库 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/xuyimingwork/vue-asyncx)
+让异步像写诗的 Vue 3 组合式工具库 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/xuyimingwork/vue-asyncx)
 
-让异步像写诗：不重复、有语义，天然防竞态、自由可扩展 
+**不重复、有语义，天然防竞态、自由可扩展**
 
-![](./docs/compare.png)
+![](./docs/compare-code.png)
 
 ## 特性
 
 - 异步相关样板代码减少40%+
 - 关联状态变量自动命名、风格统一
-- 竟态条件自动处理
+- 竞态条件自动处理
 - 完整 TS 类型支持
-- 100% 单测覆盖率，200+ 测试用例
+- 100% 单测覆盖率，300+ 测试用例
 
 ## 安装
 

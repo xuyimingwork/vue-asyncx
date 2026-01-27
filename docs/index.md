@@ -17,15 +17,19 @@ features:
   - icon: ✨
     title: 极致精简
     details: 消灭 40% 以上的重复代码，状态自动管理，只留纯粹业务逻辑
+    link: /introduction#code-simplify
   - icon: 📝
     title: 命名约定
     details: 自动生成关联变量名，代码自文档化，团队协作更轻松
+    link: /introduction#naming-convention
   - icon: 🛡️
     title: 竞态免疫
     details: 零配置竞态条件防护，根除高频请求下的脏数据
+    link: /introduction#racing-protection
   - icon: 🔧
     title: 自由扩展
     details: 插件化架构，按需扩展，满足个性化需求
+    link: /introduction#addon-free
   - icon: 📘
     title: 类型完备
     details: 源码全量 TypeScript 编写，丝滑类型推导+智能补全

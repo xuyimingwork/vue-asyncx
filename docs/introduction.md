@@ -11,12 +11,14 @@
 > 只需 30s，异步数据、请求、请求状态，统统搞定
 
 ## 极致精简
+<a id="code-simplify"></a>
 
 消灭 40% 以上的重复代码，状态自动管理，只留纯粹业务逻辑。
 
 ![](./compare-code.png)
 
 ## 命名约定
+<a id="naming-convention"></a>
 
 对比 `useAsyncState`，在常见的列表页面、多种请求场景，提供强一致性命名风格。
 
@@ -31,6 +33,7 @@
 > 约定优于配置，约定带来效率
 
 ## 竞态免疫
+<a id="racing-protection"></a>
 
 考虑到要处理竞态条件，即使最简单的实现，也让代码量瞬间提升。而使用 `useAsyncData`，代码无需任何改动。
 
@@ -39,6 +42,7 @@
 ![](./compare-racing.png)
 
 ## 自由扩展
+<a id="addon-free"></a>
 
 `vue-asyncx` 采用插件化架构，可以通过插件轻松拓展能力。
 
