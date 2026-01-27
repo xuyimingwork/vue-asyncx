@@ -32,7 +32,7 @@ const {
 init()
 ```
 
-除执行函数外，useAsync 还会派生 loading、arguments、error 等状态（见 [API](#api)）。
+`useAsync` 还能解构出 `initArguments`、`initError` 等状态（见 [API](#api)）。
 
 > 这种方式可以带来代码可读性上的巨大提升，详细设计见：[命名约定](/introduction)
 
@@ -118,6 +118,8 @@ const {
   }  
 })
 ```
+
+> 注：`options.watchOptions.immediate` 优先级高于 `options.immediate`
 
 ### watch handler
 

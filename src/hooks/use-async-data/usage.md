@@ -1,8 +1,8 @@
 # useAsyncData
 
-`useAsyncData` 用于管理异步数据，自动关联数据、查询函数、查询函数的状态等相关内容，提供响应式数据更新。
+`useAsyncData` 用于管理异步数据，将数据、查询函数、查询函数的状态等内容自动关联，提供响应式数据更新。
 
-> 如果不需要展示异步数据，只是执行 confirm、submit 等异步操作，建议使用 [`useAsync`](/hooks/use-async.md)
+> 如果不需要展示数据，只是执行 confirm、submit 等异步操作，建议使用 [`useAsync`](/hooks/use-async.md)
 
 ## 基本用法
 
@@ -11,7 +11,6 @@ const {
   user,
   queryUser,
   queryUserLoading,
-  userExpired
 } = useAsyncData('user', () => {
   return api.getUser()
 })
@@ -21,18 +20,17 @@ queryUser()
 
 - `user` 是当前的数据状态
 - `queryUser` 是触发数据更新的查询函数
-- `queryUserLoading` 表示查询过程中的加载状态
+- `queryUserLoading` 表示查询函数调用的加载状态
 
 ## 数据名称自定义
 
-`useAsyncData` 会根据传入的名称派生数据、查询函数及其关联状态的名称。
+`useAsyncData` 会根据传入的名称生成数据、查询函数以及关联状态的名称。
 
 ```ts
 const {
   user,
   queryUser,
-  queryUserLoading,
-  userExpired
+  queryUserLoading
 } = useAsyncData('user', () => {
   return api.getUser()
 })
@@ -40,15 +38,13 @@ const {
 queryUser()
 ```
 
-除数据状态外，`useAsyncData` 还会派生 query 函数、loading、arguments、error、expired 等状态（见 [API](#api)）。
+`useAsyncData` 还能解构出 `userExpired`、`queryUserArguments` 等状态（见 [API](#api)）。
 
-> 命名规则：内部将 `{name}` 转为 `query{Name}` 传给 `useAsync`，例如 `user` → `queryUser`。
-> 
 > 这种方式可以带来代码可读性上的巨大提升，详细设计见：[命名约定](/introduction)
 
 ## 数据状态
 
-`useAsyncData` 返回的数据是对异步函数返回值的响应式引用，会自动更新
+`useAsyncData` 返回的 `user` 数据是响应式的，会自动更新
 
 ```ts
 const { user, queryUser } = useAsyncData('user', (id: string) => {
@@ -61,14 +57,14 @@ queryUser('user1')
   })
 
 queryUser('user2')
-// user.value 会自动更新为新的结果
+// 结束后 user.value 会自动更新为新的结果
 ```
 
-`useAsyncData` 会自动管理数据的更新，无论返回是同步结果还是异步 Promise
+> `useAsyncData` 会自动处理函数的返回值，无论是同步数据还是异步数据
 
 ## 初始数据
 
-可以通过 `options.initialData` 设置数据的初始值
+默认情况下，数据是 `undefined`。可以通过 `options.initialData` 设置数据的初始值
 
 ```ts
 const { user } = useAsyncData('user', () => {
@@ -80,7 +76,7 @@ const { user } = useAsyncData('user', () => {
 
 ## 使用 shallowRef
 
-默认情况下，数据使用 `ref` 保存。可以通过 `options.shallow = true` 使用 `shallowRef`
+默认情况下，数据使用 `ref` 包裹。可以通过 `options.shallow = true` 使用 `shallowRef`
 
 ```ts
 const { user } = useAsyncData('user', () => {
@@ -92,7 +88,7 @@ const { user } = useAsyncData('user', () => {
 
 ## 立即执行
 
-默认情况下，函数不会自动执行，可以设置 `options.immediate = true` 自动调用函数。
+默认情况下，函数不会自动执行。可以设置 `options.immediate = true` 自动调用函数。
 
 ```ts
 const { 
@@ -106,7 +102,7 @@ const {
 
 ## watch 执行
 
-还可以在 Vue 响应式变量变化时执行
+除立即执行外，还可以在 Vue 响应式变量变化时执行
 
 ```ts
 const { 
@@ -153,6 +149,8 @@ const {
   }  
 })
 ```
+
+> 注：`options.watchOptions.immediate` 优先级高于 `options.immediate`
 
 ### watch handler
 
@@ -201,7 +199,7 @@ const {
 
 上面例子中，`queryUser` 等价于 `debounce(() => api.getUser(), 500)`。可以使用任意你喜欢的 `debounce` 函数。
 
-注意：`options.setup` 返回的函数会成为最终调用的函数。所以 `options.immediate`、`options.watch` 触发的调用都是 `debounce` 后的。
+注意：由于 `options.setup` 返回的函数会成为 `queryUser`。因此 `options.immediate`、`options.watch` 配置的调用触发的都是 `debounce` 后的函数。
 
 ### DOM/BOM 事件监听 / 轮询
 
@@ -223,7 +221,7 @@ const {
 })
 ```
 
-在 `options.setup` 中可以像在 vue 组件的 `setup` 中一样注册外部监听器。在上面的例子中，`queryUser` 会：
+在 `options.setup` 中可以像在 Vue 组件的 `setup` 中一样注册外部监听器。在上面的例子中，`queryUser` 会：
 
 - 立即调用
 - 文档显示隐藏时调用
@@ -232,7 +230,7 @@ const {
 
 由于 `options.setup` 没返回函数，此时 `queryUser` 等价于 `() => api.getUser()`
 
-> 注意，如果没有使用 `useEventListener` 等自动卸载的工具函数，你需要使用 vue 生命周期钩子手动卸载。
+> 注意，如果没有使用 `useEventListener` 等自动卸载的工具函数，你需要调用 Vue 的生命周期钩子函数手动卸载。
 
 ## 在执行过程中更新
 
@@ -254,14 +252,14 @@ queryProgress(10)
 ```
 
 > - `getAsyncDataContext` 仅在**函数同步部分**可拿到上下文，异步回调中为 `null`
-> - `getData`、`updateData` 内部已处理竞态
+> - `getData`、`updateData` 内部已自动处理竞态，使用时无需关心
 
 ## 数据过期状态
 
 `useAsyncData` 提供了 `{name}Expired` 状态，用于标识数据是否过期。
 
 数据过期的场景：
-- 某次调用的更新 data 后，该调用报错
+- 某次调用过程更新 data 后，调用报错
 - 某次调用成功后，后续调用报错
 
 与 `error` 的区别：
@@ -290,12 +288,12 @@ queryUser('user3') // 成功，user.value 更新，userExpired.value 为 false
 
 ## useAsync vs useAsyncData
 
-- [`useAsync`](/hooks/use-async.md)：关注“动作”的执行过程
-- [`useAsyncData`](/hooks/use-async-data.md)：关注“数据”的获取与生命周期
+- [`useAsync`](/hooks/use-async.md)：关注“动作”的执行
+- [`useAsyncData`](/hooks/use-async-data.md)：关注“数据”的展示
 
 如果你关心“执行什么动作”，使用 [`useAsync`](/hooks/use-async.md)
 
-如果你需要“保存和更新返回的数据”，使用 [`useAsyncData`](/hooks/use-async-data.md)
+如果你需要“展示异步获取的数据”，使用 [`useAsyncData`](/hooks/use-async-data.md)
 
 ## API
 
@@ -315,10 +313,10 @@ queryUser('user3') // 成功，user.value 更新，userExpired.value 为 false
 
 | 配置名                      | 描述                                                  | 类型                                                    | 默认值    |
 | --------------------------- | ----------------------------------------------------- | ------------------------------------------------------- | --------- |
-| initialData                 | data 的初始值                                          | `Awaited<ReturnType<Fn>>`                                 | undefined |
-| shallow                     | 使用 `shallowRef` 保存 data，否则 `ref`                | boolean                                                 | false     |
-| immediate                   | 是否立即执行                                          | boolean                                                 | false     |
-| watch                       | 传入 vue watch 的侦听数据源，发生变动时执行 `handler` | 与 Vue WatchSource 一致                                 | -         |
-| watchOptions                | 传入 vue watch 的配置项                               | 支持全部 vue WatchOptions，另有 `handlerCreator` 配置项 | -         |
-| watchOptions.handlerCreator | 自定义传入 `watch` 的 `handler`                       | `(fn: Fn) => WatchCallback`                             | -         |
-| setup                       | 转换函数或执行其它初始化操作                          | `(fn: Fn) => ((...args: any) => any) \| void`           | -         |
+| `initialData`                 | data 的初始值                                          | `Awaited<ReturnType<Fn>>`                                 | `undefined` |
+| `shallow`                     | 使用 `shallowRef` 保存 data，否则 `ref`                | `boolean`                                                 | `false`     |
+| `immediate`                   | 是否立即执行                                          | `boolean`                                                 | `false`     |
+| `watch`                       | 传入 Vue watch 的侦听数据源，发生变动时执行 `handler` | 与 Vue WatchSource 一致                                 | -         |
+| `watchOptions`                | 传入 Vue watch 的配置项                               | 支持全部 Vue WatchOptions，另有 `handlerCreator` 配置项 | -         |
+| `watchOptions.handlerCreator` | 自定义传入 `watch` 的 `handler`                       | `(fn: Fn) => WatchCallback`                             | -         |
+| `setup`                       | 转换函数或执行其它初始化操作                          | `(fn: Fn) => ((...args: any) => any) \| void`           | -         |
