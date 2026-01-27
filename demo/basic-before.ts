@@ -1,4 +1,4 @@
-import { getUserApi } from "./api";
+import { getUserApi } from "demo/api";
 import { ref } from "vue";
 
 const user = ref()
