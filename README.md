@@ -1,6 +1,8 @@
-Vue 3 异步工具库 ![](./docs/compare.png)
+Vue 3 异步工具库 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/xuyimingwork/vue-asyncx)
 
-让异步像写诗：不重复、有语义，天然防竞态、自由可扩展 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/xuyimingwork/vue-asyncx)
+让异步像写诗：不重复、有语义，天然防竞态、自由可扩展 
+
+![](./docs/compare.png)
 
 ## 特性
 
