@@ -2,9 +2,7 @@ import type { AddonTypes } from "@/addons/types"
 import type { FunctionMonitor, Track } from "@/core/monitor"
 import type { ComputedRef, Ref } from "vue"
 
-import { computed, ref } from "vue"
-
-import { debounce } from "@/utils/base"
+import { computed, ref, watch } from "vue"
 import { createGroupState, type Group } from "./state"
 
 const GROUP_KEY = Symbol('vue-asyncx:group:key')
@@ -44,15 +42,6 @@ export interface WithAddonGroupConfig {
    * @returns scope（string 或 number）
    */
   scope?: (args: any[]) => string | number
-  /**
-   * scope 自动清理的延迟时间（毫秒）
-   * 
-   * 当切换 scope 时，会自动清理其他 scope 的 group。此配置控制清理操作的延迟时间。
-   * 使用 debounce 机制，在延迟时间内如果再次切换 scope，会重置计时器。
-   * 
-   * @default 100
-   */
-  clearAutoDelay?: number
 }
 
 /**
@@ -70,7 +59,6 @@ export interface WithAddonGroupConfig {
  * @param config - 配置对象
  * @param config.key - 根据函数参数生成 group key 的函数
  * @param config.scope - 根据函数参数获取请求的 scope（可选）
- * @param config.clearAutoDelay - scope 自动清理的延迟时间（毫秒，默认 100）
  * 
  * @returns addon 函数
  * 
@@ -97,12 +85,13 @@ export function withAddonGroup(config: WithAddonGroupConfig): <T extends AddonTy
   clear__name__Group: (key?: string | number) => void
 } {
   return (({ monitor }: { monitor: FunctionMonitor }) => {
-    const { key: getKey, scope: getScope, clearAutoDelay = 100 } = config
+    const { key: getKey, scope: getScope } = config
 
     // 内部保存 groups，用于追踪状态
     const groups = ref<Groups>({})
     const updates = new Map<string, (track: Track) => void>()
     const scopes = new Map<string, any>()
+    const activeScope = ref()
 
     const clear = (key?: string | number) => {
       if (key === undefined) {
@@ -118,20 +107,21 @@ export function withAddonGroup(config: WithAddonGroupConfig): <T extends AddonTy
       scopes.delete(key)
     }
 
-    const clearAuto = debounce((scope) => {
+    const clearAuto = () => {
       const keys = [...scopes].reduce((acc, [key, groupScope]) => {
-        if (scope === groupScope) return acc
+        if (activeScope.value === groupScope) return acc
         acc.push(key);
         return acc;
       }, []);
-      
       keys.forEach(key => clear(key))
-    }, clearAutoDelay)
+    }
+
+    watch(activeScope, () => clearAuto())
 
     const setupScope = getScope ? (args: any[], track: Track) => {
       const scope = getScope(args)
       scopes.set(track.getData(GROUP_KEY), scope)
-      clearAuto(scope)
+      activeScope.value = scope
     } : () => {}
 
     // 在 init 事件中存储 key 和 track.sn（提前到 init 阶段，避免时序问题）
@@ -140,7 +130,6 @@ export function withAddonGroup(config: WithAddonGroupConfig): <T extends AddonTy
       track.setData(GROUP_KEY, key)
       setupScope(args, track)
       if (groups.value[key]) return
-      
       const { group, update } = createGroupState()
       groups.value[key] = group as any
       updates.set(key, update)

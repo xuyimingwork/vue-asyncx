@@ -69,33 +69,31 @@ withAddonGroup({ key: (args) => args[0].id })
 
 **必需**: 否
 
-根据函数参数获取请求的 scope。当设置 scope 时，相同 scope 的 group 会自动清理其他 scope 的 group（使用 debounce 机制）。
+根据函数参数或外部变量获取请求的 scope。当设置 scope 时，相同 scope 的 group 会自动清理其他 scope 的 group（立即清理）。
+
+**作用**：避免内存泄露。在分页等场景中，切换页面后，之前页面的数据可以自动释放，避免内存占用持续增长。
 
 ```ts
-withAddonGroup({ 
-  key: (args) => args[0],
-  scope: (args) => args[1] // 根据第二个参数确定 scope
+// 分页场景示例
+const page = ref(1)
+
+const { queryItem, itemGroup } = useAsyncData('item', (itemId: string) => {
+  return getItemApi(itemId)
+}, {
+  addons: [withAddonGroup({ 
+    key: (args) => args[0],              // 使用 itemId 作为 key
+    scope: () => page.value              // 使用当前页码作为 scope
+  })]
 })
-```
 
-### clearAutoDelay
+// 第 1 页
+page.value = 1
+queryItem('item1')  // 创建 group['item1']
+queryItem('item2')  // 创建 group['item2']
 
-**类型**: `number`
-
-**必需**: 否
-
-**默认值**: `100`
-
-scope 自动清理的延迟时间（毫秒）。当切换 scope 时，会自动清理其他 scope 的 group。此配置控制清理操作的延迟时间。
-
-使用 debounce 机制，在延迟时间内如果再次切换 scope，会重置计时器。
-
-```ts
-withAddonGroup({ 
-  key: (args) => args[0],
-  scope: (args) => args[1],
-  clearAutoDelay: 200 // 自定义延迟时间为 200ms
-})
+// 切换到第 2 页 - 自动清理第 1 页的所有 group，释放内存
+page.value = 2
+queryItem('item3')  // 创建 group['item3']，自动清理 scope=1 的所有 group
 ```
 
 ## 使用场景
@@ -148,22 +146,32 @@ const { queryUser, userGroup } = useAsyncData('user', getUserApi, {
 </template>
 ```
 
-### 使用 scope 自动清理
+### 使用 scope 避免内存泄露（分页场景）
 
-当需要在切换 scope 时自动清理其他 scope 的 group：
+在分页场景中，使用 scope 可以自动清理之前页面的数据，避免内存泄露：
 
 ```ts
-const { queryData, dataGroup } = useAsyncData('data', getDataApi, {
+const page = ref(1)
+
+const { queryItem, itemGroup } = useAsyncData('item', (itemId: string) => {
+  return getItemApi(itemId)
+}, {
   addons: [withAddonGroup({ 
-    key: (args) => args[0],      // 使用第一个参数作为 key
-    scope: (args) => args[1]      // 使用第二个参数作为 scope
+    key: (args) => args[0],              // 使用 itemId 作为 key
+    scope: () => page.value              // 使用当前页码作为 scope
   })]
 })
 
-// 当切换 scope 时，其他 scope 的 group 会自动清理
-queryData('key1', 'scope1')  // 创建 group['key1']
-queryData('key2', 'scope1')  // 创建 group['key2']
-queryData('key1', 'scope2')  // 创建 group['key1']，自动清理 scope1 的所有 group
+// 第 1 页
+page.value = 1
+queryItem('item1')  // 创建 group['item1']
+queryItem('item2')  // 创建 group['item2']
+
+// 切换到第 2 页 - 自动清理第 1 页的所有 group，释放内存
+page.value = 2
+queryItem('item3')  // 创建 group['item3']，自动清理 scope=1 的所有 group
+
+// 此时 group['item1'] 和 group['item2'] 已被清理，释放内存
 ```
 
 ## 清理 Group
@@ -234,7 +242,7 @@ if (confirmGroup.value[item.id]?.loading) {
 
 ### 3. 数据同步
 
-`group[key]?.data` 只反映最新调用的结果。如果最新调用失败但之前调用成功，`group[key]?.data` 可能不包含之前成功的数据。如果需要完整的过期逻辑，建议使用 `withAddonData` 返回的 `data` 和 `dataExpired`。
+`group[key]?.data` 与全局的 `data` 状态逻辑一致，会自动同步最新调用的结果，并处理竟态条件。同时提供 `dataExpired` 状态用于标识数据是否过期。
 
 ### 4. Key 类型
 
