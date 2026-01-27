@@ -1,3 +1,5 @@
+import { BaseFunction } from "@/utils/types"
+
 export function upperFirst<Name extends string>(string: Name): Capitalize<Name> {
   if (!string) return '' as any
 
@@ -45,4 +47,18 @@ export function getFunction<C, F extends (...args: any[]) => any>(creator: C, ar
     warn(error, e)
     return fallback as any
   }
+}
+
+export function debounce<Fn extends BaseFunction>(fn: Fn, delay: number): Fn {
+  let timer = null; // 声明一个闭包变量来保存定时器
+
+  return function(...args) {
+    // 1. 如果定时器已存在，直接清除它
+    if (timer) clearTimeout(timer);
+
+    // 2. 重新开启定时器，delay 毫秒后执行函数
+    timer = setTimeout(() => {
+      fn.apply(this, args); // 保持 this 指向并传递参数
+    }, delay);
+  } as any;
 }

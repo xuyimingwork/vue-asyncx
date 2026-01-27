@@ -13,7 +13,7 @@ import type { InternalFunctionMonitor, Track, Tracker } from "./types"
  * @param key - 要检查的 key
  * @returns 如果是只读 key 返回 true，否则返回 false
  */
-export function isReadOnly(key: symbol): boolean {
+function isReadOnly(key: symbol): boolean {
   // RUN_ARGUMENTS、RUN_ERROR、RUN_LOADING、RUN_DATA_UPDATED 是只读的（monitor 专用）
   if (key === RUN_ARGUMENTS) return true
   if (key === RUN_ERROR) return true
