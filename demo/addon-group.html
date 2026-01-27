@@ -138,11 +138,12 @@
         ]);
 
         const { confirm, confirmLoading, confirmError, confirmGroup } = useAsync('confirm', confirmApi, {
-          addons: [withAddonGroup({ by: (args) => args[0] })]
+          addons: [withAddonGroup({ key: (args) => args[0] })]
         });
 
         const getStatus = (id) => {
           const group = confirmGroup.value[id];
+          if (!group) return { text: '待确认', class: '' };
           if (group.loading) return { text: '确认中...', class: 'loading' };
           if (group.error) return { text: `错误: ${group.error.message}`, class: 'error' };
           if (group.data) return { text: group.data, class: 'success' };
@@ -172,18 +173,18 @@
           <div class="item-list">
             <div v-for="item in items" :key="item.id" class="item">
               <div class="item-info">
-                <div class="item-name">{{ item.name }}{{ confirmGroup[item.id].argumentFirst }}</div>
+                <div class="item-name">{{ item.name }}{{ confirmGroup[item.id]?.argumentFirst }}</div>
                 <div class="item-status" :class="getStatus(item.id).class">
                   {{ getStatus(item.id).text }}
                 </div>
               </div>
               <button
                 class="btn-confirm"
-                :class="{ loading: confirmGroup[item.id].loading }"
-                :disabled="confirmGroup[item.id].loading"
+                :class="{ loading: confirmGroup[item.id]?.loading }"
+                :disabled="confirmGroup[item.id]?.loading"
                 @click="confirm(item.id)"
               >
-                {{ confirmGroup[item.id].loading ? '确认中...' : '确认' }}
+                {{ confirmGroup[item.id]?.loading ? '确认中...' : '确认' }}
               </button>
             </div>
           </div>
@@ -193,8 +194,8 @@
             <div class="result-content">
               <p>• 每个项目都有独立的确认状态（loading、error、data）</p>
               <p>• 可以同时确认多个项目，互不影响</p>
-              <p>• 不需要使用可选链：confirmGroup[item.id].loading</p>
-              <p>• 即使项目不存在，也会返回默认值（loading: false, error: undefined, data: undefined）</p>
+              <p>• 需要使用可选链：confirmGroup[item.id]?.loading（当 key 还没有被调用过时，group[key] 为 undefined）</p>
+              <p>• 只有在调用过对应 key 的函数后，group[key] 才会存在</p>
             </div>
           </div>
         </div>
