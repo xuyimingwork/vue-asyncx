@@ -73,8 +73,9 @@ action="@click="submit(formData)"
 
 代码中看到 `queryUserLoading` 变量，就知道它和 `user` 变量以及 `queryUser` 函数有关。
 
-![](./docs/vscode-hint.png)
-
 并且这一切，都可以自动提示。
+
+![](./docs/demo-basic.gif)
+
 
 更多内容，见：[命名约定](https://xuyimingwork.github.io/vue-asyncx/introduction.html#naming-convention)
