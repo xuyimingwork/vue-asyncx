@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>时间切片性能优化 Demo</title>
+  
+  <!-- Vue 3 -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+  
+  <!-- Element Plus -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2/dist/index.full.js"></script>
+  
+  <!-- Fuse.js -->
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
+  
+  <!-- vue-asyncx (本地构建文件) -->
+  <script src="/dist/vue-asyncx.umd.cjs"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .search-input {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .render-time {
+      padding: 8px 16px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .render-time.has-time {
+      background: #e6f7ff;
+      color: #1890ff;
+      font-weight: 500;
+    }
+    
+    .list-container {
+      max-height: 600px;
+      overflow-y: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 12px;
+    }
+    
+    .list-item {
+      padding: 12px;
+      margin-bottom: 8px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+      transition: all 0.2s;
+    }
+    
+    .list-item:hover {
+      background: #f0f0f0;
+      border-color: #d0d0d0;
+    }
+    
+    .item-id {
+      font-weight: 500;
+      color: #1890ff;
+      margin-right: 8px;
+    }
+    
+    .item-name {
+      color: #333;
+    }
+    
+    .item-email {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    .highlight {
+      background: #fff566;
+      padding: 2px 0;
+      font-weight: 500;
+    }
+    
+    .loading-indicator {
+      text-align: center;
+      padding: 20px;
+      color: #1890ff;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+    
+    .stats {
+      margin-top: 16px;
+      padding: 12px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      font-size: 14px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    const { createApp, ref, computed, watch, nextTick } = Vue;
+    const { ElInput, ElButton, ElRadioGroup, ElRadioButton } = ElementPlus;
+    const { useAsyncData, getAsyncDataContext } = VueAsyncx;
+    
+    // 生成 2000 个测试数据
+    function generateItems(count = 2000) {
+      const items = [];
+      const names = ['张三', '李四', '王五', '赵六', '钱七', '孙八', '周九', '吴十'];
+      const domains = ['example.com', 'test.com', 'demo.com', 'sample.org'];
+      
+      for (let i = 1; i <= count; i++) {
+        const nameIndex = Math.floor(Math.random() * names.length);
+        const domainIndex = Math.floor(Math.random() * domains.length);
+        items.push({
+          id: i,
+          name: `${names[nameIndex]}${i}`,
+          email: `user${i}@${domains[domainIndex]}`,
+          description: `这是第 ${i} 个列表项的描述信息`
+        });
+      }
+      
+      return items;
+    }
+    
+    // 使用 Fuse.js 进行模糊搜索
+    function searchItems(items, query) {
+      if (!query || !query.trim()) {
+        return items.map(item => ({ ...item, matches: null }));
+      }
+      
+      const fuse = new Fuse(items, {
+        keys: ['name', 'email', 'description'],
+        threshold: 0.6,
+        includeScore: true,
+        includeMatches: true
+      });
+      
+      const results = fuse.search(query);
+      return results.map(result => ({
+        ...result.item,
+        matches: result.matches || null
+      }));
+    }
+    
+    // 高亮文本函数
+    function highlightText(text, matches, key) {
+      if (!matches || !text) {
+        return [{ text, highlight: false }];
+      }
+      
+      // 找到对应 key 的匹配信息
+      const match = matches.find(m => m.key === key);
+      if (!match || !match.indices || match.indices.length === 0) {
+        return [{ text, highlight: false }];
+      }
+      
+      // 将匹配位置合并并排序（处理重叠的区间）
+      const indices = match.indices.sort((a, b) => a[0] - b[0]);
+      const mergedIndices = [];
+      
+      indices.forEach(([start, end]) => {
+        if (mergedIndices.length === 0) {
+          mergedIndices.push([start, end]);
+        } else {
+          const last = mergedIndices[mergedIndices.length - 1];
+          if (start <= last[1] + 1) {
+            // 重叠或相邻，合并
+            last[1] = Math.max(last[1], end);
+          } else {
+            // 不重叠，添加新区间
+            mergedIndices.push([start, end]);
+          }
+        }
+      });
+      
+      // 构建高亮文本
+      const parts = [];
+      let lastIndex = 0;
+      
+      mergedIndices.forEach(([start, end]) => {
+        // 添加匹配前的文本
+        if (start > lastIndex) {
+          parts.push({
+            text: text.substring(lastIndex, start),
+            highlight: false
+          });
+        }
+        
+        // 添加高亮的匹配文本
+        parts.push({
+          text: text.substring(start, end + 1),
+          highlight: true
+        });
+        
+        lastIndex = end + 1;
+      });
+      
+      // 添加剩余的文本
+      if (lastIndex < text.length) {
+        parts.push({
+          text: text.substring(lastIndex),
+          highlight: false
+        });
+      }
+      
+      return parts.length > 0 ? parts : [{ text, highlight: false }];
+    }
+    
+    createApp({
+      components: {
+        ElInput,
+        ElButton,
+        ElRadioGroup,
+        ElRadioButton
+      },
+      setup() {
+        const searchQuery = ref('');
+        const useTimeSlicing = ref(false);
+        const renderStartTime = ref(null);
+        const renderEndTime = ref(null);
+        const allItems = generateItems(3000);
+        
+        // 非优化版本：直接赋值
+        const { 
+          normalList, 
+          queryNormalList, 
+          queryNormalListLoading 
+        } = useAsyncData('normalList', async (query) => {
+          const filtered = searchItems(allItems, query);
+          return filtered;
+        });
+        
+        // 优化版本：时间切片
+        const { 
+          timeSlicingList, 
+          queryTimeSlicingList, 
+          queryTimeSlicingListLoading 
+        } = useAsyncData('timeSlicingList', async (query) => {
+          const { getData, updateData } = getAsyncDataContext();
+          
+          // 先清空列表
+          updateData([]);
+          
+          const filtered = searchItems(allItems, query);
+          const chunkSize = 50;
+          const total = filtered.length;
+          
+          // 分批更新，每次 50 个
+          for (let i = 0; i < total; i += chunkSize) {
+            const chunk = filtered.slice(i, i + chunkSize);
+            const currentList = getData() || [];
+            updateData([...currentList, ...chunk]);
+            
+            // 使用 setTimeout 让出控制权，实现时间切片
+            if (i + chunkSize < total) {
+              await new Promise(resolve => setTimeout(resolve, 0));
+            }
+          }
+          
+          return filtered;
+        });
+        
+        // 当前使用的列表
+        const currentList = computed(() => {
+          return useTimeSlicing.value ? timeSlicingList.value : normalList.value;
+        });
+        
+        const currentLoading = computed(() => {
+          return useTimeSlicing.value ? queryTimeSlicingListLoading.value : queryNormalListLoading.value;
+        });
+        
+        // 首次渲染时间
+        const firstRenderTime = computed(() => {
+          if (renderStartTime.value && renderEndTime.value) {
+            return `${(renderEndTime.value - renderStartTime.value).toFixed(2)}ms`;
+          }
+          return null;
+        });
+        
+        // 用于存储 watcher 停止函数
+        let currentWatcher = null;
+        
+        // 监听搜索查询变化
+        watch([searchQuery, useTimeSlicing], () => {
+          // 停止之前的 watcher
+          if (currentWatcher) {
+            currentWatcher();
+            currentWatcher = null;
+          }
+          
+          // 重置时间
+          renderStartTime.value = null;
+          renderEndTime.value = null;
+          
+          // 记录开始时间
+          renderStartTime.value = performance.now();
+          
+          if (useTimeSlicing.value) {
+            queryTimeSlicingList(searchQuery.value);
+            
+            // 监听列表变化来计算首次渲染时间（首次有数据时）
+            let hasRecordedFirstRender = false;
+            currentWatcher = watch(timeSlicingList, async (newVal) => {
+              if (newVal && newVal.length > 0 && !hasRecordedFirstRender) {
+                // 等待 DOM 更新完成
+                await nextTick();
+                renderEndTime.value = performance.now();
+                hasRecordedFirstRender = true;
+              }
+            }, { immediate: true });
+          } else {
+            queryNormalList(searchQuery.value);
+            
+            // 监听列表变化来计算首次渲染时间（首次有数据时）
+            let hasRecordedFirstRender = false;
+            currentWatcher = watch(normalList, async (newVal) => {
+              if (newVal && newVal.length > 0 && !hasRecordedFirstRender) {
+                // 等待 DOM 更新完成
+                await nextTick();
+                renderEndTime.value = performance.now();
+                hasRecordedFirstRender = true;
+              }
+            }, { immediate: true });
+          }
+        }, { immediate: true });
+        
+        // 高亮文本函数（在模板中使用）
+        const highlightTextFn = highlightText;
+        
+        return {
+          searchQuery,
+          useTimeSlicing,
+          currentList,
+          currentLoading,
+          firstRenderTime,
+          allItems,
+          highlightText: highlightTextFn
+        };
+      },
+      template: `
+        <div class="container">
+          <h1>时间切片性能优化 Demo</h1>
+          
+          <div class="controls">
+            <el-input
+              v-model="searchQuery"
+              placeholder="输入关键词进行模糊搜索..."
+              class="search-input"
+              clearable
+            />
+            
+            <el-radio-group v-model="useTimeSlicing">
+              <el-radio-button :label="false">非优化版</el-radio-button>
+              <el-radio-button :label="true">时间切片版</el-radio-button>
+            </el-radio-group>
+          </div>
+          <div class="render-time" :class="{ 'has-time': firstRenderTime }">
+            <span v-if="firstRenderTime">渲染时间: {{ firstRenderTime }}</span>
+            <span v-else>等待渲染...</span>
+          </div>
+          
+          <div class="list-container">
+            <div v-if="currentLoading && (!currentList || currentList.length === 0)" class="loading-indicator">
+              加载中...
+            </div>
+            <div v-else-if="!currentList || currentList.length === 0" class="empty-state">
+              暂无数据
+            </div>
+            <div v-else>
+              <div 
+                v-for="item in currentList" 
+                :key="item.id" 
+                class="list-item"
+              >
+                <div>
+                  <span class="item-id">#{{ item.id }}</span>
+                  <span class="item-name">
+                    <template v-if="item.matches && searchQuery">
+                      <template v-for="(part, idx) in highlightText(item.name, item.matches, 'name')" :key="idx">
+                        <span v-if="part.highlight" class="highlight">{{ part.text }}</span>
+                        <span v-else>{{ part.text }}</span>
+                      </template>
+                    </template>
+                    <span v-else>{{ item.name }}</span>
+                  </span>
+                </div>
+                <div class="item-email">
+                  <template v-if="item.matches && searchQuery">
+                    <template v-for="(part, idx) in highlightText(item.email, item.matches, 'email')" :key="idx">
+                      <span v-if="part.highlight" class="highlight">{{ part.text }}</span>
+                      <span v-else>{{ part.text }}</span>
+                    </template>
+                  </template>
+                  <span v-else>{{ item.email }}</span>
+                </div>
+                <div class="item-email">
+                  <template v-if="item.matches && searchQuery">
+                    <template v-for="(part, idx) in highlightText(item.description, item.matches, 'description')" :key="idx">
+                      <span v-if="part.highlight" class="highlight">{{ part.text }}</span>
+                      <span v-else>{{ part.text }}</span>
+                    </template>
+                  </template>
+                  <span v-else>{{ item.description }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="stats">
+            <div>当前模式: <strong>{{ useTimeSlicing ? '时间切片版' : '非优化版' }}</strong></div>
+            <div>搜索关键词: <strong>{{ searchQuery || '无' }}</strong></div>
+            <div>列表项数量: <strong>{{ currentList?.length || 0 }}</strong> / 3000</div>
+            <div v-if="currentLoading">状态: <strong>加载中...</strong></div>
+          </div>
+        </div>
+      `
+    }).use(ElementPlus).mount('#app');
+  </script>
+</body>
+</html>
