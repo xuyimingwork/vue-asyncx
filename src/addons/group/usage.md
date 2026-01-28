@@ -16,17 +16,16 @@
 ## 基本用法
 
 ```ts
-const { confirm, confirmGroup } = useAsync(
-  'confirm',
-  confirmApi,
-  {
-    addons: [
-      withAddonGroup({
-        key: (args) => args[0], // 使用第一个参数作为分组 key
-      }),
-    ],
-  }
-)
+const { 
+  confirm, 
+  confirmGroup 
+} = useAsync('confirm', confirmApi, {
+  addons: [
+    withAddonGroup({
+      key: (args) => args[0], // 使用第一个参数作为分组 key
+    }),
+  ],
+})
 ```
 
 在模板中使用
