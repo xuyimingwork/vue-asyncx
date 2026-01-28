@@ -138,10 +138,9 @@
         ]);
 
         const { 
-          confirm, 
+          confirm, confirmGroup, // 分组数据
           confirmLoading, 
           confirmError, 
-          confirmGroup // 分组数据
         } = useAsync('confirm', confirmApi, {
           addons: [withAddonGroup({ key: (args) => args[0] })]
         });
