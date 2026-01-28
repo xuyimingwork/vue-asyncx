@@ -41,6 +41,7 @@
     "type": "git",
     "url": "git+https://github.com/xuyimingwork/vue-asyncx.git"
   },
+  "homepage": "https://xuyimingwork.github.io/vue-asyncx/",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
