@@ -287,7 +287,7 @@
           const chunkSize = size;
           const total = filtered.length;
           
-          // 分批更新，每次 50 个
+          // 分批更新
           for (let i = 0; i < total; i += chunkSize) {
             const chunk = filtered.slice(i, i + chunkSize);
             const currentList = getData() || [];
@@ -302,7 +302,7 @@
           return filtered;
         });
         const timeSlicingList = computed(() => commonTimeSlicingList.value);
-        const queryTimeSlicingList = (query) => queryCommonTimeSlicingList(searchItems(allItems, query))
+        const queryTimeSlicingList = (query) => queryCommonTimeSlicingList(searchItems(allItems, query), 20)
         
         // 当前使用的列表
         const currentList = computed(() => {
