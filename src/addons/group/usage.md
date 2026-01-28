@@ -1,9 +1,6 @@
 # withAddonGroup
 
-`withAddonGroup` 用于管理**并行同语义操作**的状态。
-
-当**同一个异步操作**需要并行调用，
-`withAddonGroup` 可以根据 `key` 将调用**分组管理**，每组维护各自的异步状态。
+`withAddonGroup` 让**一个异步函数**依据需要进行分组，每个分组状态独立还支持并发调用。
 
 ![](../../../docs/demo-addon-group.gif)
 
