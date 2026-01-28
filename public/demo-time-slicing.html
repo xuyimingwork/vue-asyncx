@@ -274,19 +274,17 @@
           return filtered;
         });
         
-        // 优化版本：时间切片
+        // 通用时间切片方案
         const { 
-          timeSlicingList, 
-          queryTimeSlicingList, 
-          queryTimeSlicingListLoading 
-        } = useAsyncData('timeSlicingList', async (query) => {
+          commonTimeSlicingList, 
+          queryCommonTimeSlicingList,
+        } = useAsyncData('commonTimeSlicingList', async (filtered, size = 50) => {
           const { getData, updateData } = getAsyncDataContext();
           
           // 先清空列表
           updateData([]);
           
-          const filtered = searchItems(allItems, query);
-          const chunkSize = 50;
+          const chunkSize = size;
           const total = filtered.length;
           
           // 分批更新，每次 50 个
@@ -303,6 +301,8 @@
           
           return filtered;
         });
+        const timeSlicingList = computed(() => commonTimeSlicingList.value);
+        const queryTimeSlicingList = (query) => queryCommonTimeSlicingList(searchItems(allItems, query))
         
         // 当前使用的列表
         const currentList = computed(() => {
@@ -388,7 +388,7 @@
           <div class="controls">
             <el-input
               v-model="searchQuery"
-              placeholder="输入关键词进行模糊搜索..."
+              placeholder="输入关键词进行模糊搜索（逐个输入example后逐个删除）..."
               class="search-input"
               clearable
             />
