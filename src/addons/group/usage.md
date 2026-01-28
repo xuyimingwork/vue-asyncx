@@ -89,7 +89,7 @@ confirmGroup[item.id].loading
 - 竞态逻辑与未分组时的逻辑完全一致
 - 无需额外配置即可避免竞态问题
 
-## 进阶：如何进行内存释放？
+## 进阶：内存释放
 
 ⚠️ **大多数场景不需要关心内存问题**
 
@@ -101,7 +101,7 @@ confirmGroup[item.id].loading
 
 此时，随着 `key` 数量增长，`{name}Group` 会随之增长。
 
-### 典型场景：分页
+### 分页场景
 
 ```ts
 const page = ref(1)
@@ -160,3 +160,7 @@ clearConfirmGroup()
 - **scope**：定义 *这些调用的生命周期*
 
 如果不明确是否需要使用，那就不使用。**只用 key，就已经覆盖了 90% 的使用场景。**
+
+## 其它
+
+- 灵感来源：[useRequest 并行请求](https://zhuanlan.zhihu.com/p/106796295)
