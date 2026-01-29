@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import dts from 'vite-plugin-dts';
 
 export default defineConfig({
+  publicDir: false,
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src')
@@ -26,6 +27,6 @@ export default defineConfig({
   },
   plugins: [dts({ 
     rollupTypes: true,
-    exclude: ['demo', 'docs']
+    exclude: ['demo', 'docs', 'public']
   })],
 }) as any

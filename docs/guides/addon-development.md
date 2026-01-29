@@ -459,7 +459,7 @@ export function withAddonRetryCount(): (params: {
 
 **使用**：
 ```typescript
-const { queryUser, queryUserRetryCount } = useAsync('user', fetchUser, {
+const { queryUser, queryUserRetryCount } = useAsync('queryUser', fetchUser, {
   addons: [withAddonRetryCount()]
 })
 

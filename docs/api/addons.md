@@ -94,12 +94,12 @@ try {
 ### 使用示例
 
 ```typescript
-const { queryUser, queryUserArguments, queryUserArgumentFirst } = useAsync('user', getUserApi)
+const { submit, submitArguments, submitArgumentFirst } = useAsync('submit', submitApi)
 
-queryUser('user123', { include: 'profile' })
+submit('user123', { include: 'profile' })
 
-// queryUserArguments.value = ['user123', { include: 'profile' }]
-// queryUserArgumentFirst.value = 'user123'
+// submitArguments.value = ['user123', { include: 'profile' }]
+// submitArgumentFirst.value = 'user123'
 ```
 
 ## withAddonData
