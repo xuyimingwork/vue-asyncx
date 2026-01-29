@@ -244,6 +244,8 @@ const { progress, queryProgress } = useAsyncData('progress', async (init = 0) =>
 queryProgress(10)
 ```
 
+> 高级用法：[Vue 也能时间切片：3000 条列表丝滑渲染真实案例](https://juejin.cn/post/7600068631359963142)
+
 #### 监听变化
 
 ```typescript
