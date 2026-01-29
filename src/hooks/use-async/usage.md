@@ -207,7 +207,7 @@ const {
 | `{name}`                   | 包装后的异步函数                | `Function`         | -         |
 | `{name}Loading`            | 异步函数执行时的加载状态        | `Ref<boolean>`     | `false`     |
 | `{name}Arguments`          | 异步函数执行时的传入的参数列表  | `ComputedRef<any[]>` | `undefined`        |
-| `{name}ArgumentFirst`      | 参数列表 `query{Name}Arguments` 的首个值      | `ComputedRef<any>` | `undefined` |
+| `{name}ArgumentFirst`      | 参数列表 `{name}Arguments` 的首个值      | `ComputedRef<any>` | `undefined` |
 | `{name}Error`              | 异步函数执行时的异常            | `Ref<any>`         | `undefined` |
 
 ### 配置

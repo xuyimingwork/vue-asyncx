@@ -102,7 +102,7 @@ const { query, queryLoading } = useAsync('query', fetchData, {
 ```typescript
 const props = defineProps<{ userId: string }>()
 
-const { queryUser } = useAsync('user', () => fetchUser(props.userId), {
+const { queryUser } = useAsync('queryUser', () => fetchUser(props.userId), {
   watch: () => props.userId,
   immediate: true
 })
