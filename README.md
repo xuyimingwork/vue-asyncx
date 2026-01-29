@@ -11,6 +11,7 @@
 - 异步相关样板代码减少40%+
 - 关联状态变量自动命名、风格统一
 - 竞态条件自动处理
+- 插件化 addon 架构：可扩展的异步能力
 - 完整 TS 类型支持
 - 100% 单测覆盖率，300+ 测试用例
 
@@ -79,3 +80,28 @@ action="@click="submit(formData)"
 
 
 更多内容，见：[命名约定](https://xuyimingwork.github.io/vue-asyncx/introduction.html#naming-convention)
+
+## 高级用法示例：并行同语义操作
+
+在一些场景中，同一个异步操作可能需要分组**并行多次调用**（例如列表中多个按钮触发同一操作）。
+
+`vue-asyncx` 通过 `withAddonGroup` 插件提供支持
+
+![](./docs/demo-addon-group.gif)
+
+👉 适用于：列表操作 / 批量操作 / 多实例异步
+
+```ts
+const { 
+  confirm, 
+  confirmGroup 
+} = useAsync('confirm', confirmApi, {
+  addons: [
+    withAddonGroup({
+      key: (args) => args[0], // 使用第一个参数作为分组 key
+    }),
+  ],
+})
+```
+
+详细内容，见：[withAddonGroup](https://xuyimingwork.github.io/vue-asyncx/addons/group.html)
