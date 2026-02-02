@@ -232,7 +232,7 @@ const {
 
 > 注意，如果没有使用 `useEventListener` 等自动卸载的工具函数，你需要调用 Vue 的生命周期钩子函数手动卸载。
 
-## 在执行过程中更新
+## 中途更新
 
 对于需要在异步函数执行过程中更新数据的场景，可以使用 `getAsyncDataContext`
 
@@ -253,6 +253,8 @@ queryProgress(10)
 
 > - `getAsyncDataContext` 仅在**函数同步部分**可拿到上下文，异步回调中为 `null`
 > - `getData`、`updateData` 内部已自动处理竞态，使用时无需关心
+
+延伸阅读：[高级用法：利用中途更新实现时间切片](https://juejin.cn/post/7600068631359963142)
 
 ## 数据过期状态
 
