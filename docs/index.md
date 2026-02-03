@@ -33,13 +33,13 @@ features:
   - icon: 🌐
     title: SSR 友好
     details: 无浏览器依赖，上下文严格限定同步阶段，SSR 场景安全可预测
+  - icon: 📦
+    title: 纯净无依
+    details: 零第三方依赖、无副作用设计，完美支持 Tree-shaking 与按需加载
   - icon: 📘
     title: 类型完备
     details: 源码全量 TypeScript 编写，丝滑类型推导 + 智能补全
   - icon: 🧪
     title: 测试全面
     details: 100% 测试覆盖率，300+ 用例严苛打磨
-  - icon: 📦
-    title: 纯净无依
-    details: 零第三方依赖、无副作用设计，完美支持 Tree-shaking 与按需加载
 ---
