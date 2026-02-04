@@ -3,7 +3,6 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   srcDir: '../',
 
-  base: '/vue-asyncx/',
   lang: 'zh-CN',
   title: 'Vue Asyncx',
   description: '让异步像写诗的 Vue 3 组合式工具',
