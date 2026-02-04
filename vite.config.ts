@@ -10,7 +10,7 @@ export default defineConfig({
     }
   },
   build: {
-    target: 'es6',
+    target: 'es2018',
     lib: {
       entry: resolve(__dirname, 'src/main.ts'),
       name: 'VueAsyncx',
@@ -27,6 +27,7 @@ export default defineConfig({
   },
   plugins: [dts({ 
     rollupTypes: true,
-    exclude: ['demo', 'docs', 'public']
+    exclude: ['demo', 'docs', 'public'],
+    
   })],
 }) as any
