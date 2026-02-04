@@ -1,3 +1,7 @@
+## 1.10.1
+- 构建：目标调整为从 es6 调整为 es2018
+- 文档：官网地址调整为 https://vue-asyncx.js.org/
+
 ## 1.10.0
 - 功能：支持插件（addon）体系
 - 功能：新增 withAddonGroup 插件
