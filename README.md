@@ -5,7 +5,7 @@
 
 ![](./docs/compare-code.png)
 
-官方文档：[Vue Asyncx](https://xuyimingwork.github.io/vue-asyncx/)
+官方文档：[Vue Asyncx](https://vue-asyncx.js.org/)
 
 ## 特性
 
@@ -43,7 +43,7 @@ const {
 queryUser('Mike')
 ```
 
-更多内容，见：[useAsyncData](https://xuyimingwork.github.io/vue-asyncx/hooks/use-async-data.html)
+更多内容，见：[useAsyncData](https://vue-asyncx.js.org/hooks/use-async-data.html)
 
 ### useAsync (异步函数管理)
 
@@ -63,7 +63,7 @@ const {
 action="@click="submit(formData)"
 ```
 
-更多内容，见：[useAsync](https://xuyimingwork.github.io/vue-asyncx/hooks/use-async.html)
+更多内容，见：[useAsync](https://vue-asyncx.js.org/hooks/use-async.html)
 
 ## 设计哲学：约定带来效率
 
@@ -82,7 +82,7 @@ action="@click="submit(formData)"
 ![](./docs/demo-basic.gif)
 
 
-更多内容，见：[命名约定](https://xuyimingwork.github.io/vue-asyncx/introduction.html#naming-convention)
+更多内容，见：[命名约定](https://vue-asyncx.js.org/introduction.html#naming-convention)
 
 ## 高级用法示例：并行同语义操作
 
@@ -107,4 +107,4 @@ const {
 })
 ```
 
-详细内容，见：[withAddonGroup](https://xuyimingwork.github.io/vue-asyncx/addons/group.html)
+详细内容，见：[withAddonGroup](https://vue-asyncx.js.org/addons/group.html)
