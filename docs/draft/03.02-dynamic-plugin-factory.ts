@@ -1,4 +1,4 @@
-import { withRefresh, withRefreshFactory } from "./rfc3.2.1-plugins";
+import { withRefresh, withRefreshFactory } from "./03.01-plugin-with-refresh-example";
 
 // 1. Define the shape of a Plugin
 type MyPlugin<TFn, TResult> = (args: { fn: TFn }) => TResult;
