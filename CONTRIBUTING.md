@@ -172,8 +172,6 @@ Closes #123
 
 ### 注释规范
 
-详细的注释规范请参考 [代码注释规范文档](./docs/code-comments.md)。
-
 **基本原则**：
 - 公开 API 必须包含 JSDoc 注释
 - 复杂逻辑必须包含注释说明
@@ -271,9 +269,6 @@ describe('createTracker', () => {
 ### 文档位置
 
 - **用户文档**：`README.md`
-- **架构文档**：`docs/architecture.md`
-- **开发指南**：`docs/development.md`
-- **API 文档**：`docs/api/`
 - **贡献指南**：`CONTRIBUTING.md`（本文件）
 
 ## 七、发布流程
