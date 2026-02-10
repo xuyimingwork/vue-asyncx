@@ -134,11 +134,7 @@ export function toNamedAddon<
     const result = addon(...args)
     
     // 如果返回函数（高级 Addon），需要再次包装
-    if (typeof result === 'function') {
-      return (...args) => {
-        return toNamedAddonResult(name, result(...args))
-      }
-    }
+    if (typeof result === 'function') return (...args) => toNamedAddonResult(name, result(...args))
     
     // 基础 Addon 直接转换结果
     return toNamedAddonResult(name, result)
