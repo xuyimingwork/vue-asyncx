@@ -27,7 +27,7 @@ export default defineConfig({
   },
   plugins: [dts({ 
     rollupTypes: true,
-    exclude: ['demo', 'docs', 'public'],
+    exclude: ['demo', 'docs', 'public', 'e2e', 'vitest.e2e.config.ts'],
     
   })],
 }) as any
