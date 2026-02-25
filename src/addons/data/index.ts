@@ -1,6 +1,6 @@
 import { AddonTypes } from "@/addons/types"
 import { RUN_DATA } from "@/core/monitor"
-import type { Ref, ShallowRef } from "vue"
+import type { Ref, ShallowRef } from "vue-demi"
 import { useStateData } from "./state"
 
 // 重新导出 RUN_DATA，供其他 addon 使用

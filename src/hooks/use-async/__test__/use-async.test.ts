@@ -1,7 +1,7 @@
 import { useAsync, useAsyncFunction } from '@/hooks/use-async/use-async'
 import { debounce } from 'es-toolkit'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { nextTick, reactive, ref } from 'vue'
+import { isVue3, nextTick, reactive, ref } from 'vue-demi'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -240,7 +240,7 @@ describe('useAsync', () => {
       })
 
       test('should execute function when null or undefined in watch array', async () => {
-        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation((message) => {
+        const consoleWarnSpy = vi.spyOn(console, isVue3 ? 'warn' : 'error').mockImplementation((message) => {
           if (typeof message === 'string' && message.includes('Invalid watch source: null')) {
             return
           }

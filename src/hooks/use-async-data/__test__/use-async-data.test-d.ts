@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from 'vitest'
 import { useAsyncData } from '@/hooks/use-async-data/use-async-data'
-import { ComputedRef, Ref } from 'vue'
+import { ComputedRef, Ref } from 'vue-demi'
 
 describe('useAsyncData type', () => {
   test('should be function', () => {

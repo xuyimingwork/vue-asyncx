@@ -3,8 +3,8 @@ import { defineStateData } from "@/addons/data/state"
 import { defineStateError } from "@/addons/error"
 import { defineStateLoading } from "@/addons/loading"
 import type { Track } from "@/core/monitor"
-import type { Ref } from "vue"
-import { ref } from "vue"
+import type { Ref } from "vue-demi"
+import { ref } from "vue-demi"
 
 /**
  * 内部 Group 类型
