@@ -6,6 +6,7 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
+      setupFiles: [fileURLToPath(new URL('./src/__test__/setup.ts', import.meta.url))],
       typecheck: {
         enabled: true,
         include: ['src/**']

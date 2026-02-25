@@ -1,8 +1,8 @@
 import type { AddonTypes } from "@/addons/types"
 import type { FunctionMonitor, Track } from "@/core/monitor"
-import type { ComputedRef, Ref } from "vue"
+import type { ComputedRef, Ref } from "vue-demi"
 
-import { computed, ref, watch } from "vue"
+import { computed, ref, set, watch } from "vue-demi"
 import { createGroupState, type Group } from "./state"
 
 const GROUP_KEY = Symbol('vue-asyncx:group:key')
@@ -22,7 +22,7 @@ export type GroupType<M extends (...args: any[]) => any> = {
 /**
  * Groups 类型（内部存储 Ref<Group>，但对外暴露 Group）
  */
-type Groups = Record<string | number, Ref<Group>>
+type Groups = Record<string, Ref<Group>>
 
 /**
  * withAddonGroup 配置
@@ -131,7 +131,7 @@ export function withAddonGroup(config: WithAddonGroupConfig): <T extends AddonTy
       setupScope(args, track)
       if (groups.value[key]) return
       const { group, update } = createGroupState()
-      groups.value[key] = group as any
+      set(groups.value, key, group)
       updates.set(key, update)
     })
 

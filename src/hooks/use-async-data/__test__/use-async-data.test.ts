@@ -1,7 +1,7 @@
 import { getAsyncDataContext, unFirstArgumentEnhanced, useAsyncData } from '@/hooks/use-async-data/use-async-data'
 import { debounce, upperFirst } from 'es-toolkit'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { isReactive } from 'vue'
+import { isReactive } from 'vue-demi'
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 afterEach(() => vi.useRealTimers())

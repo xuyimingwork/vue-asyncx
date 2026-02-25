@@ -1,7 +1,7 @@
 import type { FunctionMonitor, Track } from "@/core/monitor"
 import { RUN_ERROR } from "@/core/monitor"
-import type { Ref } from "vue"
-import { ref } from "vue"
+import type { Ref } from "vue-demi"
+import { ref } from "vue-demi"
 import { createLatestHandler } from "./utils/latest-handler"
 
 /**

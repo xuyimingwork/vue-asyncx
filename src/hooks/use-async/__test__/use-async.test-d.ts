@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from 'vitest'
 import { useAsync } from '@/hooks/use-async/use-async'
-import { ComputedRef, Ref } from 'vue'
+import { ComputedRef, Ref } from 'vue-demi'
 
 describe('useAsync type', () => {
   test('should be function', () => {

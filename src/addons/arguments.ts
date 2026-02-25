@@ -1,8 +1,8 @@
 import { AddonTypes } from "@/addons/types";
 import type { FunctionMonitor, Track } from "@/core/monitor";
 import { RUN_ARGUMENTS } from "@/core/monitor";
-import type { ComputedRef } from "vue";
-import { computed, ref } from "vue";
+import type { ComputedRef } from "vue-demi";
+import { computed, ref } from "vue-demi";
 import { createLatestHandler } from "./utils/latest-handler";
 
 /**

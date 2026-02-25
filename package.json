@@ -21,7 +21,8 @@
     "lint:fix": "oxlint --fix",
     "test:unit": "vitest",
     "test:unit:coverage": "vitest run --coverage",
-    "test": "pnpm run test:unit",
+    "test": "vue-demi-switch 3 && pnpm run test:unit",
+    "test:2.7": "vue-demi-switch 2.7 vue2 && pnpm run test:unit",
     "prepublish": "pnpm run build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
@@ -54,12 +55,17 @@
     "oxlint": "^1.0.0",
     "rolldown-plugin-dts": "^0.21.8",
     "typescript": "5.8.2",
-    "vite": "8.0.0-beta.12",
+    "vite": "8.0.0-beta.13",
     "vite-plugin-dts": "^4.5.4",
     "vitepress": "^1.6.3",
-    "vitest": "^4.0.14"
+    "vitest": "^4.0.14",
+    "vue": "^3.0.0",
+    "vue2": "npm:vue@2"
   },
   "peerDependencies": {
-    "vue": ">=3.0.0"
+    "vue": "^2.7.0 || >=3.0.0"
+  },
+  "dependencies": {
+    "vue-demi": "^0.14.10"
   }
 }

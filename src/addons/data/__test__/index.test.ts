@@ -3,7 +3,7 @@ import { withAddonData } from '@/addons/data'
 import { setupFunctionPipeline } from '@/core/setup-pipeline'
 import { getAsyncDataContext } from '@/addons/data/context'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { ref, isRef, isReactive } from 'vue'
+import { isRef, isReactive } from 'vue-demi'
 import type { FunctionMonitor } from '@/core/monitor'
 import type { BaseFunction } from '@/utils/types'
 

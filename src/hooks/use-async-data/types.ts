@@ -1,7 +1,7 @@
+import type { Addons } from '@/addons/types';
 import type { UseAsyncOptions, UseAsyncResult } from "@/hooks/use-async/types";
 import type { BaseFunction, NonEmptyString, Simplify } from "@/utils/types";
-import type { Ref, ShallowRef } from "vue";
-import type { Addons } from '@/addons/types';
+import type { Ref, ShallowRef } from "vue-demi";
 
 type UseAsyncDataNameDefault = 'data'
 
