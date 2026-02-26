@@ -1,7 +1,7 @@
 import type { Track } from "@/core/monitor"
 import { createEnhanceArgumentsHandler, type FunctionMonitor, RUN_DATA, RUN_DATA_UPDATED } from "@/core/monitor"
-import type { ComputedRef, Ref, ShallowRef } from "vue-demi"
-import { computed, ref, shallowRef } from "vue-demi"
+import type { ComputedRef, Ref, ShallowRef } from "vue"
+import { computed, ref, shallowRef } from "vue"
 import { prepareAsyncDataContext } from "./context"
 import { normalizeEnhancedArguments } from "./enhance"
 

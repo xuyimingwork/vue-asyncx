@@ -1,5 +1,5 @@
 import type { FunctionMonitor, Track } from "@/core/monitor"
-import { Ref, ref } from "vue-demi"
+import { Ref, ref } from "vue"
 import { createLatestHandler } from "./utils/latest-handler"
 
 /**

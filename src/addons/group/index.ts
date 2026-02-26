@@ -1,8 +1,9 @@
 import type { AddonTypes } from "@/addons/types"
 import type { FunctionMonitor, Track } from "@/core/monitor"
-import type { ComputedRef, Ref } from "vue-demi"
+import type { ComputedRef, Ref } from "vue"
 
-import { computed, ref, set, watch } from "vue-demi"
+import { computed, ref, watch } from "vue"
+import { set } from '@/compat/compat'
 import { createGroupState, type Group } from "./state"
 
 const GROUP_KEY = Symbol('vue-asyncx:group:key')
