@@ -11,8 +11,14 @@
   "module": "./dist/vue-asyncx.js",
   "exports": {
     ".": {
+      "types": "./dist/vue-asyncx.d.ts",
       "import": "./dist/vue-asyncx.js",
       "require": "./dist/vue-asyncx.umd.cjs"
+    },
+    "./vue2": {
+      "types": "./dist/vue2/vue-asyncx.d.ts",
+      "import": "./dist/vue2/vue-asyncx.js",
+      "require": "./dist/vue2/vue-asyncx.umd.cjs"
     }
   },
   "scripts": {
