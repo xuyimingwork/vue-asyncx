@@ -1,6 +1,6 @@
 import type { Addons, MergeAddonResults } from '@/addons/types';
 import type { BaseFunction, CamelReplaceKeys, NonEmptyString, Simplify } from "@/utils/types";
-import type { ComputedRef, Ref, WatchCallback, WatchOptions, WatchSource } from 'vue-demi';
+import type { ComputedRef, Ref, WatchCallback, WatchOptions, WatchSource } from 'vue';
 
 type UseAsyncNameDefault = 'method'
 
