@@ -3,11 +3,12 @@ import { defineConfig } from "vite";
 import dts from 'vite-plugin-dts';
 
 export default defineConfig(({ mode }) => {
+  const IN_VUE2 = mode === 'vue2'
   return {
     publicDir: false as const,
     resolve: {
       alias: [
-        ...(mode === 'vue2' ? [
+        ...(IN_VUE2 ? [
           { find: 'vue', replacement: 'vue2' },
           { find: '@/compat/compat', replacement: resolve(__dirname, 'src/compat/compat.vue2') },
         ] : []),
@@ -15,6 +16,8 @@ export default defineConfig(({ mode }) => {
       ]
     },
     build: {
+      outDir: IN_VUE2 ? 'dist/vue2' : 'dist',
+      emptyOutDir: !IN_VUE2,
       target: 'es2018',
       lib: {
         entry: resolve(__dirname, 'src/main.ts'),
