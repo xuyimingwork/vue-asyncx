@@ -16,7 +16,8 @@
     }
   },
   "scripts": {
-    "build": "vite build",
+    "build": "pnpm run build:vue3 && pnpm run build:vue2",
+    "build:vue3": "vite build",
     "build:vue2": "vite build --mode vue2",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
