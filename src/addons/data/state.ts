@@ -1,5 +1,6 @@
 import type { Track } from "@/core/monitor"
 import { createEnhanceArgumentsHandler, type FunctionMonitor, RUN_DATA, RUN_DATA_UPDATED } from "@/core/monitor"
+import type { InternalFunctionMonitor } from "@/core/monitor/types"
 import type { ComputedRef, Ref, ShallowRef } from "vue"
 import { computed, ref, shallowRef } from "vue"
 import { prepareAsyncDataContext } from "./context"
@@ -204,7 +205,7 @@ export function useStateData<Data = any>(
   // @internal enhance-arguments 是内部 API，仅用于兼容已废弃的 enhanceFirstArgument 功能
   // enhance-arguments 事件在 'init' 事件之后触发，此时上下文已准备好
   if (enhanceFirstArgument) {
-    monitor.use('enhance-arguments', createEnhanceArgumentsHandler(({ args, track }) => {
+    (monitor as InternalFunctionMonitor).use('enhance-arguments', createEnhanceArgumentsHandler(({ args, track }) => {
       // 上下文使用后可以删除，因为只需要在这里使用
       return normalizeEnhancedArguments(args, track.takeData(CONTEXT_KEY)!)
     }))
