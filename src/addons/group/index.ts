@@ -5,13 +5,14 @@ import type { ComputedRef, Ref } from "vue"
 import { computed, ref, watch } from "vue"
 import { set } from '@/compat/compat'
 import { createGroupState, type Group } from "./state"
+import { BaseFunction } from "@/utils/types"
 
 const GROUP_KEY = Symbol('vue-asyncx:group:key')
 
 /**
  * Group 类型（基于 Method 类型）
  */
-export type GroupType<M extends (...args: any[]) => any> = {
+export type GroupType<M extends BaseFunction> = {
   loading: boolean
   error: any
   arguments: Parameters<M> | undefined

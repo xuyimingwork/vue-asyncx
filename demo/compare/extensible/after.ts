@@ -5,5 +5,5 @@ const {
   confirm, 
   confirmGroup
 } = useAsync('confirm', confirmApi, {
-  addons: [withAddonGroup({ by: (args) => args[0] })]
+  addons: [withAddonGroup({ key: (args) => args[0] })]
 })
