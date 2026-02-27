@@ -168,4 +168,4 @@ export interface InternalFunctionMonitor {
  * 
  * @description 提供函数执行生命周期的事件监控能力。
  */
-export type FunctionMonitor = Pick<InternalFunctionMonitor, 'on' | 'off' | 'use'>
+export type FunctionMonitor = Pick<InternalFunctionMonitor, 'on' | 'off'>
