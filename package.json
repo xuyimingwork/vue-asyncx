@@ -9,12 +9,17 @@
   ],
   "main": "./dist/vue-asyncx.umd.cjs",
   "module": "./dist/vue-asyncx.js",
-  "types": "dist/vue-asyncx.d.ts",
+  "types": "./dist/vue-asyncx.d.ts",
   "exports": {
     ".": {
       "types": "./dist/vue-asyncx.d.ts",
       "import": "./dist/vue-asyncx.js",
       "require": "./dist/vue-asyncx.umd.cjs"
+    }
+  },
+  "typesVersions": {
+    "<5.4": {
+      "*": ["./dist/vue-asyncx.compat.d.ts"]
     }
   },
   "scripts": {
@@ -25,7 +30,7 @@
     "test:unit:watch": "vue-demi-switch 3 && vitest",
     "test:unit:vue3": "vue-demi-switch 3 && vitest run",
     "test:unit:vue2": "vue-demi-switch 2.7 vue2 && vitest run --mode vue2",
-    "build": "vite build",
+    "build": "vite build && node scripts/post-build-dts.js",
     "prepublish": "pnpm run build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
