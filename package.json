@@ -15,7 +15,7 @@
       "types": "./dist/vue-asyncx.d.ts",
       "import": "./dist/vue-asyncx.js",
       "require": "./dist/vue-asyncx.umd.cjs"
-    },
+    }
   },
   "scripts": {
     "lint": "oxlint",

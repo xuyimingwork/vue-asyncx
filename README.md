@@ -109,3 +109,8 @@ const {
 ```
 
 详细内容，见：[withAddonGroup](https://vue-asyncx.js.org/addons/group.html)
+
+## 兼容性
+
+- 完整类型提示需要 TS >= 5.4；非插件功能类型兼容至 TS >= v4.1 
+- 支持 Vue 3.x / Vue 2.7
