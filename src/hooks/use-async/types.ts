@@ -51,9 +51,9 @@ export interface UseAsyncWatchOptions<Fn extends BaseFunction> extends WatchOpti
  * useAsync 配置选项
  *
  * @template Fn - 异步函数类型
- * @template Addons - 插件类型
+ * @template AddonResults - 插件扩展的返回值
  */
-export type UseAsyncOptions<Fn extends BaseFunction, Addons = any> = {
+export type UseAsyncOptions<Fn extends BaseFunction, AddonResults extends any[] = any[]> = {
   /** 监听的数据源，变化时执行异步函数。支持 Vue WatchSource 的全部形式 */
   watch?: WatchSource | WatchSource[]
   /** watch 的配置项，如 immediate、deep、handlerCreator 等 */
@@ -63,7 +63,7 @@ export type UseAsyncOptions<Fn extends BaseFunction, Addons = any> = {
   /** 转换最终函数或注册外部监听（如 debounce、事件监听、轮询） */
   setup?: (fn: Fn) => BaseFunction | void
   /** 自定义插件，扩展返回值 */
-  addons?: Addons
+  addons?: Addons<Fn, AddonResults>
 }
 
 /** useAsync 函数类型 */
@@ -92,7 +92,7 @@ export interface UseAsync {
     AddonResults extends any[] = any[]
   >(
     fn: Fn, 
-    options?: UseAsyncOptions<Fn, Addons<Fn, AddonResults>>
+    options?: UseAsyncOptions<Fn, AddonResults>
   ): UseAsyncResult<Fn, UseAsyncNameDefault, AddonResults>;
   /**
    * 封装异步函数，提供 loading、error、arguments 等响应式状态。指定名称以自定义函数及关联状态的命名。
@@ -141,7 +141,7 @@ export interface UseAsync {
   >(
     name: Name, 
     fn: Fn, 
-    options?: UseAsyncOptions<Fn, Addons<Fn, AddonResults>>
+    options?: UseAsyncOptions<Fn, AddonResults>
   ): UseAsyncResult<Fn, Name, AddonResults>
 }
 

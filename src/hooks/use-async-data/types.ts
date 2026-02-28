@@ -1,4 +1,3 @@
-import type { Addons } from '@/addons/types';
 import type { UseAsyncOptions, UseAsyncResult } from "@/hooks/use-async/types";
 import type { BaseFunction, NonEmptyString, Simplify } from "@/utils/types";
 import type { Ref, ShallowRef } from "vue";
@@ -14,7 +13,7 @@ type UseAsyncDataNameDefault = 'data'
  * @template Shallow - 是否使用 shallowRef
  * @template AddonResults - 插件扩展的返回值
  */
-export interface UseAsyncDataOptions<Fn extends BaseFunction, Shallow extends boolean, AddonResults extends any[] = any[]> extends UseAsyncOptions<Fn, Addons<Fn, AddonResults>> {
+export interface UseAsyncDataOptions<Fn extends BaseFunction, Shallow extends boolean, AddonResults extends any[] = any[]> extends UseAsyncOptions<Fn, AddonResults> {
   /** 数据的初始值，在首次查询完成前使用 */
   initialData?: Awaited<ReturnType<Fn>>,
   /** 为 true 时使用 shallowRef 包裹数据，适用于大对象优化 */
