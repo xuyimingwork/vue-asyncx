@@ -3,23 +3,19 @@
   "version": "1.10.1",
   "description": "让异步像写诗的 Vue 3 组合式工具库",
   "type": "module",
-  "types": "dist/vue-asyncx.d.ts",
+  "sideEffects": false,
   "files": [
     "dist"
   ],
   "main": "./dist/vue-asyncx.umd.cjs",
   "module": "./dist/vue-asyncx.js",
+  "types": "dist/vue-asyncx.d.ts",
   "exports": {
     ".": {
       "types": "./dist/vue-asyncx.d.ts",
       "import": "./dist/vue-asyncx.js",
       "require": "./dist/vue-asyncx.umd.cjs"
     },
-    "./vue2": {
-      "types": "./dist/vue2/vue-asyncx.d.ts",
-      "import": "./dist/vue2/vue-asyncx.js",
-      "require": "./dist/vue2/vue-asyncx.umd.cjs"
-    }
   },
   "scripts": {
     "lint": "oxlint",
@@ -29,9 +25,7 @@
     "test:unit:watch": "vue-demi-switch 3 && vitest",
     "test:unit:vue3": "vue-demi-switch 3 && vitest run",
     "test:unit:vue2": "vue-demi-switch 2.7 vue2 && vitest run --mode vue2",
-    "build": "pnpm run build:vue3 && pnpm run build:vue2",
-    "build:vue3": "vite build",
-    "build:vue2": "vite build --mode vue2",
+    "build": "vite build",
     "prepublish": "pnpm run build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",

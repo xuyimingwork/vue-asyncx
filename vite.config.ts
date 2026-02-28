@@ -10,14 +10,11 @@ export default defineConfig(({ mode }) => {
       alias: [
         ...(IN_VUE2 ? [
           { find: 'vue', replacement: 'vue2' },
-          { find: '@/compat/compat', replacement: resolve(__dirname, 'src/compat/compat.vue2') },
         ] : []),
         { find: '@', replacement: resolve(__dirname, 'src') },
       ]
     },
     build: {
-      outDir: IN_VUE2 ? 'dist/vue2' : 'dist',
-      emptyOutDir: !IN_VUE2,
       target: 'es2018',
       lib: {
         entry: resolve(__dirname, 'src/main.ts'),
@@ -33,10 +30,12 @@ export default defineConfig(({ mode }) => {
         }
       },
     },
-    plugins: [dts({ 
-      rollupTypes: true,
-      exclude: ['demo', 'docs', 'public', 'e2e', 'vitest.e2e.config.ts', '**/__test__/**'],
-      aliasesExclude: ['vue']
-    })],
+    plugins: [
+      dts({ 
+        rollupTypes: true,
+        exclude: ['demo', 'docs', 'public', 'e2e', 'vitest.e2e.config.ts', '**/__test__/**'],
+        aliasesExclude: ['vue']
+      })
+    ],
   }
 }) as any
