@@ -11,7 +11,7 @@ export default defineConfig({
     setupFiles: [fileURLToPath(new URL('./e2e/setup.ts', import.meta.url))],
     environment: 'jsdom',
     include: ['e2e/**/*.test.ts'],
-    exclude: ['src/**', 'node_modules/**'],
+    exclude: ['src/**', 'node_modules/**', 'e2e/**/*.browser.{test,spec}.ts'],
     root: fileURLToPath(new URL('.', import.meta.url)),
     // 不启用 typecheck，e2e 从 dist 导入，类型可能不完整
     typecheck: { enabled: false },
