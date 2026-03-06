@@ -2,8 +2,8 @@ import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 
 /**
- * E2E 测试配置：针对 dist 产物的验证
- * 与单元测试分离，需先执行 build 再运行
+ * Browser 测试配置：使用 Playwright 在真实浏览器中验证 CDN 加载的 UMD 产物
+ * 加载 e2e/vue2|vue3/index.cdn.html，需先执行 build 再运行
  */
 export default defineConfig(({ mode }) => {
   const IN_VUE2 = mode === 'vue2'
