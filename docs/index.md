@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Vue Asyncx
-  text: 让异步像写诗的 <br />Vue 3 / Vue 2.7 组合式工具库
+  text: 让异步像写诗的 <br />Vue 3 / 2.7 组合式工具库
   tagline: 不重复、有语义<br />天然防竞态、自由可扩展 
   actions:
     - theme: brand
@@ -35,7 +35,7 @@ features:
     details: 无浏览器依赖，上下文严格限定同步阶段，SSR 场景安全可预测
   - icon: 📦
     title: 无缝迁移
-    details: 兼容 Vue 3 / Vue 2.7，零第三方依赖
+    details: 兼容 Vue 3 / 2.7，零第三方依赖
   - icon: 📘
     title: 类型完备
     details: 源码全量 TypeScript 编写，丝滑类型推导 + 智能补全
