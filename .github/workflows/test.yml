@@ -17,21 +17,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.18.0
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9 # 建议升级到 9，与你的 Node 22 更契合
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # 使用稳定的 LTS 版本
+          cache: 'pnpm'   # 自动处理 pnpm 缓存，速度提升 50%
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install Playwright Browsers
+        # 核心修正：使用 npx 强制调用依赖链中的 playwright 驱动并安装系统依赖
+        run: npx playwright install --with-deps chromium
 
       - name: Run test:all
+        # 这一步会触发你的 vue-demi-switch 逻辑，确保环境干净
         run: pnpm run test:all
+
+      # 建议添加：如果测试失败，上传 Vitest/Playwright 的 HTML 报告
+      - name: Upload Test Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/ # 或者是你 vitest 生成报告的路径
+          retention-days: 7
