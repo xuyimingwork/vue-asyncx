@@ -2,13 +2,9 @@ name: Test
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [main, master]
   pull_request:
-    branches:
-      - main
-      - master
+    branches: [main, master]
 
 jobs:
   test:
@@ -20,30 +16,35 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9 # 建议升级到 9，与你的 Node 22 更契合
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20 # 使用稳定的 LTS 版本
-          cache: 'pnpm'   # 自动处理 pnpm 缓存，速度提升 50%
+          node-version: 20
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright Browsers
-        # 核心修正：使用 npx 强制调用依赖链中的 playwright 驱动并安装系统依赖
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright CLI & Browsers
+        # 核心改动：如果找不到 playwright，直接现场安装它
+        # 这会安装 playwright 及其所需的系统依赖和 chromium 浏览器
+        run: |
+          pnpm add -D playwright
+          pnpm exec playwright install --with-deps chromium
 
       - name: Run test:all
-        # 这一步会触发你的 vue-demi-switch 逻辑，确保环境干净
         run: pnpm run test:all
 
-      # 建议添加：如果测试失败，上传 Vitest/Playwright 的 HTML 报告
+      # 修正报告路径：Vitest Browser 默认报告通常在 html 文件夹或指定目录
       - name: Upload Test Report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: playwright-report/ # 或者是你 vitest 生成报告的路径
+          name: test-reports
+          path: |
+            playwright-report/
+            test-results/
+            coverage/
           retention-days: 7
