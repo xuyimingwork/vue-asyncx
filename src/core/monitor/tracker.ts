@@ -109,9 +109,8 @@ function createInnerTrack({ sn }: {
      * @param value - 数据值（如果为 undefined 则删除）
      */
     setData: (key: symbol, value?: any) => {
-      value === undefined 
-        ? data.delete(key) 
-        : data.set(key, value)
+      if (value === undefined)  data.delete(key) 
+      else data.set(key, value)
     },
     
     /**

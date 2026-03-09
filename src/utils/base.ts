@@ -1,5 +1,3 @@
-import { BaseFunction } from "@/utils/types"
-
 export function upperFirst<Name extends string>(string: Name): Capitalize<Name> {
   if (!string) return '' as any
 

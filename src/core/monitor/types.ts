@@ -4,6 +4,8 @@
  * @module core/monitor/types
  */
 
+import { Simplify } from "@/utils/types"
+
 /**
  * Track 状态类型
  * 
@@ -52,14 +54,14 @@ export type Tracker = {
   track: () => InternalTrack
 }
 
-export type Track = Pick<InternalTrack, 
+export type Track = Simplify<Pick<InternalTrack, 
   'sn' | 
   'is' |
   'getData' | 'setData'
 > & {
   // takeData 由 monitor 实现，不在 tracker 的 Track 类型中
   takeData: <V = any>(key: symbol) => V | undefined
-}
+}>
 
 /**
  * 函数监控器事件映射
