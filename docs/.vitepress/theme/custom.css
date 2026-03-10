@@ -1,0 +1,18 @@
+.VPHomeHero .heading .text {
+  line-height: 36px;
+  font-size: 28px;
+}
+
+@media (min-width: 640px) {
+  .VPHomeHero .heading .text {
+    line-height: 48px;
+    font-size: 40px;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHomeHero .heading .text {
+    line-height: 56px;
+    font-size: 48px;
+  }
+}
