@@ -12,7 +12,7 @@ const getGlobals = () => ({
   VueAsyncx: (globalThis as any).VueAsyncx,
 })
 
-describe('CDN browser', () => {
+describe(`Browser CDN Vue v${globalThis.Vue.version}`, () => {
   test('should mount Vue on window', () => {
     const { Vue } = getGlobals()
     expect(Vue).toBeDefined()
