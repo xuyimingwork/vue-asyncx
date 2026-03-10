@@ -24,7 +24,7 @@ export type TrackQueryState = TrackState | 'finished'
  * 调用追踪对象
  * 
  * @description 表示单次函数调用的追踪信息，包含调用序号、状态和关联数据。
- * 用于处理竟态条件，确保只有最新调用的状态才会更新到最终结果。
+ * 用于处理竞态条件，确保只有最新调用的状态才会更新到最终结果。
  */
 export type InternalTrack = {
   /** 调用序号，唯一标识每次调用 */
@@ -106,7 +106,7 @@ export interface InternalFunctionMonitor {
    * 设置参数增强拦截器
    * 
    * @description 这是一个特殊的拦截器机制，用于在函数执行前转换参数。
-   * 执行顺序：init → before → enhance-arguments → after → fulfill/reject
+   * 执行时机：init → before → enhance-arguments → function run → after → fulfill/reject
    * 覆盖逻辑：只能设置一个拦截器，后设置的会覆盖先设置的
    * 
    * @param event - 事件类型，固定为 'enhance-arguments'

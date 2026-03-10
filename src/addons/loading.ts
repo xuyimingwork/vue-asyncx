@@ -5,10 +5,9 @@ import { createLatestHandler } from "./utils/latest-handler"
 /**
  * 定义状态 loading 管理器
  * 
- * @description 接收 get/set 函数，返回 update 函数用于更新外部的 loading 状态
+ * @description 接收 set 函数，返回 update 函数用于更新外部的 loading 状态
  * 
  * @param options - 配置选项
- * @param options.get - 获取当前 loading 状态的函数
  * @param options.set - 设置 loading 状态的函数
  * 
  * @returns 返回包含 update 函数的对象

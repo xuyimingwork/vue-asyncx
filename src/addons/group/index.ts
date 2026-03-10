@@ -53,10 +53,10 @@ export interface WithAddonGroupConfig {
  * 
  * 核心特性：
  * - 固定属性：`group[key]` 在被创建后始终包含 `loading`、`error`、`arguments`、`data`
- * - 直接值：`group[key]?.loading` 是 `boolean`，不是 `Ref<boolean>`
+ * - 直接值：`group[key]?.loading` 是 `boolean`，不是 `Ref<boolean>`。注：group 本身是 ref，其属性在访问时会自动解包为直接值
  * - 需要使用可选链：`group[key]` 可能为 `undefined`（当该 key 还没有被调用过时）
  * - 自动同步：所有 addon 的 setData 操作自动同步到 group
- * - 竟态处理：只有最新调用的状态才会更新到 group
+ * - 竞态处理：只有最新调用的状态才会更新到 group
  * 
  * @param config - 配置对象
  * @param config.key - 根据函数参数生成 group key 的函数

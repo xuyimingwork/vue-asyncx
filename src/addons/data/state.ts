@@ -9,11 +9,10 @@ import { normalizeEnhancedArguments } from "./enhance"
 /**
  * 定义状态 data 管理器
  * 
- * @description 接收 set/get 函数，返回 update 函数和 dataExpired 计算属性
+ * @description 接收 set 函数，返回 update 函数和 dataExpired 计算属性
  * 
  * @param options - 配置选项
  * @param options.set - 设置 data 状态的函数
- * @param options.get - 获取当前 data 状态的函数
  * 
  * @returns 返回包含 update 函数和 dataExpired 计算属性的对象
  */
@@ -77,7 +76,7 @@ export function defineStateData({
  * - 支持在函数执行过程中手动更新数据（通过 getAsyncDataContext）
  *   - 这允许在异步函数执行过程中多次更新数据，实现"updating"效果
  *   - 但这是数据 addon 的内部实现，不依赖 tracker 的 updating 状态
- * - 自动处理竟态条件，确保只有最新调用的数据才会更新
+ * - 自动处理竞态条件，确保只有最新调用的数据才会更新
  * - 追踪数据过期状态（当最新调用失败但之前调用成功时）
  * - 处理上下文设置和清理
  * 
@@ -164,7 +163,7 @@ export function useStateData<Data = any>(
        * 手动更新数据
        * 
        * @description 在函数执行过程中手动更新数据（在函数完成前）。
-       * 会自动处理竟态条件，只有最新调用才能更新。
+       * 会自动处理竞态条件，只有最新调用才能更新。
        * 
        * @param value - 新的数据值
        * 

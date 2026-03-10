@@ -380,7 +380,7 @@ const groupComputed = computed(() => {
 - 自动排除 `sn` 属性（内部使用）
 - 通过 `computed` 包装，确保响应式更新
 
-### 竟态处理
+### 竞态处理
 
 #### 处理机制
 

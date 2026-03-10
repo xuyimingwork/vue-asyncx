@@ -107,7 +107,7 @@ export function prepareAsyncDataContext<D = any>(context: ReturnType<ContextGett
  * 该函数返回当前执行上下文中的异步数据上下文。只有在 `useAsyncData` 函数执行期间（同步部分）才会返回有效的上下文对象，
  * 在其他情况下（如外部调用、异步回调中）会返回 `null`。
  * 
- * 上下文对象包含 `getData` 和 `updateData` 方法，用于在异步函数执行中访问和更新数据（竟态安全）。
+ * 上下文对象包含 `getData` 和 `updateData` 方法，用于在异步函数执行中访问和更新数据（竞态安全）。
  * 
  * @returns 包含 `getData` 和 `updateData` 方法的上下文对象，如果当前不在 `useAsyncData` 执行上下文中则返回 `null`
  * 
