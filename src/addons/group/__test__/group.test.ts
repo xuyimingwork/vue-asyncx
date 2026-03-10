@@ -1,6 +1,6 @@
 // addons/group/__test__/group.test.ts
 import { withAddonArguments } from '@/addons/arguments'
-import { withAddonData } from '@/addons/data'
+import { getAsyncDataContext, withAddonData } from '@/addons/data'
 import { withAddonError } from '@/addons/error'
 import { withAddonGroup } from '@/addons/group'
 import { withAddonLoading } from '@/addons/loading'
@@ -389,6 +389,37 @@ describe('withAddonGroup', () => {
       expect(group[1]).toBe(group['1'])
       expect(group[1].data).toEqual({ id: 1 })
       expect(group['1'].data).toEqual({ id: 1 }) // Latest call should update the shared group
+    })
+
+    it('should sync group when updateData is called via getAsyncDataContext during execution', async () => {
+      vi.useFakeTimers()
+      const fn = vi.fn(async (id: number) => {
+        const { updateData } = getAsyncDataContext()!
+        await new Promise(resolve => setTimeout(resolve, 30))
+        updateData({ id, name: `User ${id} (partial)` }) // 中途更新
+        await new Promise(resolve => setTimeout(resolve, 30))
+        return { id, name: `User ${id}` }
+      })
+
+      const result = createTestSetup(fn, () => 'fixed')
+      const method = result.method as any
+      const group = result.__name__Group.value
+
+      const promise = method(1)
+
+      // 等待中途更新发生
+      await vi.advanceTimersByTimeAsync(30)
+      await Promise.resolve()
+
+      // group 应同步中途更新的数据
+      expect(group['fixed'].data).toEqual({ id: 1, name: 'User 1 (partial)' })
+
+      // 等待请求完成
+      await vi.runAllTimersAsync()
+      await promise
+
+      // 最终应显示完整结果
+      expect(group['fixed'].data).toEqual({ id: 1, name: 'User 1' })
     })
   })
 

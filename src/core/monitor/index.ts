@@ -16,11 +16,12 @@
  * 要限制外部 addon 对 track 状态的更改。
  */
 
+import { toPublicTrack } from "@/core/monitor/public-track"
+import { createTrackedFunction } from "@/core/monitor/tracked-function"
 import type { BaseFunction } from "@/utils/types"
-import { RUN_ARGUMENTS, RUN_DATA, RUN_ERROR, RUN_LOADING } from "./constants"
+import { RUN_ARGUMENTS, RUN_DATA, RUN_DATA_UPDATED, RUN_ERROR, RUN_INITED, RUN_LOADING } from "./constants"
 import { createInternalFunctionMonitor } from "./core"
 import { getEnhanceArguments } from "./enhance-arguments"
-import { createTrack } from "./track"
 import { createTracker } from "./tracker"
 import type { FunctionMonitor } from "./types"
 
@@ -28,6 +29,8 @@ import type { FunctionMonitor } from "./types"
 export { RUN_ARGUMENTS, RUN_DATA, RUN_DATA_UPDATED, RUN_ERROR, RUN_LOADING } from "./constants"
 export { createEnhanceArgumentsHandler } from "./enhance-arguments"
 export type { EventHandler, FunctionMonitor, FunctionMonitorEventMap, Track } from "./types"
+
+const RUN_TRACK = Symbol('vue-asyncx:run:track')
 
 /**
  * 为函数添加监控能力
@@ -78,74 +81,43 @@ export function withFunctionMonitor<Fn extends BaseFunction>(
   // 创建函数监控器
   const monitor = createInternalFunctionMonitor()
 
-  // 包装函数，添加事件监控
-  function run(...args: Parameters<Fn>): ReturnType<Fn> {
-    // 创建 track 相关对象
-    const { fulfill, reject, inactivate, init, setData, track } = createTrack(monitor, tracker)
-
-    /**
-     * 完成函数执行（fulfill 或 reject）
-     * 
-     * @description 统一处理 fulfill/reject 时的状态设置和事件触发
-     * 
-     * @param type - 完成类型：'fulfill' 表示成功，'reject' 表示失败
-     * @param value - 成功时的返回值
-     * @param error - 失败时的错误信息
-     */
-    function finish(type: 'fulfill' | 'reject', value?: any, error?: any): void {
-      inactivate()
-      ;type === 'fulfill' ? fulfill() : reject()
-      setData(RUN_LOADING, false)
-      setData(RUN_ARGUMENTS, undefined)
-      ;type === 'fulfill' ? setData(RUN_DATA, value) : setData(RUN_ERROR, error)
-      monitor.emit('track:updated', { track })
-      ;type === 'fulfill' 
-        ? monitor.emit('fulfill', { track, value })
-        : monitor.emit('reject', { track, error })
+  const run = createTrackedFunction(fn, {
+    tracker,
+    before({ track, args }) {
+      track.setData(RUN_TRACK, toPublicTrack(track, {
+        onDataChange() {
+          monitor.emit('track:updated', { track: track.getData(RUN_TRACK) })
+        }
+      }))
+      track.setData(RUN_ARGUMENTS, args)
+      track.setData(RUN_LOADING, true)
+      monitor.emit('init', { args, track: track.getData(RUN_TRACK) })
+      track.setData(RUN_INITED, true)
+      monitor.emit('track:updated', { track: track.getData(RUN_TRACK) })
+      monitor.emit('before', { args, track: track.getData(RUN_TRACK) })
+      return getEnhanceArguments(monitor, args, track.getData(RUN_TRACK))
+    },
+    after({ track }) {
+      monitor.emit('after', { track: track.getData(RUN_TRACK) })
+    },
+    fulfill({ track, value }) {
+      track.fulfill()
+      track.setData(RUN_LOADING, false)
+      track.setData(RUN_ARGUMENTS, undefined)
+      track.setData(RUN_DATA, value)
+      track.setData(RUN_DATA_UPDATED, true)
+      monitor.emit('fulfill', { track: track.getData(RUN_TRACK), value })
+      monitor.emit('track:updated', { track: track.getData(RUN_TRACK) })
+    },
+    reject({ track, error }) {
+      track.reject()
+      track.setData(RUN_LOADING, false)
+      track.setData(RUN_ARGUMENTS, undefined)
+      track.setData(RUN_ERROR, error)
+      monitor.emit('reject', { track: track.getData(RUN_TRACK), error })
+      monitor.emit('track:updated', { track: track.getData(RUN_TRACK) })
     }
-
-    // 触发 init 事件：用于初始化/准备逻辑
-    setData(RUN_ARGUMENTS, args)
-    setData(RUN_LOADING, true)
-    monitor.emit('init', { args, track })
-    init()
-    monitor.emit('track:updated', { track })
-    monitor.emit('before', { args, track })
-
-    // 调用参数增强拦截器转换参数（对插件透明）
-    const transformedArgs: Parameters<Fn> = getEnhanceArguments(monitor, args, track) as Parameters<Fn>
-
-    try {
-      // 执行原函数
-      const result = fn.apply(this, transformedArgs)
-      
-      // 触发 after 事件：函数调用后，完成前
-      monitor.emit('after', { track })
-      
-      // 处理异步结果
-      if (result instanceof Promise) {
-        result.then(
-          (value) => finish('fulfill', value),
-          (error) => finish('reject', undefined, error)
-        )
-      } else {
-        // 同步函数直接标记为成功
-        finish('fulfill', result)
-      }
-      
-      return result
-    } catch (e) {
-      // 同步函数抛出异常
-      // 触发 after 事件（在 catch 块中，reject 之前）
-      monitor.emit('after', { track })
-      // 标记为失败
-      finish('reject', undefined, e)
-      throw e
-    }
-  }
-
-  run.prototype = fn.prototype;
-  Object.setPrototypeOf(run, fn);
+  })
 
   return { 
     run: run as any, 
