@@ -87,3 +87,17 @@
 
 - 移除 lodash-es 依赖
 - 调整 vitest 依赖位置到开发依赖
+
+## 1.0.2
+
+- 测试：搭建测试体系
+- 文档：添加 README
+- 其它：添加协议、仓库链接到 package.json
+
+## 1.0.1
+
+- 将业务项目中的 `useAsync`、`useAsyncData` 函数独立到 `vue-asyncx` 库
+
+## 1.0.0
+
+- 试跑 NPM 包发布流程，无实际意义代码
