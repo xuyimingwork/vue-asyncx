@@ -1,3 +1,7 @@
+## 1.11.1
+- 修复：`useAsyncData` 使用 `withAddonGroup` 时返回值类型不正确
+- 测试：搭建多版本 ts 测试机制
+
 ## 1.11.0
 - 功能：新增 Vue 2.7 支持
 - 功能：新增 vue-asyncx.compat.d.ts，增强 TS < 5.4 类型兼容
