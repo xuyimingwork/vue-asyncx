@@ -188,7 +188,7 @@ packages:
     dev: false
 
   file:../../../dist-pack/vue-asyncx.tgz(vue@3.5.30):
-    resolution: {integrity: sha512-0HlN74+cLJi8J43GkewuzJW8+/43U3TjQZ0zKMk+g4VYcWW9vyDP073DwpHVn2TyTdJw87DDsTObms+J6HNcpA==, tarball: file:../../../dist-pack/vue-asyncx.tgz}
+    resolution: {integrity: sha512-ykP/KcWlvEcFZIgtBr4rM8FVj0J34aSjWvFxo/uZ17ZEeg+fRnLy6S9c5gC8AlnwZlAdK8KXsq0onacsQqT8xA==, tarball: file:../../../dist-pack/vue-asyncx.tgz}
     id: file:../../../dist-pack/vue-asyncx.tgz
     name: vue-asyncx
     version: 1.11.0

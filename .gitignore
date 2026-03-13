@@ -3,6 +3,7 @@ dist
 dist-pack
 coverage
 .VSCodeCounter
+.pnpm-store
 docs/.vitepress/dist
 docs/.vitepress/cache
 

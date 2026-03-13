@@ -5,6 +5,7 @@
     "strict": true,
     "moduleResolution": "node",
     "target": "ESNext",
-    "noEmit": true
+    "noEmit": true,
+    "types": [] 
   }
 }
