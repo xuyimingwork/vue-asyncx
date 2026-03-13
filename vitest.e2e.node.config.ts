@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
@@ -6,14 +7,17 @@ import { defineConfig } from 'vitest/config'
  * 与单元测试分离，需先执行 build 再运行
  */
 export default defineConfig({
+  resolve: {
+    alias: [
+      { find: '~', replacement: resolve(__dirname, './') },
+    ]
+  },
   test: {
-    name: 'e2e',
-    setupFiles: [fileURLToPath(new URL('./e2e/setup.ts', import.meta.url))],
+    name: 'e2e:node',
+    setupFiles: [fileURLToPath(new URL('./e2e/node/setup.ts', import.meta.url))],
     environment: 'jsdom',
-    include: ['e2e/**/*.test.ts'],
-    exclude: ['src/**', 'node_modules/**', 'e2e/**/*.browser.{test,spec}.ts'],
+    include: ['e2e/node/**/*.test.ts'],
     root: fileURLToPath(new URL('.', import.meta.url)),
-    // 不启用 typecheck，e2e 从 dist 导入，类型可能不完整
     typecheck: { enabled: false },
   },
 }) as any

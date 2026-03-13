@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
       ]
     },
     build: {
+      // minify: false, // disabled minify
       target: 'es2018',
       lib: {
         entry: resolve(__dirname, 'src/main.ts'),

@@ -2,9 +2,9 @@
  * E2E 测试：验证 dist/vue-asyncx.js (ESM) 产物
  * 从构建产物导入，确保打包后的库在真实使用场景下正常工作
  */
-import * as VueAsyncx from '../dist/vue-asyncx.js'
 import { describe, expect, test } from 'vitest'
 import { nextTick } from 'vue-demi'
+import * as VueAsyncx from '~/dist/vue-asyncx.js'
 
 const exposed = {
   useAsync: 'function',

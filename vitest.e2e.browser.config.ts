@@ -1,4 +1,5 @@
 import { playwright } from '@vitest/browser-playwright';
+import { fileURLToPath } from 'url';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -7,19 +8,19 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig(({ mode }) => {
   const IN_VUE2 = mode === 'vue2'
-
   return {
     test: {
-      name: 'browser',
-      include: ['e2e/**/*.browser.{test,spec}.ts'],
+      name: 'e2e:browser',
+      include: ['e2e/browser/**/*.{test,spec}.ts'],
+      root: fileURLToPath(new URL('.', import.meta.url)),
       browser: {
         provider: playwright(),
         enabled: true,
         headless: true,
         screenshotFailures: false,
         testerHtmlPath: IN_VUE2 
-          ? './e2e/vue2/index.cdn.html'
-          : './e2e/vue3/index.cdn.html',
+          ? './e2e/browser/index.vue2.html'
+          : './e2e/browser/index.vue3.html',
         instances: [
           { browser: 'chromium' },
         ],
