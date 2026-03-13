@@ -1,9 +1,7 @@
 name: Publish to npm
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
 
 # Trusted Publisher (OIDC) 需要此权限生成短期 token
 permissions:
@@ -16,6 +14,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Get latest v tag from main
+        id: latest_tag
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 main 2>/dev/null || git tag -l 'v*' --merged main | sort -V | tail -1)
+          if [ -z "$LATEST_TAG" ] || [[ ! "$LATEST_TAG" =~ ^v ]]; then
+            echo "No valid v tag found on main branch"
+            exit 1
+          fi
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag on main: $LATEST_TAG"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -44,7 +56,8 @@ jobs:
       - name: Verify version and determine npm tag
         id: version
         run: |
-          TAG="${GITHUB_REF#refs/tags/v}"
+          LATEST_TAG="${{ steps.latest_tag.outputs.tag }}"
+          TAG="${LATEST_TAG#v}"
           PKG_VERSION=$(node -p "require('./package.json').version")
           if [ "$TAG" != "$PKG_VERSION" ]; then
             echo "Tag version ($TAG) does not match package.json version ($PKG_VERSION)"
