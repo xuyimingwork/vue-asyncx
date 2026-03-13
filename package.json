@@ -74,7 +74,8 @@
   },
   "homepage": "https://vue-asyncx.js.org/",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
   },
   "devDependencies": {
     "@types/node": "^22.19.1",
