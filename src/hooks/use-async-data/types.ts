@@ -1,5 +1,6 @@
+import { MergeAddonResults } from "@/addons/types";
 import type { UseAsyncOptions, UseAsyncResult } from "@/hooks/use-async/types";
-import type { BaseFunction, NonEmptyString, Simplify } from "@/utils/types";
+import type { BaseFunction, CamelReplaceKeys, NonEmptyString, Simplify } from "@/utils/types";
 import type { Ref, ShallowRef } from "vue";
 
 type UseAsyncDataNameDefault = 'data'
@@ -47,7 +48,7 @@ export type UseAsyncDataResult<
   Name extends string,
   Shallow extends boolean = false,
   AddonResults extends any[] = any[]
-> = Simplify<UseAsyncResult<Fn, `query${Capitalize<(NonEmptyString<Name, UseAsyncDataNameDefault>)>}`, AddonResults> 
+> = Simplify<UseAsyncResult<Fn, `query${Capitalize<(NonEmptyString<Name, UseAsyncDataNameDefault>)>}`, []> 
   & { 
   [K in (NonEmptyString<Name, UseAsyncDataNameDefault>)]: Shallow extends true 
     ? ShallowRef<Awaited<ReturnType<Fn>>> 
@@ -68,7 +69,7 @@ export type UseAsyncDataResult<
    * case3: p1 ok, p2 error，p3 update，data 来自 p3，error 为 undefined，expired 为 false
    */
   [K in `${NonEmptyString<Name, UseAsyncDataNameDefault>}Expired`]: Ref<boolean>
-}>
+} & CamelReplaceKeys<MergeAddonResults<AddonResults>, Name>>
 
 /** useAsyncData 函数类型 */
 export interface UseAsyncData {

@@ -1,0 +1,10 @@
+{
+  "include": ["index.ts"],
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "strict": true,
+    "moduleResolution": "node",
+    "target": "ESNext",
+    "noEmit": true
+  }
+}

@@ -39,15 +39,17 @@
     "test:e2e:node": "vitest run -c vitest.e2e.node.config.ts",
     "test:e2e:node:watch": "vitest -c vitest.e2e.node.config.ts",
     "run:test:e2e": "run-p test:e2e:browser test:e2e:node",
-    "run:build-test:e2e": "run-s build run:test:e2e",
+    "run:build-test:e2e": "run-s run:build-pack run:test:e2e",
     "test:all": "run-p test:unit run:build-test:e2e",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "build": "vite build && node scripts/post-build-dts.js",
-    "prepublish": "pnpm run build"
+    "pack": "rm -rf ./dist-pack && pnpm pack --pack-destination ./dist-pack && mv ./dist-pack/*.tgz ./dist-pack/vue-asyncx.tgz",
+    "build": "vite build",
+    "run:build-pack": "run-s build pack",
+    "prepublish": "run-s test:all"
   },
   "keywords": [
     "vue",

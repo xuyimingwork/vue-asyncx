@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "dependencies": {
+    "vue": "2.7.16",
+    "vue-asyncx": "file:../../../dist-pack/vue-asyncx.tgz"
+  },
+  "devDependencies": {
+    "typescript": "4.1.6"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+  }
+}
