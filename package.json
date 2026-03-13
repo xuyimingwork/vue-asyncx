@@ -1,6 +1,6 @@
 {
   "name": "vue-asyncx",
-  "version": "1.11.1",
+  "version": "1.11.2",
   "description": "让异步像写诗的 Vue 3 组合式工具库",
   "type": "module",
   "sideEffects": false,
@@ -55,8 +55,7 @@
     "docs:preview": "vitepress preview docs",
     "pack": "rm -rf ./dist-pack && pnpm pack --pack-destination ./dist-pack && mv ./dist-pack/*.tgz ./dist-pack/vue-asyncx.tgz",
     "build": "vite build && node scripts/post-build-dts.js",
-    "run:build-pack": "run-s build pack",
-    "prepublish": "run-s test:all"
+    "run:build-pack": "run-s build pack"
   },
   "keywords": [
     "vue",

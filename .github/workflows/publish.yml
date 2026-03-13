@@ -53,6 +53,9 @@ jobs:
           pnpm add -D playwright
           pnpm exec playwright install --with-deps chromium
 
+      - name: Run test:all
+        run: pnpm test:all
+
       - name: Verify version and determine npm tag
         id: version
         run: |
