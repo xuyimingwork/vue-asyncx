@@ -8,3 +8,4 @@ docs/.vitepress/dist
 docs/.vitepress/cache
 
 .DS_Store
+.release-last-version.json
