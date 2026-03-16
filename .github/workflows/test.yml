@@ -37,7 +37,7 @@ jobs:
           files: coverage/merged/lcov.info
           fail_ci_if_error: false
 
-  test:
+  test_unit:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -57,15 +57,58 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright CLI & Browsers
-        # 核心改动：如果找不到 playwright，直接现场安装它
-        # 这会安装 playwright 及其所需的系统依赖和 chromium 浏览器
-        run: |
-          pnpm add -D playwright
-          pnpm exec playwright install --with-deps chromium
+      - name: Run test:unit
+        run: pnpm run test:unit
 
-      - name: Run test:all
-        run: pnpm run test:all
+      # 修正报告路径：Vitest Browser 默认报告通常在 html 文件夹或指定目录
+      - name: Upload Test Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            playwright-report/
+            test-results/
+            coverage/
+          retention-days: 7
+    
+  test_e2e: 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(pnpm list --depth=0 playwright --json | jq -r '.[0].devDependencies.playwright.version')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run run:build-test:e2e
+        run: pnpm run run:build-test:e2e
 
       # 修正报告路径：Vitest Browser 默认报告通常在 html 文件夹或指定目录
       - name: Upload Test Report
