@@ -366,6 +366,12 @@ function writeChangelogPlaceholder(version) {
   return copied;
 }
 
+function writeChangelogNoChange(version) {
+  const content = readFileSync(CHANGELOG_PATH, 'utf8');
+  const insert = `## ${version}\n\n- 无变更\n\n`;
+  writeFileSync(CHANGELOG_PATH, insert + content);
+}
+
 // ============ 版本缓存 ============
 
 function readLastVersionCache() {
@@ -460,14 +466,32 @@ async function handleChangelog(targetVersion) {
   }
 
   if (!changelogHasVersion(targetVersion)) {
+    const commits = getCommitsSinceLastTag();
+    const latestTag = getLatestTag();
+    const lastVer = latestTag ? latestTag.replace(/^v/, '') : null;
+    const noCommits = commits.length === 0;
+    const preReleaseToRelease =
+      lastVer && isPreRelease(lastVer) && !isPreRelease(targetVersion);
+    const showNoChange = noCommits || preReleaseToRelease;
+
+    const choices = [
+      ...(showNoChange
+        ? [{ value: 'nochange', name: '向 CHANGELOG 写入该版本无变化' }]
+        : []),
+      { value: 'write', name: '向 CHANGELOG 写入预定内容并等待更新' },
+      { value: 'continue', name: '我已知晓，仍要发布' },
+    ];
+
     const choice = await select({
       message: `CHANGELOG 尚未包含 v${targetVersion}，请选择：`,
-      choices: [
-        { value: 'write', name: '向 CHANGELOG 写入预定内容并结束' },
-        { value: 'continue', name: '我已知晓，仍要发布' },
-      ],
+      choices,
+      default: showNoChange ? 'nochange' : 'write',
     });
-    if (choice === 'write') {
+
+    if (choice === 'nochange') {
+      writeChangelogNoChange(targetVersion);
+      console.log('\n✅ 已写入 CHANGELOG：该版本无变更。\n');
+    } else if (choice === 'write') {
       const copied = writeChangelogPlaceholder(targetVersion);
       console.log('\n✅ 已写入 CHANGELOG 标题与待补充占位。');
       if (copied) {
@@ -475,10 +499,14 @@ async function handleChangelog(targetVersion) {
       } else {
         console.log('⚠️ 无法复制到剪贴板，请手动从 buildAiPrompt 获取提示词。');
       }
-      console.log('请补充后重新运行 release。\n');
-      process.exit(0);
+      const ok = await confirm({
+        message: 'CHANGELOG 已更新完成？请确认继续。',
+        default: true,
+      });
+      if (!ok) exitSuccess();
+    } else {
+      return;
     }
-    return;
   }
   const block = getChangelogFirstBlock();
   console.log('\n--- CHANGELOG 内容 ---\n');
@@ -528,16 +556,16 @@ async function resolveTargetVersion(baseVersion, isPre, latestTag) {
 
 async function main() {
   setupQuitOnQ();
-  const pkg = readPackageJson();
-  const latestTag = getLatestTag();
-  const currentVersion = latestTag ? latestTag.replace(/^v/, '') : pkg.version;
-
   console.log('\n📦 vue-asyncx Release 脚本\n');
-  console.log(`当前最新版本：${currentVersion}\n`);
   console.log('（按 q 可随时退出）\n');
   if (DEBUG) console.log('🔧 Debug 模式：工作区允许 scripts/release.js 的修改\n');
 
   runPreChecks();
+
+  const pkg = readPackageJson();
+  const latestTag = getLatestTag();
+  const currentVersion = latestTag ? latestTag.replace(/^v/, '') : pkg.version;
+  console.log(`当前最新版本：${currentVersion}\n`);
   const baseVersion = latestTag
     ? latestTag.replace(/^v/, '')
     : pkg.version.replace(/-[\w.]+$/, '');
