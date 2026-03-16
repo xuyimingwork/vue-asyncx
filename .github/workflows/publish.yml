@@ -73,7 +73,6 @@ jobs:
           echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
           echo "Publishing to npm dist-tag: $NPM_TAG"
 
-      # prepublish 会执行 test:all（含 build），通过后才 publish
       # --provenance: 生成供应链溯源证明，Trusted Publisher 推荐显式指定
       # --tag: 预发布版本打 beta/alpha/rc，正式版打 latest（默认）
       - name: Publish to npm

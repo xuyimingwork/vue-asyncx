@@ -14,7 +14,7 @@
     ".": {
       "types": {
         "import": "./dist/vue-asyncx.d.ts",
-        "require": "./dist/vue-asyncx.d.cts" 
+        "require": "./dist/vue-asyncx.d.cts"
       },
       "import": "./dist/vue-asyncx.js",
       "require": "./dist/vue-asyncx.umd.cjs"
@@ -58,7 +58,11 @@
     "docs:preview": "vitepress preview docs",
     "pack": "rm -rf ./dist-pack && pnpm pack --pack-destination ./dist-pack && mv ./dist-pack/*.tgz ./dist-pack/vue-asyncx.tgz",
     "build": "vite build && node scripts/post-build-dts.js",
-    "run:build-pack": "run-s build pack"
+    "run:build-pack": "run-s build pack",
+    "check:exports": "publint ./dist-pack/vue-asyncx.tgz",
+    "check:types": "attw ./dist-pack/vue-asyncx.tgz",
+    "check:all": "run-s run:build-pack check:exports check:types",
+    "prepublishOnly": "run-s test:all check:all"
   },
   "keywords": [
     "vue",
@@ -80,6 +84,7 @@
     "provenance": true
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.2",
     "@types/node": "^22.19.1",
     "@vitest/browser-playwright": "^4.1.0",
     "@vitest/coverage-v8": "^4.1.0",
@@ -90,6 +95,7 @@
     "npm-run-all2": "^8.0.4",
     "oxlint": "^1.0.0",
     "playwright": "^1.58.2",
+    "publint": "^0.3.18",
     "rolldown-plugin-dts": "^0.21.8",
     "typescript": "5.9.3",
     "vite": "^8.0.0",
