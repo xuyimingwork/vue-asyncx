@@ -10,12 +10,12 @@
  * - 交互流程
  * - 主流程
  */
-import { execSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { confirm, select } from '@inquirer/prompts';
+import { execSync, spawnSync } from 'child_process';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
+import { dirname, join } from 'path';
 import { emitKeypressEvents } from 'readline';
-import { select, confirm } from '@inquirer/prompts';
+import { fileURLToPath } from 'url';
 
 // ============ 常量 ============
 
@@ -26,7 +26,11 @@ const PACKAGE_JSON_PATH = join(rootDir, 'package.json');
 const RELEASE_CACHE_PATH = join(rootDir, '.release-last-version.json');
 const DEBUG = process.argv.includes('--debug');
 
-const ALLOWED_FILES = ['CHANGELOG.md', ...(DEBUG ? ['scripts/release.js'] : [])];
+const ALLOWED_FILES = [
+  'CHANGELOG.md',
+  '.release-last-version.json', // 脚本生成的版本缓存
+  ...(DEBUG ? ['scripts/release.js'] : []),
+];
 
 const PRERELEASE_NEXT_STAGE = {
   alpha: [
@@ -144,7 +148,7 @@ function checkWorkingDirClean() {
   const status = getGitStatus();
   if (!status) return true;
   const lines = status.split('\n').filter(Boolean);
-  const allowed = lines.every((line) => ALLOWED_FILES.includes(line.slice(3).trim()));
+  const allowed = lines.every((line) => ALLOWED_FILES.includes(line.slice(2).trim()));
   return lines.length === 0 || allowed;
 }
 
@@ -162,7 +166,7 @@ function getCommitsSinceLastTag() {
   const range = latestTag ? `${latestTag}..HEAD` : 'HEAD';
   const limit = latestTag ? '' : ' -20';
   try {
-    const log = exec(`git log ${range} --oneline --no-merges${limit}`).trim();
+    const log = exec(`git log ${range} --no-merges --format="%s"${limit}`).trim();
     return log ? log.split('\n') : [];
   } catch {
     return [];
@@ -173,7 +177,7 @@ function getLastTagCommitInfo() {
   const latestTag = getLatestTag();
   if (!latestTag) return null;
   try {
-    return exec(`git log -1 --format="%h %s" ${latestTag}`).trim();
+    return exec(`git log -1 --format="%s" ${latestTag}`).trim();
   } catch {
     return null;
   }
@@ -239,6 +243,28 @@ function changelogHasVersion(targetVersion) {
   return block.version === targetVersion.replace(/^v/, '');
 }
 
+/** 判断首个版本块是否仅有标题且内容为空或待补充 */
+function isFirstBlockPlaceholderOrEmpty() {
+  const block = getChangelogFirstBlock();
+  if (!block?.blockContent) return true;
+  const firstNewline = block.blockContent.indexOf('\n');
+  const body = firstNewline === -1 ? '' : block.blockContent.slice(firstNewline + 1).trim();
+  if (body === '') return true;
+  return /^-\s*待补充\s*$/m.test(body) || body.trim() === '待补充';
+}
+
+/** 删除 CHANGELOG 首个版本块 */
+function removeFirstChangelogBlock() {
+  const content = readFileSync(CHANGELOG_PATH, 'utf8');
+  const m = content.match(/^##\s+.+$/m);
+  if (!m) return;
+  const start = m.index;
+  const nextBlock = content.indexOf('\n## ', start + m[0].length);
+  const end = nextBlock === -1 ? content.length : nextBlock + 1;
+  const newContent = content.slice(0, start).trimEnd() + content.slice(end);
+  writeFileSync(CHANGELOG_PATH, newContent ? newContent + '\n' : '');
+}
+
 function buildAiPrompt(version) {
   const pkg = readPackageJson();
   const repoUrl =
@@ -248,11 +274,18 @@ function buildAiPrompt(version) {
   const npmUrl = `https://www.npmjs.com/package/${pkg.name}`;
   const lastTagInfo = getLastTagCommitInfo();
   const commits = getCommitsSinceLastTag();
+  const recentBlocks = getRecentChangelogBlocks(3);
 
   const lines = [
-    '【AI 提示词：】',
+    `请为 **${pkg.name}** 的 **v${version}** 版本生成 CHANGELOG 条目。`,
     '',
-    '根据以下项目信息与 commit，生成 CHANGELOG 条目。可联网查询项目与依赖以理解变更。',
+    '**任务**：根据下方 commit 与项目信息，生成符合项目风格的 CHANGELOG 条目。',
+    '',
+    '**你可选做**：',
+    '- 联网查询仓库、npm 页面以理解变更',
+    '- 参考 commit message 中的 feat/fix/docs/chore 等前缀',
+    '- 合并相似 commit，保持 3-8 条、简洁明了',
+    '- chore/build/ci 类可合并为「构建」「测试」或酌情忽略',
     '',
     '**项目信息**',
     `- 名称：${pkg.name}`,
@@ -263,16 +296,20 @@ function buildAiPrompt(version) {
     `- 关键词：${(pkg.keywords || []).join(', ')}`,
     '',
   ];
-  if (lastTagInfo) lines.push(`**上次发布** (${lastTagInfo}) 之后的变更：`, '');
+  if (lastTagInfo) lines.push(`**变更范围**：上次发布 (${lastTagInfo}) 之后的 commit：`, '');
   if (commits.length > 0) commits.forEach((c) => lines.push(`- ${c}`));
   else lines.push('（无 commit 或无法获取）');
+  if (recentBlocks) {
+    lines.push('', '**风格参考**（近期 CHANGELOG 格式，供模仿）：', '', recentBlocks, '');
+  }
   lines.push(
     '',
-    '**输出约束**',
-    '- 每条一行，格式：`- 分类：描述`',
-    '- 分类仅用：功能、修复、测试、文档、构建、体验、重构',
-    '- 描述用中文，简洁准确',
-    '- 直接输出条目，不要解释或前缀',
+    '**输出要求**',
+    '- 仅输出条目，不要标题、解释、前缀或「以下是...」',
+    '- 格式：每行 `- 分类：描述`',
+    '- 分类：功能、修复、测试、文档、构建、体验、重构',
+    '- 描述：中文、简洁、面向用户',
+    '- 代码/API 名用反引号，如 `useAsyncData`',
     '',
     '**示例**',
     '- 功能：新增 Vue 2.7 支持',
@@ -280,13 +317,53 @@ function buildAiPrompt(version) {
     '- 测试：搭建多版本 ts 测试机制',
     '- 文档：补充兼容性说明'
   );
-  return '```\n' + lines.join('\n') + '\n```';
+  return lines.join('\n') + '\n';
+}
+
+/** 获取最近 N 个 CHANGELOG 块作为风格参考 */
+function getRecentChangelogBlocks(count = 3) {
+  if (!existsSync(CHANGELOG_PATH)) return null;
+  const content = readFileSync(CHANGELOG_PATH, 'utf8');
+  const blocks = [];
+  let pos = 0;
+  for (let i = 0; i < count; i++) {
+    const slice = content.slice(pos);
+    const m = slice.match(/^##\s+.+$/m);
+    if (!m) break;
+    const start = pos + m.index;
+    const next = content.indexOf('\n## ', start + m[0].length);
+    const block = next === -1 ? content.slice(start) : content.slice(start, next);
+    blocks.push(block.trim());
+    pos = next === -1 ? content.length : next + 1;
+  }
+  return blocks.length > 0 ? blocks.join('\n\n') : null;
+}
+
+function copyToClipboard(text) {
+  try {
+    const platform = process.platform;
+    if (platform === 'darwin') {
+      spawnSync('pbcopy', { input: text, encoding: 'utf8' });
+      return true;
+    }
+    if (platform === 'win32') {
+      spawnSync('clip', { input: text, encoding: 'utf8', shell: true });
+      return true;
+    }
+    spawnSync('xclip', ['-selection', 'clipboard'], { input: text, encoding: 'utf8' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function writeChangelogPlaceholder(version) {
+  const aiPrompt = buildAiPrompt(version);
+  const copied = copyToClipboard(aiPrompt);
   const content = readFileSync(CHANGELOG_PATH, 'utf8');
-  const insert = `## ${version}\n\n${buildAiPrompt(version)}\n\n- 待补充\n\n`;
+  const insert = `## ${version}\n\n- 待补充\n\n`;
   writeFileSync(CHANGELOG_PATH, insert + content);
+  return copied;
 }
 
 // ============ 版本缓存 ============
@@ -340,7 +417,7 @@ async function askPreReleaseVersion(baseVersion) {
   const pre = getPreReleaseType(baseVersion);
   const nextStageChoices = PRERELEASE_NEXT_STAGE[pre.type] ?? PRERELEASE_NEXT_STAGE.rc;
   const choice = await select({
-    message: '当前为预发布版本，请选择：',
+    message: `当前为预发布版本 (${baseVersion})，请选择：`,
     choices: [
       { value: 'increment', name: `当前类型递增 → ${pre.type}.${pre.num + 1}` },
       ...nextStageChoices,
@@ -354,7 +431,7 @@ async function askPreReleaseVersion(baseVersion) {
 
 async function askStableVersion(baseVersion) {
   const bump = await select({
-    message: '选择版本 bump 类型：',
+    message: `当前版本 ${baseVersion}，选择 bump 类型：`,
     choices: [
       { value: 'patch', name: `修订号 (patch) ${baseVersion} → ${bumpVersion(baseVersion, 'patch')}` },
       { value: 'minor', name: `次版本 (minor) ${baseVersion} → ${bumpVersion(baseVersion, 'minor')}` },
@@ -363,7 +440,7 @@ async function askStableVersion(baseVersion) {
   });
   const bumped = bumpVersion(baseVersion, bump);
   const typeChoice = await select({
-    message: '选择发布类型：',
+    message: `选择发布类型（基于 ${bumped}）：`,
     choices: [
       { value: 'alpha', name: `alpha → ${bumped}-alpha.0` },
       { value: 'beta', name: `beta → ${bumped}-beta.0` },
@@ -375,17 +452,30 @@ async function askStableVersion(baseVersion) {
 }
 
 async function handleChangelog(targetVersion) {
+  while (isFirstBlockPlaceholderOrEmpty()) {
+    const block = getChangelogFirstBlock();
+    if (!block) break;
+    removeFirstChangelogBlock();
+    console.log(`已删除空占位块：${block.version}`);
+  }
+
   if (!changelogHasVersion(targetVersion)) {
     const choice = await select({
-      message: 'CHANGELOG 尚未包含该版本，请选择：',
+      message: `CHANGELOG 尚未包含 v${targetVersion}，请选择：`,
       choices: [
         { value: 'write', name: '向 CHANGELOG 写入预定内容并结束' },
         { value: 'continue', name: '我已知晓，仍要发布' },
       ],
     });
     if (choice === 'write') {
-      writeChangelogPlaceholder(targetVersion);
-      console.log('\n✅ 已写入 CHANGELOG 预定内容，请补充后重新运行 release。\n');
+      const copied = writeChangelogPlaceholder(targetVersion);
+      console.log('\n✅ 已写入 CHANGELOG 标题与待补充占位。');
+      if (copied) {
+        console.log('📋 AI 提示词已复制到剪贴板，请粘贴到 AI 对话中获取 CHANGELOG 内容。');
+      } else {
+        console.log('⚠️ 无法复制到剪贴板，请手动从 buildAiPrompt 获取提示词。');
+      }
+      console.log('请补充后重新运行 release。\n');
       process.exit(0);
     }
     return;
@@ -428,7 +518,7 @@ async function resolveTargetVersion(baseVersion, isPre, latestTag) {
   const cached = readLastVersionCache();
   if (cached?.latestTag === latestTag) {
     const useCached = await confirm({
-      message: `检测到上次确认但未完成的版本 ${cached.version}（当时 tag 为 ${cached.latestTag}），是否使用？`,
+      message: `上次未完成的版本 ${cached.version}，是否继续使用？`,
       default: true,
     });
     if (useCached) return cached.version;
@@ -438,14 +528,16 @@ async function resolveTargetVersion(baseVersion, isPre, latestTag) {
 
 async function main() {
   setupQuitOnQ();
+  const pkg = readPackageJson();
+  const latestTag = getLatestTag();
+  const currentVersion = latestTag ? latestTag.replace(/^v/, '') : pkg.version;
+
   console.log('\n📦 vue-asyncx Release 脚本\n');
+  console.log(`当前最新版本：${currentVersion}\n`);
   console.log('（按 q 可随时退出）\n');
   if (DEBUG) console.log('🔧 Debug 模式：工作区允许 scripts/release.js 的修改\n');
 
   runPreChecks();
-
-  const pkg = readPackageJson();
-  const latestTag = getLatestTag();
   const baseVersion = latestTag
     ? latestTag.replace(/^v/, '')
     : pkg.version.replace(/-[\w.]+$/, '');
@@ -453,7 +545,7 @@ async function main() {
 
   const targetVersion = await resolveTargetVersion(baseVersion, isPre, latestTag);
 
-  const okVersion = await confirm({ message: `确认发布版本：${targetVersion}`, default: true });
+  const okVersion = await confirm({ message: `确认版本：${targetVersion}`, default: true });
   if (!okVersion) exitSuccess();
   writeLastVersionCache(targetVersion, latestTag);
 
@@ -464,7 +556,7 @@ async function main() {
   }
 
   const okCommit = await confirm({
-    message: `将为版本 v${targetVersion} 更新 package.json 并提交 commit，是否继续？`,
+    message: `将更新 package.json 并提交 release: ${targetVersion}，是否继续？`,
     default: true,
   });
   if (!okCommit) exitSuccess();
