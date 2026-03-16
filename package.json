@@ -62,7 +62,7 @@
     "check:exports": "publint ./dist-pack/vue-asyncx.tgz",
     "check:types": "attw ./dist-pack/vue-asyncx.tgz",
     "check:all": "run-s run:build-pack check:exports check:types",
-    "prepublishOnly": "run-s test:all check:all"
+    "prepublishOnly": "run-s check:all"
   },
   "keywords": [
     "vue",

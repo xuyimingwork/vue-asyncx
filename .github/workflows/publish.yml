@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Get latest v tag from main
+      - name: Setup Latest Tag
         id: latest_tag
         run: |
           LATEST_TAG=$(git describe --tags --abbrev=0 main 2>/dev/null || git tag -l 'v*' --merged main | sort -V | tail -1)
@@ -26,34 +26,7 @@ jobs:
           echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "Latest tag on main: $LATEST_TAG"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22.18.0
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      # Trusted Publisher 要求 npm CLI 11.5.1+
-      - name: Setup npm
-        run: npm install -g npm@latest
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright
-        run: |
-          pnpm add -D playwright
-          pnpm exec playwright install --with-deps chromium
-
-      - name: Run test:all
-        run: pnpm test:all
-
-      - name: Verify version and determine npm tag
+      - name: Setup Version
         id: version
         run: |
           LATEST_TAG="${{ steps.latest_tag.outputs.tag }}"
@@ -73,7 +46,38 @@ jobs:
           echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
           echo "Publishing to npm dist-tag: $NPM_TAG"
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.18.0
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v5
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Test
+        run: pnpm run test:all
+      
+      # Trusted Publisher 要求 npm CLI 11.5.1+
+      - name: Setup NPM
+        run: npm install -g npm@latest
+
       # --provenance: 生成供应链溯源证明，Trusted Publisher 推荐显式指定
       # --tag: 预发布版本打 beta/alpha/rc，正式版打 latest（默认）
-      - name: Publish to npm
+      - name: Publish To NPM
         run: npm publish --provenance --access public --tag ${{ steps.version.outputs.npm_tag }}
