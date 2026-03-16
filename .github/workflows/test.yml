@@ -12,46 +12,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 1. 统一安装依赖
-  setup:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22.18.0
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
-      # 缓存整个 node_modules 供后续 Job 使用
-      - name: Cache node_modules
-        uses: actions/cache/save@v5
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-  # 2. 单元测试与覆盖率
+  # 1. 单元测试与覆盖率
   test_unit:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22.18.0
-      
-      - name: Restore node_modules
-        uses: actions/cache/restore@v5
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+      - name: Install Dependencies
+        uses: ./.github/actions/install
 
       - name: Run test:unit:coverage
         run: pnpm run test:unit:coverage
@@ -63,35 +30,16 @@ jobs:
           files: coverage/merged/lcov.info
           fail_ci_if_error: false
 
-  # 3. E2E 测试
+  # 2. E2E 测试
   test_e2e:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22.18.0
+      - name: Install Dependencies
+        uses: ./.github/actions/install
 
-      - name: Restore node_modules
-        uses: actions/cache/restore@v5
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Cache Playwright Browsers
-        uses: actions/cache@v5
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Install Playwright Browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Setup Playwright
+        uses: ./.github/actions/setup-playwright
 
       - name: Run run:build-test:e2e
         run: pnpm run run:build-test:e2e
