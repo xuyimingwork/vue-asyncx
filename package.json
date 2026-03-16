@@ -62,7 +62,8 @@
     "check:exports": "publint ./dist-pack/vue-asyncx.tgz",
     "check:types": "attw ./dist-pack/vue-asyncx.tgz",
     "check:all": "run-s run:build-pack check:exports check:types",
-    "prepublishOnly": "run-s check:all"
+    "prepublishOnly": "run-s check:all",
+    "release": "node scripts/release.js"
   },
   "keywords": [
     "vue",
@@ -85,6 +86,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
+    "@inquirer/prompts": "^8.3.2",
     "@types/node": "^22.19.1",
     "@vitest/browser-playwright": "^4.1.0",
     "@vitest/coverage-v8": "^4.1.0",
