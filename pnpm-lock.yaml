@@ -32,6 +32,9 @@ devDependencies:
   oxlint:
     specifier: ^1.0.0
     version: 1.38.0
+  playwright:
+    specifier: ^1.58.2
+    version: 1.58.2
   rolldown-plugin-dts:
     specifier: ^0.21.8
     version: 0.21.8(rolldown@1.0.0-rc.9)(typescript@5.9.3)
