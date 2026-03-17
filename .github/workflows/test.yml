@@ -11,6 +11,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+codecov:
+  notify:
+    after_n_builds: 2
+
 jobs:
   # 1. 单元测试
   test_unit:
@@ -45,6 +49,7 @@ jobs:
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
+          report_type: coverage
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/merged/lcov.info
           fail_ci_if_error: false
