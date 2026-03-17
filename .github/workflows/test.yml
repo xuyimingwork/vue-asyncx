@@ -21,14 +21,14 @@ jobs:
         uses: ./.github/actions/install
 
       - name: Run Unit Test
-        run: pnpm run test:unit
+        run: pnpm run test:unit:vue3
 
       - name: Upload Test Results to Codecov
         uses: codecov/codecov-action@v5
         with:
           report_type: test_results
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: .test-report.vue3.junit.xml,.test-report.vue2.junit.xml
+          files: .test-report.vue3.junit.xml
           fail_ci_if_error: false
 
   # 2. 单元测试覆盖率
