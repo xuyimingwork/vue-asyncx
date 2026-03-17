@@ -1,5 +1,5 @@
 /**
- * 版本解析与 bump
+ * 版本解析与 bump（参考 release-it lib/util.js 中的 parseVersion）
  */
 import { PRERELEASE_NEXT_STAGE } from './config.js';
 

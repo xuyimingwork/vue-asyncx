@@ -1,5 +1,5 @@
 /**
- * Git 操作：状态检查、tag、commit 范围
+ * Git 操作（参考 release-it 的 git 相关逻辑）
  */
 import { exec } from './shell.js';
 import { isPathAllowed } from './config.js';
@@ -71,7 +71,6 @@ function checkTagsBehind() {
   return null;
 }
 
-/** 检查本地是否落后于远程 */
 export function checkRemoteSync() {
   try {
     exec('git fetch origin --tags');
@@ -89,7 +88,6 @@ export function checkRemoteSync() {
   }
 }
 
-/** 仅允许 git 干净或指定文件修改 */
 export function checkWorkingDirClean() {
   const status = getGitStatus();
   if (!status) return true;
@@ -98,7 +96,6 @@ export function checkWorkingDirClean() {
   return lines.length === 0 || allowed;
 }
 
-/** 获取最新 tag（基于 git log --tags --simplify-by-decoration 按 commit 先后排序） */
 export function getLatestTag() {
   try {
     const log = exec(

@@ -1,5 +1,5 @@
 /**
- * Release 脚本：发布前交互式检测版本、CHANGELOG、Git 状态，并协助完成 package.json 更新与 commit
+ * Release 主流程（参考 release-it lib/index.js 的 runTasks 编排）
  */
 import { emitKeypressEvents } from 'readline';
 import { confirm } from '@inquirer/prompts';
@@ -8,8 +8,9 @@ import { exitError, exitSuccess } from './shell.js';
 import { checkRemoteSync, checkWorkingDirClean, getLatestTag, tagExists } from './git.js';
 import { isPreRelease } from './version.js';
 import { readLastVersionCache, writeLastVersionCache, clearLastVersionCache } from './cache.js';
-import { readPackageJson, updatePackageJson, doCommit } from './package.js';
-import { askTargetVersion, handleChangelog } from './prompts.js';
+import { readPackageJson, updatePackageJson, doCommit } from './pkg.js';
+import { askTargetVersion } from './prompt.js';
+import { handleChangelog } from './changelog-flow.js';
 
 function setupQuitOnQ() {
   if (!process.stdin.isTTY) return;
@@ -51,7 +52,7 @@ async function main() {
   setupQuitOnQ();
   console.log('\n📦 vue-asyncx Release 脚本\n');
   console.log('（按 q 可随时退出）\n');
-  if (DEBUG) console.log('🔧 Debug 模式：工作区允许 scripts/release.js 的修改\n');
+  if (DEBUG) console.log('🔧 Debug 模式：工作区允许 scripts/release/ 的修改\n');
 
   runPreChecks();
 
