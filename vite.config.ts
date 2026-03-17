@@ -1,4 +1,3 @@
-import { codecovVitePlugin } from "@codecov/vite-plugin";
 import { resolve } from 'path';
 import { defineConfig } from "vite";
 import dts from 'vite-plugin-dts';
@@ -37,12 +36,7 @@ export default defineConfig(({ mode }) => {
         rollupTypes: true,
         exclude: ['demo', 'docs', 'public', 'e2e', 'vitest.e2e.config.ts', '**/__test__/**'],
         aliasesExclude: ['vue']
-      }),
-      codecovVitePlugin({
-        enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
-        bundleName: "vue-asyncx",
-        uploadToken: process.env.CODECOV_TOKEN,
-      }),
+      })
     ],
   }
 }) as any

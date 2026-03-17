@@ -24,6 +24,7 @@ jobs:
         run: pnpm run test:unit:coverage
 
       - name: Upload Coverage to Codecov
+        if: failure()
         uses: codecov/codecov-action@v5
         with:
           report_type: coverage
@@ -44,8 +45,6 @@ jobs:
 
       - name: Run Build and E2E Test
         run: pnpm run run:build-test:e2e
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload E2E Report
         if: failure()
