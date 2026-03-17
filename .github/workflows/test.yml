@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 1. 单元测试与覆盖率
+  # 1. 单元测试
   test_unit:
     runs-on: ubuntu-latest
     steps:
@@ -21,6 +21,25 @@ jobs:
         uses: ./.github/actions/install
 
       - name: Run Unit Test
+        run: pnpm run test:unit
+
+      - name: Upload Test Results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          report_type: test_results
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: .test-report.vue3.junit.xml,.test-report.vue2.junit.xml
+          fail_ci_if_error: false
+
+  # 2. 单元测试覆盖率
+  test_unit_coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Dependencies
+        uses: ./.github/actions/install
+
+      - name: Run Unit Test Coverage
         run: pnpm run test:unit:coverage
 
       - name: Upload Coverage to Codecov
@@ -30,13 +49,7 @@ jobs:
           files: coverage/merged/lcov.info
           fail_ci_if_error: false
 
-      - name: Upload Test Results to Codecov
-        uses: codecov/test-results-action@v1
-        with:
-          files: test-report.vue3.junit.xml,test-report.vue2.junit.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-  # 2. E2E 测试
+  # 3. E2E 测试
   test_e2e:
     runs-on: ubuntu-latest
     steps:

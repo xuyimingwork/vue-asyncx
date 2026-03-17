@@ -11,15 +11,9 @@ export default defineConfig((env) => {
         name: 'unit',
         root: fileURLToPath(new URL('./src', import.meta.url)),
         setupFiles: [fileURLToPath(new URL('./src/__test__/setup.ts', import.meta.url))],
-        reporters: [
-          'default',
-          ...(process.env.GITHUB_ACTIONS === 'true' ? [
-            'github-actions',
-            'junit'
-          ] : []),
-        ],
+        reporters: ['default', 'github-actions', 'junit'],
         outputFile: {
-          junit: `test-report.${IN_VUE2 ? 'vue2' : 'vue3'}.junit.xml`,
+          junit: fileURLToPath(new URL(`.test-report.${IN_VUE2 ? 'vue2' : 'vue3'}.junit.xml`, import.meta.url)),
         },
         typecheck: {
           /**
