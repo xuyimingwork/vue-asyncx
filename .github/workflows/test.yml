@@ -23,12 +23,18 @@ jobs:
       - name: Run Unit Test
         run: pnpm run test:unit:coverage
 
-      - name: Upload to Codecov
+      - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/merged/lcov.info
           fail_ci_if_error: false
+
+      - name: Upload Test Results to Codecov
+        uses: codecov/test-results-action@v1
+        with:
+          files: test-report.vue3.junit.xml,test-report.vue2.junit.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   # 2. E2E 测试
   test_e2e:
@@ -43,6 +49,8 @@ jobs:
 
       - name: Run Build and E2E Test
         run: pnpm run run:build-test:e2e
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload E2E Report
         if: failure()

@@ -11,6 +11,16 @@ export default defineConfig((env) => {
         name: 'unit',
         root: fileURLToPath(new URL('./src', import.meta.url)),
         setupFiles: [fileURLToPath(new URL('./src/__test__/setup.ts', import.meta.url))],
+        reporters: [
+          'default',
+          ...(process.env.GITHUB_ACTIONS === 'true' ? [
+            'github-actions',
+            'junit'
+          ] : []),
+        ],
+        outputFile: {
+          junit: `test-report.${IN_VUE2 ? 'vue2' : 'vue3'}.junit.xml`,
+        },
         typecheck: {
           /**
            * 由于源码没有使用 vue-demi，导致 vue-asyncx 的映射类型不对。
