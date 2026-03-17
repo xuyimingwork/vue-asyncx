@@ -3,12 +3,6 @@
  */
 import { confirm, select } from '@inquirer/prompts';
 import {
-  bumpVersion,
-  getPreReleaseType,
-  isPreRelease,
-  PRERELEASE_NEXT_STAGE,
-} from './version.js';
-import {
   changelogHasVersion,
   getChangelogFirstBlock,
   isFirstBlockPlaceholderOrEmpty,
@@ -18,6 +12,12 @@ import {
 } from './changelog.js';
 import { getCommitsSinceLastTag, getLatestTag } from './git.js';
 import { exitSuccess } from './shell.js';
+import {
+  bumpVersion,
+  getPreReleaseType,
+  isPreRelease,
+  PRERELEASE_NEXT_STAGE,
+} from './version.js';
 
 export async function askTargetVersion(baseVersion, isPreRelease) {
   return isPreRelease ? askPreReleaseVersion(baseVersion) : askStableVersion(baseVersion);
@@ -111,6 +111,7 @@ export async function handleChangelog(targetVersion) {
         console.log(
           '📋 AI 提示词已复制到剪贴板，请粘贴到 AI 对话中获取 CHANGELOG 内容。'
         );
+        console.log('  豆包：https://www.doubao.com/chat/');
       } else {
         console.log('⚠️ 无法复制到剪贴板，请手动从 buildAiPrompt 获取提示词。');
       }
