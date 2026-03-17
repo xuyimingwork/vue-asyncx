@@ -63,7 +63,7 @@
     "check:types": "attw ./dist-pack/vue-asyncx.tgz",
     "check:all": "run-s run:build-pack check:exports check:types",
     "prepublishOnly": "run-s check:all",
-    "release": "node scripts/release.js"
+    "release": "node scripts/release"
   },
   "keywords": [
     "vue",
