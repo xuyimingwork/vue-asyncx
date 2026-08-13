@@ -5,7 +5,7 @@ export default defineConfig({
 
   lang: 'zh-CN',
   title: 'Vue Asyncx',
-  description: '让异步像写诗的 Vue 3 / 2.7 组合式工具',
+  description: '语义化的异步工具库',
   
   themeConfig: {
     nav: [

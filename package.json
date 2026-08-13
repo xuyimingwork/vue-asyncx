@@ -1,7 +1,7 @@
 {
   "name": "vue-asyncx",
   "version": "1.11.3",
-  "description": "让异步像写诗的 Vue 3 组合式工具库",
+  "description": "语义化的 Vue 异步组合式工具库",
   "type": "module",
   "sideEffects": false,
   "files": [

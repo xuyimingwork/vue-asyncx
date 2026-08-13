@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Vue Asyncx
-  text: 让异步像写诗的 <br />Vue 3 / 2.7 组合式工具库
+  text: 语义化的异步工具库
   tagline: 不重复、有语义<br />天然防竞态、自由可扩展 
   actions:
     - theme: brand

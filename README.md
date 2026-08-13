@@ -1,5 +1,6 @@
-让异步像写诗的 Vue 3 / 2.7 组合式工具库   [![Test Status](https://github.com/xuyimingwork/vue-asyncx/actions/workflows/test.yml/badge.svg)](https://github.com/xuyimingwork/vue-asyncx/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/xuyimingwork/vue-asyncx/graph/badge.svg)](https://codecov.io/gh/xuyimingwork/vue-asyncx)
+语义化的 Vue 异步组合式工具库   [![Test Status](https://github.com/xuyimingwork/vue-asyncx/actions/workflows/test.yml/badge.svg)](https://github.com/xuyimingwork/vue-asyncx/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/xuyimingwork/vue-asyncx/graph/badge.svg)](https://codecov.io/gh/xuyimingwork/vue-asyncx)
 
+[English](./README.en.md) | **简体中文**
 
 **不重复、有语义，天然防竞态、自由可扩展**
 
