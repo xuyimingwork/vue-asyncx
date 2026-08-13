@@ -59,9 +59,9 @@ jobs:
       - name: Run Test
         run: pnpm run test:all
       
-      # Trusted Publisher 要求 npm CLI 11.5.1+
+      # Trusted Publisher 要求 npm CLI 11.5.1+；钉在 v11 最新，避免 npm@latest 升到 v12 导致环境不匹配
       - name: Setup NPM
-        run: npm install -g npm@latest
+        run: npm install -g npm@11
 
       # prepublishOnly 阶段会再次做构建与产物验证
       # --provenance: 生成供应链溯源证明，Trusted Publisher 推荐显式指定
