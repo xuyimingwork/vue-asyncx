@@ -1,6 +1,6 @@
 {
   "name": "vue-asyncx",
-  "version": "1.11.3",
+  "version": "1.11.4",
   "description": "语义化的 Vue 异步组合式工具库",
   "type": "module",
   "sideEffects": false,
