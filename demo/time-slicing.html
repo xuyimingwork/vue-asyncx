@@ -2,7 +2,8 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- iOS 聚焦字号 < 16px 的输入框时会自动放大页面，禁用缩放来规避 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>时间切片性能优化</title>
   
   <!-- Vue 3 -->
@@ -289,8 +290,24 @@
         const renderEndTime = ref(null);
 
         // 数据总量可调：量越大，非优化版一次性渲染的卡顿/冻结越明显
+        // 通过地址 query 参数控制（如 ?count=30000），切换时重新加载页面，
+        // 保证每次切换都是从零开始的干净渲染，避免残留状态干扰性能对比
         const totalCountOptions = [3000, 10000, 30000];
-        const totalCount = ref(3000);
+
+        // 从 URL 读取初始数据量，非法值回退到默认的 3000
+        function getTotalCountFromUrl() {
+          const count = Number(new URLSearchParams(location.search).get('count'));
+          return totalCountOptions.includes(count) ? count : totalCountOptions[0];
+        }
+
+        const totalCount = ref(getTotalCountFromUrl());
+
+        // 切换数据量：写回 query 参数后刷新页面
+        function switchTotalCount(count) {
+          const url = new URL(location.href);
+          url.searchParams.set('count', String(count));
+          location.href = url.href;
+        }
 
         // computed 会缓存，只有在 totalCount 变化时才重新生成数据
         const allItems = computed(() => generateItems(totalCount.value));
@@ -356,8 +373,8 @@
         // 用于存储 watcher 停止函数
         let currentWatcher = null;
         
-        // 监听搜索查询、优化开关、数据量变化
-        watch([searchQuery, useTimeSlicing, totalCount], () => {
+        // 监听搜索查询、优化开关变化
+        watch([searchQuery, useTimeSlicing], () => {
           // 停止之前的 watcher
           if (currentWatcher) {
             currentWatcher();
@@ -408,6 +425,7 @@
           useTimeSlicing,
           totalCount,
           totalCountOptions,
+          switchTotalCount,
           currentList,
           currentLoading,
           firstRenderTime,
@@ -419,7 +437,7 @@
         <div class="container">
           <div class="header-row">
             <h1>时间切片性能优化 Demo</h1>
-            <el-radio-group v-model="totalCount" size="small">
+            <el-radio-group :model-value="totalCount" size="small" @change="switchTotalCount">
               <el-radio-button
                 v-for="count in totalCountOptions"
                 :key="count"
