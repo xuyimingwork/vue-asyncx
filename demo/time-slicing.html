@@ -55,8 +55,17 @@
       flex-direction: column;
     }
     
-    h1 {
+    /* 标题与数据量选项放在同一行 */
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
       margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin-bottom: 0;
       color: #333;
     }
     
@@ -162,7 +171,7 @@
     const { ElInput, ElButton, ElRadioGroup, ElRadioButton } = ElementPlus;
     const { useAsyncData, getAsyncDataContext } = VueAsyncx;
     
-    // 生成 2000 个测试数据
+    // 生成指定数量的测试数据
     function generateItems(count = 2000) {
       const items = [];
       const names = ['张三', '李四', '王五', '赵六', '钱七', '孙八', '周九', '吴十'];
@@ -278,7 +287,13 @@
         const useTimeSlicing = ref(false);
         const renderStartTime = ref(null);
         const renderEndTime = ref(null);
-        const allItems = generateItems(3000);
+
+        // 数据总量可调：量越大，非优化版一次性渲染的卡顿/冻结越明显
+        const totalCountOptions = [3000, 10000, 30000];
+        const totalCount = ref(3000);
+
+        // computed 会缓存，只有在 totalCount 变化时才重新生成数据
+        const allItems = computed(() => generateItems(totalCount.value));
         
         // 非优化版本：直接赋值
         const { 
@@ -286,7 +301,7 @@
           queryNormalList, 
           queryNormalListLoading 
         } = useAsyncData('normalList', async (query) => {
-          const filtered = searchItems(allItems, query);
+          const filtered = searchItems(allItems.value, query);
           return filtered;
         });
         
@@ -319,7 +334,7 @@
           return filtered;
         });
         const timeSlicingList = computed(() => commonTimeSlicingList.value);
-        const queryTimeSlicingList = (query) => queryCommonTimeSlicingList(searchItems(allItems, query), 20)
+        const queryTimeSlicingList = (query) => queryCommonTimeSlicingList(searchItems(allItems.value, query), 20)
         
         // 当前使用的列表
         const currentList = computed(() => {
@@ -341,8 +356,8 @@
         // 用于存储 watcher 停止函数
         let currentWatcher = null;
         
-        // 监听搜索查询变化
-        watch([searchQuery, useTimeSlicing], () => {
+        // 监听搜索查询、优化开关、数据量变化
+        watch([searchQuery, useTimeSlicing, totalCount], () => {
           // 停止之前的 watcher
           if (currentWatcher) {
             currentWatcher();
@@ -391,6 +406,8 @@
         return {
           searchQuery,
           useTimeSlicing,
+          totalCount,
+          totalCountOptions,
           currentList,
           currentLoading,
           firstRenderTime,
@@ -400,7 +417,16 @@
       },
       template: `
         <div class="container">
-          <h1>时间切片性能优化 Demo</h1>
+          <div class="header-row">
+            <h1>时间切片性能优化 Demo</h1>
+            <el-radio-group v-model="totalCount" size="small">
+              <el-radio-button
+                v-for="count in totalCountOptions"
+                :key="count"
+                :label="count"
+              >{{ count }}</el-radio-button>
+            </el-radio-group>
+          </div>
           
           <div class="controls">
             <el-input
@@ -418,7 +444,7 @@
           <div class="render-time" :class="{ 'has-time': firstRenderTime }">
             <span v-if="firstRenderTime">渲染时间: {{ firstRenderTime }}</span>
             <span v-else>等待渲染...</span>
-            <span class="item-count">列表项数量: <strong>{{ currentList?.length || 0 }}</strong> / 3000</span>
+            <span class="item-count">列表项数量: <strong>{{ currentList?.length || 0 }}</strong> / {{ totalCount }}</span>
           </div>
           
           <div class="list-container">
