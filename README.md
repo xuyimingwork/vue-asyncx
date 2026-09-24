@@ -2,11 +2,11 @@
 
 # Vue Asyncx
 
+[English](./README.en.md) | **简体中文**
+
 **语义化的 Vue 异步组合式工具库**
 
 不重复、有语义，天然防竞态、自由可扩展
-
-[English](./README.en.md) | **简体中文**
 
 [![npm](https://img.shields.io/npm/v/vue-asyncx)](https://www.npmjs.com/package/vue-asyncx)
 [![npm downloads](https://img.shields.io/npm/dm/vue-asyncx)](https://www.npmjs.com/package/vue-asyncx)

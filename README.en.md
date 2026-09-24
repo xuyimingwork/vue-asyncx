@@ -2,11 +2,11 @@
 
 # Vue Asyncx
 
+**English** | [简体中文](./README.md)
+
 **Semantic async composables for Vue**
 
 No duplication, semantically named, race-condition-safe by default, freely extensible
-
-**English** | [简体中文](./README.md)
 
 [![npm](https://img.shields.io/npm/v/vue-asyncx)](https://www.npmjs.com/package/vue-asyncx)
 [![npm downloads](https://img.shields.io/npm/dm/vue-asyncx)](https://www.npmjs.com/package/vue-asyncx)
