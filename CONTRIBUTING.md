@@ -61,6 +61,18 @@
 - `pnpm build`：构建项目
 - `pnpm lint`：运行代码检查
 - `pnpm lint:fix`：自动修复代码问题
+- `pnpm docs:dev`：本地启动文档站（含在线 Demo）
+- `pnpm docs:build`：构建文档站产物，用于部署
+
+### 在线 Demo
+
+`demo/` 下的 HTML 是唯一维护入口，`public/demo-*.html` 是自动生成的产物（已加入 `.gitignore`，请勿直接修改）：
+
+- 源文件：`demo/xxx.html` → 产物：`public/demo-xxx.html`，访问路径 `/demo-xxx.html`
+- 在 `demo/` 下新增 HTML 后，执行 `pnpm docs:dev` / `pnpm docs:build` 会自动生成，无需手工复制
+- 源文件中可以引用占位符，由 `scripts/build-demos.js` 按模式替换：
+  - `__VUE_ASYNCX_URL__`：本地开发（`pnpm docs:dev`）替换为 `/dist/vue-asyncx.umd.cjs` 便于调试源码；构建部署时替换为 CDN 上已发布的版本
+- 调试源码前请先执行 `pnpm build`；若 `dist/` 不存在，脚本会在生成时提示并临时改用 CDN 地址
 
 ## 三、开发流程
 

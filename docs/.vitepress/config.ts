@@ -65,6 +65,14 @@ export default defineConfig({
 
   vite: {
     // 忽略根路径下的配置文件
-    configFile: false
+    configFile: false,
+    server: {
+      watch: {
+        // demo/ 里是 public/demo-*.html 的源文件（见 scripts/build-demos.js）。
+        // 真正被访问的是 public/ 下的产物，所以只需在产物更新后 reload 一次；
+        // 若在这里也监听 demo/，源码一改会先用旧产物 reload 一次，造成闪烁。
+        ignored: ['**/demo/**'],
+      },
+    },
   }
 })

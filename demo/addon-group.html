@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>withAddonGroup Demo</title>
   <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
-  <script src="/dist/vue-asyncx.umd.cjs"></script>
+  <!-- vue-asyncx：占位符由 scripts/build-demos.js 替换，本地开发指向 /dist 构建产物，线上指向 CDN -->
+  <script src="__VUE_ASYNCX_URL__"></script>
   <style>
     * {
       margin: 0;
@@ -124,8 +125,7 @@
       });
     }
 
-    // 加载 vue-asyncx 库
-    // 方式1: 使用本地构建文件（需要先运行 npm run build）
+    // vue-asyncx 已通过 <script src="__VUE_ASYNCX_URL__"> 加载（构建时替换为本地产物或 CDN）
     const { useAsync, withAddonGroup } = VueAsyncx;
 
     createApp({

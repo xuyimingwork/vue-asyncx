@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>时间切片性能优化 Demo</title>
+  <title>时间切片性能优化</title>
   
   <!-- Vue 3 -->
   <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
@@ -15,8 +15,8 @@
   <!-- Fuse.js -->
   <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
   
-  <!-- vue-asyncx (本地构建文件) -->
-  <script src="/dist/vue-asyncx.umd.cjs"></script>
+  <!-- vue-asyncx：占位符由 scripts/build-demos.js 替换，本地开发指向 /dist 构建产物，线上指向 CDN -->
+  <script src="__VUE_ASYNCX_URL__"></script>
   
   <style>
     * {
@@ -25,19 +25,34 @@
       box-sizing: border-box;
     }
     
+    html,
+    body {
+      height: 100%;
+    }
+    
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       padding: 20px;
       background: #f5f5f5;
+      overflow: hidden;
+    }
+    
+    /* #app 是 Vue 的挂载点，也是 .container 的父元素：
+       不显式给高度，.container 的 height: 100% 就会因父级高度为 auto 而失效 */
+    #app {
+      height: 100%;
     }
     
     .container {
       max-width: 1200px;
+      height: 100%;
       margin: 0 auto;
       background: white;
       padding: 30px;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
     }
     
     h1 {
@@ -59,6 +74,10 @@
     }
     
     .render-time {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
       padding: 8px 16px;
       background: #f0f0f0;
       border-radius: 4px;
@@ -72,8 +91,14 @@
       font-weight: 500;
     }
     
+    .render-time .item-count {
+      color: #666;
+      font-weight: 400;
+    }
+    
     .list-container {
-      max-height: 600px;
+      flex: 1;
+      min-height: 0;
       overflow-y: auto;
       border: 1px solid #e0e0e0;
       border-radius: 4px;
@@ -126,15 +151,6 @@
       text-align: center;
       padding: 40px;
       color: #999;
-    }
-    
-    .stats {
-      margin-top: 16px;
-      padding: 12px;
-      background: #f9f9f9;
-      border-radius: 4px;
-      font-size: 14px;
-      color: #666;
     }
   </style>
 </head>
@@ -274,22 +290,21 @@
           return filtered;
         });
         
-        // 优化版本：时间切片
+        // 通用时间切片方案
         const { 
-          timeSlicingList, 
-          queryTimeSlicingList, 
-          queryTimeSlicingListLoading 
-        } = useAsyncData('timeSlicingList', async (query) => {
+          commonTimeSlicingList, 
+          queryCommonTimeSlicingList,
+          queryCommonTimeSlicingListLoading,
+        } = useAsyncData('commonTimeSlicingList', async (filtered, size = 50) => {
           const { getData, updateData } = getAsyncDataContext();
           
           // 先清空列表
           updateData([]);
           
-          const filtered = searchItems(allItems, query);
-          const chunkSize = 50;
+          const chunkSize = size;
           const total = filtered.length;
           
-          // 分批更新，每次 50 个
+          // 分批更新
           for (let i = 0; i < total; i += chunkSize) {
             const chunk = filtered.slice(i, i + chunkSize);
             const currentList = getData() || [];
@@ -303,6 +318,8 @@
           
           return filtered;
         });
+        const timeSlicingList = computed(() => commonTimeSlicingList.value);
+        const queryTimeSlicingList = (query) => queryCommonTimeSlicingList(searchItems(allItems, query), 20)
         
         // 当前使用的列表
         const currentList = computed(() => {
@@ -310,7 +327,7 @@
         });
         
         const currentLoading = computed(() => {
-          return useTimeSlicing.value ? queryTimeSlicingListLoading.value : queryNormalListLoading.value;
+          return useTimeSlicing.value ? queryCommonTimeSlicingListLoading.value : queryNormalListLoading.value;
         });
         
         // 首次渲染时间
@@ -388,7 +405,7 @@
           <div class="controls">
             <el-input
               v-model="searchQuery"
-              placeholder="输入关键词进行模糊搜索..."
+              placeholder="输入关键词进行模糊搜索（逐个输入example后逐个删除）..."
               class="search-input"
               clearable
             />
@@ -401,6 +418,7 @@
           <div class="render-time" :class="{ 'has-time': firstRenderTime }">
             <span v-if="firstRenderTime">渲染时间: {{ firstRenderTime }}</span>
             <span v-else>等待渲染...</span>
+            <span class="item-count">列表项数量: <strong>{{ currentList?.length || 0 }}</strong> / 3000</span>
           </div>
           
           <div class="list-container">
@@ -448,13 +466,6 @@
                 </div>
               </div>
             </div>
-          </div>
-          
-          <div class="stats">
-            <div>当前模式: <strong>{{ useTimeSlicing ? '时间切片版' : '非优化版' }}</strong></div>
-            <div>搜索关键词: <strong>{{ searchQuery || '无' }}</strong></div>
-            <div>列表项数量: <strong>{{ currentList?.length || 0 }}</strong> / 3000</div>
-            <div v-if="currentLoading">状态: <strong>加载中...</strong></div>
           </div>
         </div>
       `
